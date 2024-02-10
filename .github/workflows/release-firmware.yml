@@ -27,6 +27,7 @@ jobs:
         with: 
           name: firmware-esp32dev
           path: "*-esp32dev.bin"
+
   release:
     needs: build
     runs-on: ubuntu-latest
