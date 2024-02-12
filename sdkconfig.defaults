@@ -1,0 +1,3 @@
+CONFIG_GITHUB_HOSTNAME="api.github.com"
+CONFIG_GITHUB_OWNER="ProjectBarks"
+CONFIG_GITHUB_REPO="subway-pcb"

@@ -1,0 +1,3 @@
+[submodule "lib/esp_ghota"]
+	path = lib/esp_ghota
+	url = git@github.com:ProjectBarks/esp_ghota.git
