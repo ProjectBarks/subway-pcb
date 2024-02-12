@@ -1,3 +1,7 @@
 [submodule "lib/esp_ghota"]
 	path = lib/esp_ghota
 	url = git@github.com:ProjectBarks/esp_ghota.git
+[submodule "lib/esp32-wifi-manager"]
+	path = lib/esp32-wifi-manager
+	url = git@github.com:huardti/esp32-wifi-manager.git
+	branch = huardti/idf-5.X-support
