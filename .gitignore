@@ -1,0 +1,26 @@
+# Captures
+mcp/captures/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config (contains local camera setup)
+mcp/config.json
+
+# Test scripts
+mcp/test_*.py
+mcp/sol_*.py
+mcp/fast_test.py
+mcp/benchmark.py
+mcp/a[0-9]*.py
+
+# Subprojects with their own git repos
+firmware/
+mapper/ui/
