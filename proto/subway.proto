@@ -1,0 +1,66 @@
+syntax = "proto3";
+package subway;
+
+option go_package = "github.com/ProjectBarks/subway-pcb/server/gen/subwaypb";
+
+enum Route {
+  ROUTE_UNKNOWN = 0;
+  ROUTE_1 = 1;
+  ROUTE_2 = 2;
+  ROUTE_3 = 3;
+  ROUTE_4 = 4;
+  ROUTE_5 = 5;
+  ROUTE_6 = 6;
+  ROUTE_7 = 7;
+  ROUTE_A = 8;
+  ROUTE_B = 9;
+  ROUTE_C = 10;
+  ROUTE_D = 11;
+  ROUTE_E = 12;
+  ROUTE_F = 13;
+  ROUTE_G = 14;
+  ROUTE_J = 15;
+  ROUTE_L = 16;
+  ROUTE_M = 17;
+  ROUTE_N = 18;
+  ROUTE_Q = 19;
+  ROUTE_R = 20;
+  ROUTE_W = 21;
+  ROUTE_Z = 22;
+  ROUTE_S = 23;   // 42nd St Shuttle
+  ROUTE_FS = 24;  // Franklin Ave Shuttle
+  ROUTE_GS = 25;  // Grand Central Shuttle
+  ROUTE_SI = 26;  // Staten Island Railway
+}
+
+enum TrainStatus {
+  STATUS_NONE = 0;
+  STOPPED_AT = 1;
+  INCOMING_AT = 2;
+  IN_TRANSIT_TO = 3;
+}
+
+message Train {
+  Route route = 1;
+  TrainStatus status = 2;
+}
+
+message Station {
+  string stop_id = 1;         // MTA parent stop ID: "101", "A02", etc.
+  repeated Train trains = 2;  // active trains at this station
+}
+
+message SubwayState {
+  uint64 timestamp = 1;         // Unix timestamp
+  uint32 sequence = 2;          // incrementing frame counter
+  repeated Station stations = 3; // only stations with active trains (sparse)
+}
+
+// Pre-rendered pixel frame for dumb display clients.
+// Server does all mapping/coloring; client just writes bytes to LEDs.
+message PixelFrame {
+  uint64 timestamp = 1;         // Unix timestamp
+  uint32 sequence = 2;          // incrementing frame counter
+  uint32 led_count = 3;         // number of LEDs (476)
+  bytes pixels = 4;             // RGB data, 3 bytes per LED, in strip order
+}
