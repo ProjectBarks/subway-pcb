@@ -18,9 +18,9 @@ import (
 
 // Route color table (RGB)
 var routeColors = map[pb.Route][3]uint8{
-	pb.Route_ROUTE_1:  {238, 53, 46},
-	pb.Route_ROUTE_2:  {238, 53, 46},
-	pb.Route_ROUTE_3:  {238, 53, 46},
+	pb.Route_ROUTE_1:  {255, 0, 0},
+	pb.Route_ROUTE_2:  {255, 0, 0},
+	pb.Route_ROUTE_3:  {255, 0, 0},
 	pb.Route_ROUTE_4:  {0, 147, 60},
 	pb.Route_ROUTE_5:  {0, 147, 60},
 	pb.Route_ROUTE_6:  {0, 147, 60},
@@ -50,7 +50,9 @@ var routeColors = map[pb.Route][3]uint8{
 var stripSizes = [9]int{97, 102, 55, 81, 70, 21, 22, 19, 11}
 
 const totalLEDs = 478
-const globalBrightness = 8.0 / 255.0
+// Send full-brightness colors — firmware handles dimming locally
+// This makes the wire data more resilient to WS2812B bit flips
+const globalBrightness = 1.0
 
 // LEDMap maps flat LED index -> station ID
 type LEDMap struct {

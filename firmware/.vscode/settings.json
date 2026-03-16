@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "esp_ghota.h": "c",
+        "esp_wifi.h": "c",
+        "task.h": "c"
+    }
+}

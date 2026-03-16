@@ -4,7 +4,7 @@
  */
 
 const board = new Board('c', 'tooltip');
-board.brightnessBoost = 255.0 / 4.0;
+board.brightnessBoost = 1.0; // Server now sends full brightness
 board.boardSvgOpacity = 0.07;
 
 let lastSeq = 0;
