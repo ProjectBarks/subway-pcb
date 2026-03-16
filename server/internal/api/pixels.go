@@ -50,7 +50,7 @@ var routeColors = map[pb.Route][3]uint8{
 var stripSizes = [9]int{97, 102, 55, 81, 70, 21, 22, 19, 11}
 
 const totalLEDs = 478
-const globalBrightness = 20.0 / 255.0
+const globalBrightness = 8.0 / 255.0
 
 // LEDMap maps flat LED index -> station ID
 type LEDMap struct {

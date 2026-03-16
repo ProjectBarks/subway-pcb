@@ -80,8 +80,8 @@ func (a *Aggregator) rebuildLocked() {
 				continue
 			}
 
-			// Only show trains at stations (STOPPED_AT) or very close (INCOMING_AT)
-			if u.Status != pb.TrainStatus_STOPPED_AT && u.Status != pb.TrainStatus_INCOMING_AT {
+			// Only show trains actually at a station
+			if u.Status != pb.TrainStatus_STOPPED_AT {
 				continue
 			}
 

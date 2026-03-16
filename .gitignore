@@ -1,5 +1,9 @@
-# Captures
-mcp/captures/
+# Build artifacts
+.pio/
+*.bin
+*.elf
+*.map
+sdkconfig.esp32dev
 
 # Python
 __pycache__/
@@ -11,17 +15,25 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Config (contains local camera setup)
-mcp/config.json
+# Logs
+serial.log
+*.log
 
-# Test scripts
+# MCP captures & config
+mcp/captures/
+mcp/config.json
 mcp/test_*.py
 mcp/sol_*.py
 mcp/fast_test.py
 mcp/benchmark.py
 mcp/a[0-9]*.py
 
-# Subprojects with their own git repos
-firmware/
-mapper/ui/
-.pio
+# Server binary
+server/subway-server
+
+# Managed components (downloaded at build time)
+**/managed_components/
+**/dependencies.lock
+
+# WiFi credentials
+wifi.txt
