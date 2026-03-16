@@ -24,3 +24,4 @@ mcp/a[0-9]*.py
 # Subprojects with their own git repos
 firmware/
 mapper/ui/
+.pio

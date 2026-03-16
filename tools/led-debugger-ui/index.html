@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<title>LED Debugger</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a1a; color: #999; font-family: 'JetBrains Mono', monospace; overflow: hidden; height: 100vh; }
+  #header { position: fixed; top: 0; left: 0; right: 0; height: 32px; background: rgba(5,5,5,0.95);
+    border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; z-index: 100; font-size: 11px; }
+  .title { color: #e04030; font-weight: 700; letter-spacing: 2px; }
+  #controls { display: flex; gap: 8px; align-items: center; }
+  #controls button { background: #333; color: #ccc; border: 1px solid #555; padding: 2px 10px;
+    border-radius: 3px; cursor: pointer; font-family: inherit; font-size: 10px; }
+  #controls button:hover { background: #444; }
+  #info { color: #c9a830; }
+  #canvas-wrap { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; }
+  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  #tooltip { position: fixed; pointer-events: none; background: rgba(10,10,10,0.96);
+    border: 1px solid #333; padding: 5px 9px; font-size: 10px; color: #ddd;
+    display: none; z-index: 200; border-radius: 3px; }
+  .sid { color: #e04030; font-weight: 700; }
+</style>
+</head><body>
+<div id="header">
+  <span class="title">LED DEBUGGER</span>
+  <div id="controls">
+    <input type="color" id="color" value="#ffffff" style="width:24px;height:20px;border:none;cursor:pointer">
+    <button onclick="clearAll()">Clear All</button>
+    <span id="info">Click an LED to light it</span>
+  </div>
+</div>
+<div id="canvas-wrap"><canvas id="c"></canvas></div>
+<div id="tooltip"></div>
+
+<script src="/static/board.js"></script>
+<script>
+const board = new Board('c', 'tooltip');
+board.boardSvgOpacity = 0.07;
+const info = document.getElementById('info');
+const litLeds = new Set();
+
+board.renderLed = (ctx, x, y, idx, r, g, b, isHovered) => {
+  if (litLeds.has(idx)) {
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.beginPath();
+    ctx.arc(x, y, board.ledRadius * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = isHovered ? 'rgba(200,200,200,0.6)' : 'rgba(50,50,40,0.4)';
+    ctx.beginPath();
+    ctx.arc(x, y, board.ledRadius * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (isHovered) {
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y, board.ledRadius + 4, 0, Math.PI * 2); ctx.stroke();
+  }
+};
+
+board.onClick = async (idx, led, strip, pixel) => {
+  const hex = document.getElementById('color').value;
+  const r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), b = parseInt(hex.substr(5,2),16);
+  const resp = await fetch('/api/led', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({action:'on', strip, pixel, r, g, b})}).then(r=>r.json());
+  if (resp.ok) {
+    board.setPixel(idx, r, g, b); litLeds.add(idx);
+    info.textContent = `Lit strip ${strip} px ${pixel} (${led[2]||'unmapped'})`;
+  } else {
+    info.textContent = `Error: ${resp.resp||'failed'}`;
+  }
+};
+
+async function clearAll() {
+  await fetch('/api/led', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({action:'clear'})});
+  board.clearPixels(); litLeds.clear(); info.textContent = 'Cleared';
+}
+
+board.init('/static/leds.json', '/static/board.svg').then(() => board.startDrawLoop());
+</script>
+</body></html>
