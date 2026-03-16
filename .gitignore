@@ -37,3 +37,4 @@ server/subway-server
 
 # WiFi credentials
 wifi.txt
+*.lock
