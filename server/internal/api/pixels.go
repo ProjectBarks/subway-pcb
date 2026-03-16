@@ -47,10 +47,10 @@ var routeColors = map[pb.Route][3]uint8{
 }
 
 // Strip sizes in order
-var stripSizes = [9]int{97, 102, 54, 80, 70, 21, 22, 19, 11}
+var stripSizes = [9]int{97, 102, 55, 81, 70, 21, 22, 19, 11}
 
-const totalLEDs = 476
-const globalBrightness = 80.0 / 255.0
+const totalLEDs = 478
+const globalBrightness = 20.0 / 255.0
 
 // LEDMap maps flat LED index -> station ID
 type LEDMap struct {
@@ -106,8 +106,8 @@ func (pr *PixelRenderer) GetFrame(agg *mta.Aggregator) ([]byte, error) {
 	pr.mu.Lock()
 	defer pr.mu.Unlock()
 
-	// Only re-render at most every 1 second
-	if pr.cached != nil && time.Since(pr.cachedAt) < 1*time.Second {
+	// Cache for 5 seconds — MTA feeds only update every ~15s anyway
+	if pr.cached != nil && time.Since(pr.cachedAt) < 5*time.Second {
 		return pr.cached, nil
 	}
 

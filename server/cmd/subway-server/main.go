@@ -19,7 +19,7 @@ func main() {
 	port := flag.Int("port", 8080, "HTTP server port")
 	pollInterval := flag.Duration("poll-interval", 15*time.Second, "Feed poll interval")
 	ledMapPath := flag.String("led-map", "led_map.json", "Path to led_map.json")
-	visualizerPath := flag.String("visualizer", "visualizer.html", "Path to visualizer HTML (empty to disable)")
+	_ = flag.String("visualizer", "", "deprecated")
 	flag.Parse()
 
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
@@ -43,7 +43,7 @@ func main() {
 	pixelRenderer := api.NewPixelRenderer(ledMap)
 
 	// Set up HTTP server.
-	apiServer := api.NewServer(aggregator, pixelRenderer, *visualizerPath)
+	apiServer := api.NewServer(aggregator, pixelRenderer)
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", *port),
 		Handler:      apiServer.Handler(),

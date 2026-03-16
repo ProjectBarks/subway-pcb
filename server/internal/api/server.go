@@ -21,7 +21,7 @@ type Server struct {
 
 // NewServer creates a new API server backed by the given aggregator.
 // If visualizerPath is non-empty, GET / will serve that HTML file.
-func NewServer(aggregator *mta.Aggregator, pixelRenderer *PixelRenderer, visualizerPath string) *Server {
+func NewServer(aggregator *mta.Aggregator, pixelRenderer *PixelRenderer) *Server {
 	s := &Server{
 		aggregator:    aggregator,
 		pixelRenderer: pixelRenderer,
@@ -31,26 +31,17 @@ func NewServer(aggregator *mta.Aggregator, pixelRenderer *PixelRenderer, visuali
 	s.mux.HandleFunc("/api/v1/state", s.handleState)
 	s.mux.HandleFunc("/api/v1/pixels", s.handlePixels)
 	s.mux.HandleFunc("/health", s.handleHealth)
-	s.mux.HandleFunc("/board.jpg", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "board.jpg")
+	// Serve static files
+	staticDir := http.Dir("static")
+	s.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(staticDir)))
+	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, "static/index.html")
 	})
-	s.mux.HandleFunc("/board.svg", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "board.svg")
-	})
-	s.mux.HandleFunc("/board_paths.json", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "board_paths.json")
-	})
-	if visualizerPath != "" {
-		vp := visualizerPath
-		s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/" {
-				http.NotFound(w, r)
-				return
-			}
-			http.ServeFile(w, r, vp)
-		})
-		log.Printf("api: serving visualizer at / from %s", visualizerPath)
-	}
+	log.Printf("api: serving static files from static/")
 	return s
 }
 

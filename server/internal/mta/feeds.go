@@ -125,11 +125,13 @@ func extractUpdates(feed *gtfs.FeedMessage) []trainUpdate {
 			}
 
 			status := MapVehicleStatus(vp.GetCurrentStatus())
+			tripID := vp.GetTrip().GetTripId()
 
 			updates = append(updates, trainUpdate{
 				StopID: stopID,
 				Route:  route,
 				Status: status,
+				TripID: tripID,
 			})
 		}
 	}

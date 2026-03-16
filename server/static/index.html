@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Subway PCB</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a1a;
+    color: #999;
+    font-family: 'JetBrains Mono', monospace;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+  #header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 32px;
+    background: rgba(5,5,5,0.95);
+    border-bottom: 1px solid #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 100;
+    font-size: 11px;
+  }
+  .title { color: #c9a830; font-weight: 700; letter-spacing: 2px; font-size: 11px; }
+  #status { display: flex; align-items: center; gap: 10px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #333; }
+  .dot.ok { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+  .dot.err { background: #f44; }
+  #canvas-wrap { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #tooltip {
+    position: fixed; pointer-events: none;
+    background: rgba(10,10,10,0.96);
+    border: 1px solid #333;
+    padding: 5px 9px;
+    font-size: 10px;
+    color: #ddd;
+    display: none;
+    z-index: 200;
+    white-space: nowrap;
+    border-radius: 3px;
+  }
+  .sid { color: #c9a830; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="header">
+  <span class="title">NYC SUBWAY PCB</span>
+  <div id="status">
+    <span id="info">--</span>
+    <div id="dot" class="dot"></div>
+  </div>
+</div>
+<div id="canvas-wrap"><canvas id="c"></canvas></div>
+<div id="tooltip"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

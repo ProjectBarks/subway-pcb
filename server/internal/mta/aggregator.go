@@ -15,30 +15,22 @@ type trainUpdate struct {
 	StopID string
 	Route  pb.Route
 	Status pb.TrainStatus
+	TripID string // unique per physical train
 }
 
 // feedSnapshot holds the complete state from one MTA feed poll.
-// When a feed updates, its entire snapshot is replaced atomically.
 type feedSnapshot struct {
-	updates []trainUpdate
-}
-
-// stationTrain is a unique train at a station (route+status).
-type stationTrain struct {
-	Route  pb.Route
-	Status pb.TrainStatus
+	updates   []trainUpdate
+	timestamp time.Time
 }
 
 // Aggregator collects feed data from all pollers and builds a SubwayState.
-// It uses per-feed replacement: each feed's data is kept until the next
-// update from that same feed, eliminating expiry gaps.
 type Aggregator struct {
 	mu         sync.RWMutex
-	feeds      map[string]*feedSnapshot // keyed by feed name
+	feeds      map[string]*feedSnapshot
 	sequence   uint32
 	lastUpdate time.Time
 
-	// Cached serialized protobuf.
 	cachedBytes []byte
 	cachedState *pb.SubwayState
 }
@@ -51,32 +43,35 @@ func NewAggregator(_ time.Duration) *Aggregator {
 }
 
 // IngestFeed replaces all data from a named feed with new updates.
-// This is atomic per-feed: old data from this feed is fully replaced.
 func (a *Aggregator) IngestFeed(feedName string, updates []trainUpdate) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	a.feeds[feedName] = &feedSnapshot{updates: updates}
+	a.feeds[feedName] = &feedSnapshot{updates: updates, timestamp: time.Now()}
 	a.rebuildLocked()
 }
 
-// Ingest is a compatibility shim — uses "default" as feed name.
+// Ingest is a compatibility shim.
 func (a *Aggregator) Ingest(updates []trainUpdate) {
 	a.IngestFeed("default", updates)
 }
 
-// rebuildLocked merges all feed snapshots and rebuilds the cached state.
+// rebuildLocked merges all feed snapshots into a clean state.
+// Strategy: track each physical train by TripID. Only show trains
+// that are STOPPED_AT a station. One train per route per station max.
 func (a *Aggregator) rebuildLocked() {
 	now := time.Now()
 	a.sequence++
 	a.lastUpdate = now
 
-	// Merge all feeds into a station -> trains map.
-	type trainKey struct {
+	// Deduplicate by TripID — each physical train appears once.
+	// If same TripID appears in multiple feeds (shouldn't happen), latest wins.
+	type trainInfo struct {
+		StopID string
 		Route  pb.Route
 		Status pb.TrainStatus
 	}
-	stationTrains := make(map[string]map[trainKey]struct{})
+	trainsByTrip := make(map[string]trainInfo)
 
 	for _, snap := range a.feeds {
 		for _, u := range snap.updates {
@@ -84,10 +79,41 @@ func (a *Aggregator) rebuildLocked() {
 			if parentID == "" {
 				continue
 			}
-			if _, ok := stationTrains[parentID]; !ok {
-				stationTrains[parentID] = make(map[trainKey]struct{})
+
+			// Only show trains at stations (STOPPED_AT) or very close (INCOMING_AT)
+			if u.Status != pb.TrainStatus_STOPPED_AT && u.Status != pb.TrainStatus_INCOMING_AT {
+				continue
 			}
-			stationTrains[parentID][trainKey{Route: u.Route, Status: u.Status}] = struct{}{}
+
+			if u.TripID != "" {
+				// Track by trip — one entry per physical train
+				trainsByTrip[u.TripID] = trainInfo{
+					StopID: parentID,
+					Route:  u.Route,
+					Status: u.Status,
+				}
+			} else {
+				// No trip ID — use a synthetic key
+				key := parentID + ":" + u.Route.String()
+				trainsByTrip[key] = trainInfo{
+					StopID: parentID,
+					Route:  u.Route,
+					Status: u.Status,
+				}
+			}
+		}
+	}
+
+	// Now build station -> best route map (one route per station max for cleaner display)
+	stationBest := make(map[string]map[pb.Route]pb.TrainStatus)
+
+	for _, t := range trainsByTrip {
+		if _, ok := stationBest[t.StopID]; !ok {
+			stationBest[t.StopID] = make(map[pb.Route]pb.TrainStatus)
+		}
+		existing, exists := stationBest[t.StopID][t.Route]
+		if !exists || statusPriority(t.Status) > statusPriority(existing) {
+			stationBest[t.StopID][t.Route] = t.Status
 		}
 	}
 
@@ -97,28 +123,27 @@ func (a *Aggregator) rebuildLocked() {
 		Sequence:  a.sequence,
 	}
 
-	stopIDs := make([]string, 0, len(stationTrains))
-	for stopID := range stationTrains {
+	stopIDs := make([]string, 0, len(stationBest))
+	for stopID := range stationBest {
 		stopIDs = append(stopIDs, stopID)
 	}
 	sort.Strings(stopIDs)
 
 	for _, stopID := range stopIDs {
-		trains := make([]*pb.Train, 0, len(stationTrains[stopID]))
-		for key := range stationTrains[stopID] {
+		routes := stationBest[stopID]
+		trains := make([]*pb.Train, 0, len(routes))
+		for route, status := range routes {
 			trains = append(trains, &pb.Train{
-				Route:  key.Route,
-				Status: key.Status,
+				Route:  route,
+				Status: status,
 			})
 		}
 		sort.Slice(trains, func(i, j int) bool {
-			if trains[i].Route != trains[j].Route {
-				return trains[i].Route < trains[j].Route
-			}
-			return trains[i].Status < trains[j].Status
+			return trains[i].Route < trains[j].Route
 		})
-		if len(trains) > 4 {
-			trains = trains[:4]
+		// Limit to 2 trains per station for cleaner display
+		if len(trains) > 2 {
+			trains = trains[:2]
 		}
 		state.Stations = append(state.Stations, &pb.Station{
 			StopId: stopID,
