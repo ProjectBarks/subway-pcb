@@ -5,66 +5,66 @@ PORT := $(shell ls /dev/cu.usbserial-* 2>/dev/null | head -1)
 
 # ─── Server ──────────────────────────────────────────────
 
-.PHONY: server server-build server-stop
+.PHONY: server/build server/start server/stop
 
-server-build:                          ## Build Go server
+server/build:                          ## Build the Go server binary
 	cd server && go build ./cmd/subway-server/
 
-server: server-build                   ## Start Go server on :8080
+server/start: server/build             ## Build and start server → http://localhost:8080
 	@pkill -9 -f subway-server 2>/dev/null; sleep 1
 	cd server && ./subway-server --port 8080 --led-map led_map.json &
 	@echo "→ http://localhost:8080/"
 
-server-stop:                           ## Stop Go server
+server/stop:                           ## Stop the running server
 	@pkill -9 -f subway-server 2>/dev/null && echo "Stopped" || echo "Not running"
 
-# ─── Production Firmware ─────────────────────────────────
+# ─── Firmware (production) ───────────────────────────────
 
-.PHONY: fw-build fw-flash fw-erase fw-clean
+.PHONY: firmware/build firmware/flash firmware/erase firmware/clean
 
-fw-build:                              ## Build production firmware
+firmware/build:                        ## Compile production firmware
 	cd firmware && $(PIO) run
 
-fw-flash:                              ## Flash production firmware
+firmware/flash:                        ## Compile and flash to ESP32
 	cd firmware && $(PIO) run -t upload --upload-port $(PORT)
 
-fw-erase:                              ## Erase ESP32 flash
+firmware/erase:                        ## Erase entire ESP32 flash
 	cd firmware && $(PIO) run -t erase --upload-port $(PORT)
 
-fw-clean:                              ## Clean firmware build
+firmware/clean:                        ## Delete build artifacts
 	rm -rf firmware/.pio/build
 
-# ─── Debug Firmware ──────────────────────────────────────
+# ─── Firmware (debug) ────────────────────────────────────
 
-.PHONY: dbg-build dbg-flash
+.PHONY: firmware/debug-build firmware/debug-flash
 
-dbg-build:                             ## Build debug firmware (serial LED control)
+firmware/debug-build:                  ## Compile debug firmware (serial LED control)
 	cd tools/debug-firmware && $(PIO) run
 
-dbg-flash:                             ## Flash debug firmware
+firmware/debug-flash:                  ## Compile and flash debug firmware
 	cd tools/debug-firmware && $(PIO) run -t upload --upload-port $(PORT)
 
 # ─── Tools ───────────────────────────────────────────────
 
-.PHONY: monitor debugger
+.PHONY: tools/monitor tools/debugger
 
-monitor:                               ## Start serial logger (auto-detect port)
+tools/monitor:                         ## Stream ESP32 serial output to console + serial.log
 	cd tools/serial-logger && uv run main.py
 
-debugger:                              ## Start LED debugger web UI on :8090
+tools/debugger:                        ## Start click-to-light web debugger → http://localhost:8090
 	cd tools/led-debugger-ui && uv run debugger.py --port $(PORT) --http 8090
 
-# ─── Housekeeping ────────────────────────────────────────
+# ─── Shortcuts ───────────────────────────────────────────
 
 .PHONY: all clean help
 
-all: server-build fw-build             ## Build everything
+all: server/build firmware/build       ## Build server + firmware
 
-clean:                                 ## Clean all build artifacts
-	rm -rf firmware/.pio/build
-	rm -rf tools/debug-firmware/.pio/build
-	rm -f server/subway-server
+clean:                                 ## Remove all build artifacts
+	rm -rf firmware/.pio/build tools/debug-firmware/.pio/build server/subway-server
 
-help:                                  ## Show this help
-	@grep -E '^[a-z_-]+:.*##' $(MAKEFILE_LIST) | \
-		awk -F ':.*## ' '{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
+help:                                  ## Show available commands
+	@echo ""
+	@grep -E '^[a-z/._-]+:.*##' $(MAKEFILE_LIST) | \
+		awk -F ':.*## ' '{printf "  \033[36m%-28s\033[0m %s\n", $$1, $$2}'
+	@echo ""
