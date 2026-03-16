@@ -1,5 +1,5 @@
-PIO := $(HOME)/.platformio/penv/bin/pio
-PORT ?= /dev/cu.usbserial-210
+PIO := $(shell which pio 2>/dev/null || echo "$(HOME)/.platformio/penv/bin/pio")
+PORT := $(shell ls /dev/cu.usbserial-* 2>/dev/null | head -1)
 
 # ── Server ───────────────────────────────────────────────
 .PHONY: server server-build server-run server-stop
