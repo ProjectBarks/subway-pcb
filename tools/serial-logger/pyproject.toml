@@ -1,0 +1,11 @@
+[project]
+name = "serial-logger"
+version = "0.1.0"
+description = "Resilient ESP32 serial logger with auto-reconnect"
+requires-python = ">=3.10"
+dependencies = [
+    "pyserial>=3.5",
+]
+
+[project.scripts]
+serial-logger = "main:main"

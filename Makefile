@@ -1,82 +1,70 @@
-PIO := $(shell which pio 2>/dev/null || echo "$(HOME)/.platformio/penv/bin/pio")
+PIO  := $(shell which pio 2>/dev/null || echo "$(HOME)/.platformio/penv/bin/pio")
 PORT := $(shell ls /dev/cu.usbserial-* 2>/dev/null | head -1)
 
-# ── Server ───────────────────────────────────────────────
-.PHONY: server server-build server-run server-stop
+.DEFAULT_GOAL := help
 
-server-build:
+# ─── Server ──────────────────────────────────────────────
+
+.PHONY: server server-build server-stop
+
+server-build:                          ## Build Go server
 	cd server && go build ./cmd/subway-server/
 
-server-run: server-build
-	@pkill -f subway-server 2>/dev/null; sleep 1
+server: server-build                   ## Start Go server on :8080
+	@pkill -9 -f subway-server 2>/dev/null; sleep 1
 	cd server && ./subway-server --port 8080 --led-map led_map.json &
-	@echo "Server at http://localhost:8080/"
+	@echo "→ http://localhost:8080/"
 
-server-stop:
-	@pkill -f subway-server 2>/dev/null && echo "Stopped" || echo "Not running"
+server-stop:                           ## Stop Go server
+	@pkill -9 -f subway-server 2>/dev/null && echo "Stopped" || echo "Not running"
 
-server: server-run
+# ─── Production Firmware ─────────────────────────────────
 
-# ── Firmware ─────────────────────────────────────────────
-.PHONY: firmware firmware-build firmware-flash firmware-monitor firmware-erase firmware-clean
+.PHONY: fw-build fw-flash fw-erase fw-clean
 
-firmware-build:
+fw-build:                              ## Build production firmware
 	cd firmware && $(PIO) run
 
-firmware-flash:
+fw-flash:                              ## Flash production firmware
 	cd firmware && $(PIO) run -t upload --upload-port $(PORT)
 
-firmware-monitor:
-	cd tools && python3 serial_log.py
-
-firmware-erase:
+fw-erase:                              ## Erase ESP32 flash
 	cd firmware && $(PIO) run -t erase --upload-port $(PORT)
 
-firmware-clean:
-	cd firmware && rm -rf .pio/build
+fw-clean:                              ## Clean firmware build
+	rm -rf firmware/.pio/build
 
-# ── Debug Firmware ───────────────────────────────────────
-.PHONY: debug-build debug-flash
+# ─── Debug Firmware ──────────────────────────────────────
 
-debug-build:
+.PHONY: dbg-build dbg-flash
+
+dbg-build:                             ## Build debug firmware (serial LED control)
 	cd tools/debug-firmware && $(PIO) run
 
-debug-flash:
+dbg-flash:                             ## Flash debug firmware
 	cd tools/debug-firmware && $(PIO) run -t upload --upload-port $(PORT)
 
-# ── LED Debugger UI ──────────────────────────────────────
-.PHONY: debugger
+# ─── Tools ───────────────────────────────────────────────
 
-debugger:
-	cd tools/led-debugger-ui && python3 debugger.py --port $(PORT) --http 8090
+.PHONY: monitor debugger
 
-# ── All ──────────────────────────────────────────────────
-.PHONY: all clean
+monitor:                               ## Start serial logger (auto-detect port)
+	cd tools/serial-logger && uv run main.py
 
-all: server-build firmware-build
+debugger:                              ## Start LED debugger web UI on :8090
+	cd tools/led-debugger-ui && uv run debugger.py --port $(PORT) --http 8090
 
-clean:
-	cd firmware && rm -rf .pio/build
-	cd tools/debug-firmware && rm -rf .pio/build
-	cd server && rm -f subway-server
+# ─── Housekeeping ────────────────────────────────────────
 
-# ── Help ─────────────────────────────────────────────────
-.PHONY: help
+.PHONY: all clean help
 
-help:
-	@echo "Server:"
-	@echo "  make server          Build and start Go server (port 8080)"
-	@echo "  make server-stop     Stop server"
-	@echo ""
-	@echo "Firmware:"
-	@echo "  make firmware-build  Build production firmware"
-	@echo "  make firmware-flash  Build and flash to ESP32"
-	@echo "  make firmware-monitor Start serial logger"
-	@echo "  make firmware-erase  Erase ESP32 flash"
-	@echo ""
-	@echo "Debug:"
-	@echo "  make debug-flash     Flash debug firmware (serial LED control)"
-	@echo "  make debugger        Start LED debugger web UI (port 8090)"
-	@echo ""
-	@echo "Options:"
-	@echo "  PORT=/dev/cu.usbserial-210  Serial port (default)"
+all: server-build fw-build             ## Build everything
+
+clean:                                 ## Clean all build artifacts
+	rm -rf firmware/.pio/build
+	rm -rf tools/debug-firmware/.pio/build
+	rm -f server/subway-server
+
+help:                                  ## Show this help
+	@grep -E '^[a-z_-]+:.*##' $(MAKEFILE_LIST) | \
+		awk -F ':.*## ' '{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
