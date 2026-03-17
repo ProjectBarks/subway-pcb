@@ -34,6 +34,9 @@ Thumbs.db
 wifi.txt
 **/platformio_local.ini
 
+# Database files
+*.db
+
 # MCP captures & config
 mcp/captures/
 mcp/config.json
