@@ -292,9 +292,6 @@ func (s *Server) handleSetMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Invalidate pixel cache for this device
-	s.pixelRenderer.Invalidate()
-
 	s.renderControls(w, r, mac)
 }
 
@@ -320,7 +317,6 @@ func (s *Server) handleSetTheme(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.pixelRenderer.Invalidate()
 	s.renderControls(w, r, mac)
 }
 
@@ -368,7 +364,6 @@ func (s *Server) handleSetModeConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.pixelRenderer.Invalidate()
 	s.renderControls(w, r, mac)
 }
 
@@ -541,8 +536,6 @@ func (s *Server) handleUpdateTheme(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "update failed", http.StatusInternalServerError)
 		return
 	}
-
-	s.pixelRenderer.Invalidate()
 
 	if isHTMX(r) {
 		w.Header().Set("HX-Trigger", "themeUpdated")
