@@ -5,6 +5,8 @@ on:
     paths:
       - 'firmware/**'
       - '.github/workflows/firmware.yml'
+    tags:
+      - 'v*'
   pull_request:
     paths:
       - 'firmware/**'
@@ -43,7 +45,9 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     steps:
       - name: Download firmware
         uses: actions/download-artifact@v4
@@ -51,7 +55,7 @@ jobs:
           name: firmware-esp32dev
           path: release
 
-      - name: Create release
+      - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
           artifacts: release/firmware.bin
