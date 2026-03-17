@@ -36,7 +36,7 @@ static void cb_wifi_got_ip(void *pvParameter)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "=== NYC Subway PCB ===");
+    ESP_LOGI(TAG, "=== NYC Subway PCB v0.3.0 ===");
 
     /* NVS */
     esp_err_t ret = nvs_flash_init();
