@@ -34,7 +34,7 @@ static const uint16_t STRIP_LED_COUNTS[NUM_STRIPS] = {
 #define POLL_INTERVAL_SEC 1
 
 /* Default LED brightness (0-255) */
-#define DEFAULT_BRIGHTNESS 15
+#define DEFAULT_BRIGHTNESS 10
 
 /* HTTP receive buffer size (slightly over 1428) */
 #define HTTP_BUF_SIZE 1600
