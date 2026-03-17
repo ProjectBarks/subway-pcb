@@ -28,7 +28,7 @@
                     {{end}}
                 </span>
                 <span class="truncate">
-                    {{if .Name}}{{.Name}}{{else}}{{slice .MAC 0 11}}...{{end}}
+                    {{if .Name}}{{.Name}}{{else}}{{.MAC}}{{end}}
                 </span>
             </a>
             {{else}}

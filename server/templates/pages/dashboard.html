@@ -25,23 +25,3 @@
 
 </div>
 {{end}}
-
-{{define "board_grid"}}
-{{if .Cards}}
-    {{range .Cards}}
-        {{template "board_card" .}}
-    {{end}}
-{{else}}
-<div class="col-span-full flex flex-col items-center justify-center py-24">
-    <div class="w-16 h-16 mb-6 rounded-full border-2 border-dark-border flex items-center justify-center" style="animation: pulse-subtle 3s ease-in-out infinite;">
-        <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-        </svg>
-    </div>
-    <p class="text-gray-500 text-lg mb-2">No boards connected yet</p>
-    <p class="text-gray-600 text-sm">Boards will appear here once they connect to the server</p>
-</div>
-{{end}}
-{{end}}
-
-{{template "base" .}}
