@@ -19,6 +19,11 @@
 static const char *TAG = "main";
 static ghota_client_handle_t *s_ghota = NULL;
 
+static void ghota_event_handler(void *arg, esp_event_base_t base, int32_t id, void *data)
+{
+    ESP_LOGI(TAG, "OTA event: %s", ghota_get_event_str((ghota_event_e)id));
+}
+
 static void cb_wifi_got_ip(void *pvParameter)
 {
     ESP_LOGI(TAG, "WiFi connected — starting subway client + OTA");
@@ -30,7 +35,9 @@ static void cb_wifi_got_ip(void *pvParameter)
     /* Start OTA update checker */
     if (s_ghota) {
         ghota_start_update_timer(s_ghota);
-        ESP_LOGI(TAG, "OTA update checker started (every %d min)", OTA_CHECK_INTERVAL_MIN);
+        ESP_LOGI(TAG, "OTA checker started (every %d min, repo: ProjectBarks/subway-pcb)", OTA_CHECK_INTERVAL_MIN);
+    } else {
+        ESP_LOGE(TAG, "OTA not initialized — skipping update checker");
     }
 }
 
@@ -56,14 +63,17 @@ void app_main(void)
         .filenamematch = "firmware.bin",
         .storagenamematch = "",
         .storagepartitionname = "",
-        .hostname = NULL,
-        .orgname = NULL,
-        .reponame = NULL,
+        .hostname = "api.github.com",
+        .orgname = "ProjectBarks",
+        .reponame = "subway-pcb",
         .updateInterval = OTA_CHECK_INTERVAL_MIN,
     };
     s_ghota = ghota_init(&ghota_config);
     if (s_ghota) {
-        ESP_LOGI(TAG, "OTA initialized (repo: %s/%s)", CONFIG_GITHUB_OWNER, CONFIG_GITHUB_REPO);
+        ESP_LOGI(TAG, "OTA initialized (ProjectBarks/subway-pcb, match: firmware.bin)");
+        esp_event_handler_register(GHOTA_EVENTS, ESP_EVENT_ANY_ID, &ghota_event_handler, NULL);
+    } else {
+        ESP_LOGE(TAG, "OTA init FAILED — version may not be valid semver");
     }
 
     /* WiFi via captive portal — broadcasts "nyc-subway-pcb" AP if no saved credentials */
