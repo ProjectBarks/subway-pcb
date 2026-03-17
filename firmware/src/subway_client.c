@@ -118,9 +118,9 @@ static void subway_client_task(void *pvParameters)
 {
     load_server_url();
 
-    /* Log app version so we can verify OTA updates */
+    /* Log app version */
     const esp_app_desc_t *app = esp_app_get_description();
-    ESP_LOGI(TAG, "Firmware version: %s", app->version);
+    ESP_LOGW(TAG, "=== Firmware: %s ===", app->version);
 
     int backoff_sec = POLL_INTERVAL_SEC;
 
