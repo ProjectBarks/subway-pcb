@@ -51,8 +51,11 @@
             {{if .Themes}}
             <div class="mb-5">
                 <label class="text-xs uppercase tracking-wider text-gray-500 mb-2 block">Load Preset</label>
-                <div class="flex gap-2">
-                    <select id="theme-select"
+                <form hx-put="/boards/{{.Device.MAC}}/theme"
+                      hx-target="#controls"
+                      hx-swap="outerHTML"
+                      class="flex gap-2">
+                    <select name="theme_id"
                             class="flex-1 bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm">
                         <option value="">— select preset —</option>
                         {{range .Themes}}
@@ -61,12 +64,11 @@
                         </option>
                         {{end}}
                     </select>
-                    <button type="button"
-                            onclick="const sel = document.getElementById('theme-select'); if(sel.value) { htmx.ajax('PUT', '/boards/{{.Device.MAC}}/theme', {values: {theme_id: sel.value}, target: '#controls', swap: 'outerHTML'}); }"
+                    <button type="submit"
                             class="bg-gold text-dark font-bold px-3 py-2 rounded hover:bg-yellow-600 transition text-sm shrink-0">
                         Load
                     </button>
-                </div>
+                </form>
             </div>
             {{end}}
 
