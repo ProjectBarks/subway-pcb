@@ -187,25 +187,28 @@ func (pr *PixelRenderer) renderWithMode(agg *mta.Aggregator, mac string) ([]byte
 		return nil, fmt.Errorf("unknown mode: %s", modeName)
 	}
 
-	themeID := device.ThemeID
-	if themeID == "" {
-		themeID = "classic-mta"
+	// Build config: start with mode field defaults, layer theme values, then device overrides
+	config := make(map[string]string)
+	for _, f := range m.ConfigFields() {
+		config[f.Key] = f.Default
 	}
-
-	theme, err := pr.store.GetTheme(themeID)
-	if err != nil || theme == nil {
-		// Fallback to classic-mta
-		theme, _ = pr.store.GetTheme("classic-mta")
-		if theme == nil {
-			return nil, fmt.Errorf("no theme available")
+	if device.ThemeID != "" {
+		theme, _ := pr.store.GetTheme(device.ThemeID)
+		if theme != nil {
+			for k, v := range theme.Values {
+				config[k] = v
+			}
 		}
+	}
+	for k, v := range device.ModeConfig {
+		config[k] = v
 	}
 
 	ctx := mode.RenderContext{
 		Aggregator: agg,
 		StationIDs: pr.ledMap.stationIDs,
-		Theme:      theme,
 		Device:     device,
+		Config:     config,
 		TotalLEDs:  totalLEDs,
 	}
 

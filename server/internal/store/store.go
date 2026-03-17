@@ -18,7 +18,7 @@ type Store interface {
 	ListAccessByUser(email string) ([]model.DeviceAccess, error)
 	HasAccess(mac, email string) (bool, error)
 
-	// Themes
+	// Themes 
 	GetTheme(id string) (*model.Theme, error)
 	ListThemes() ([]model.Theme, error)
 	ListThemesByOwner(email string) ([]model.Theme, error)

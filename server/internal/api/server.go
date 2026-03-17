@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"sort"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -87,6 +86,7 @@ func (s *Server) buildRouter() {
 			r.Put("/mode", s.handleSetMode)
 			r.Put("/theme", s.handleSetTheme)
 			r.Put("/name", s.handleSetName)
+			r.Put("/config", s.handleSetModeConfig)
 			r.Get("/preview", s.handleBoardPreview)
 			// Access management
 			r.Post("/access", s.handleGrantAccess)
@@ -201,12 +201,6 @@ func (s *Server) handleBoardView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	theme, _ := s.store.GetTheme(device.ThemeID)
-	if theme == nil {
-		theme, _ = s.store.GetTheme("classic-mta")
-	}
-
-	themes, _ := s.store.ListThemes()
 	access, _ := s.store.ListAccessByDevice(mac)
 
 	// Get all boards for nav
@@ -217,22 +211,63 @@ func (s *Server) handleBoardView(w http.ResponseWriter, r *http.Request) {
 		boards, _ = s.store.ListDevicesByUser(user.Email)
 	}
 
-	// Sort route colors for display
-	routeKeys := sortedRouteKeys(theme.RouteColors)
+	data := s.buildBoardData(user, device, mac, boards, access)
+	s.renderer.Render(w, "board", data)
+}
 
-	data := map[string]any{
-		"User":      user,
-		"Device":    device,
-		"Theme":     theme,
-		"Themes":    themes,
-		"Access":    access,
-		"Modes":     s.modes.List(),
-		"Boards":    boards,
-		"ActiveMAC": mac,
-		"RouteKeys": routeKeys,
+// buildBoardData builds the template data for the board view and controls.
+func (s *Server) buildBoardData(user *model.User, device *model.Device, mac string, boards []model.Device, access []model.DeviceAccess) map[string]any {
+	modeName := device.Mode
+	if modeName == "" {
+		modeName = "track"
 	}
 
-	s.renderer.Render(w, "board", data)
+	// Get config fields for the active mode
+	var configFields []mode.ConfigField
+	var configGroups []mode.FieldGroup
+	if m, ok := s.modes.Get(modeName); ok {
+		configFields = m.ConfigFields()
+		configGroups = mode.GroupedFields(configFields)
+	}
+
+	// Build config values: defaults -> theme -> device overrides
+	configValues := make(map[string]string)
+	for _, f := range configFields {
+		configValues[f.Key] = f.Default
+	}
+	if device.ThemeID != "" {
+		theme, _ := s.store.GetTheme(device.ThemeID)
+		if theme != nil {
+			for k, v := range theme.Values {
+				configValues[k] = v
+			}
+		}
+	}
+	for k, v := range device.ModeConfig {
+		configValues[k] = v
+	}
+
+	// Get themes for this mode: built-in + user's own
+	allThemes, _ := s.store.ListThemes()
+	var modeThemes []model.Theme
+	for _, t := range allThemes {
+		if t.ModeName == modeName && (t.IsBuiltIn || t.OwnerEmail == user.Email) {
+			modeThemes = append(modeThemes, t)
+		}
+	}
+
+	return map[string]any{
+		"User":         user,
+		"Device":       device,
+		"Themes":       modeThemes,
+		"Access":       access,
+		"Modes":        s.modes.List(),
+		"Boards":       boards,
+		"ActiveMAC":    mac,
+		"ConfigFields": configFields,
+		"ConfigGroups": configGroups,
+		"ConfigValues": configValues,
+	}
 }
 
 func (s *Server) handleSetMode(w http.ResponseWriter, r *http.Request) {
@@ -309,6 +344,34 @@ func (s *Server) handleSetName(w http.ResponseWriter, r *http.Request) {
 	s.renderControls(w, r, mac)
 }
 
+func (s *Server) handleSetModeConfig(w http.ResponseWriter, r *http.Request) {
+	mac := chi.URLParam(r, "mac")
+	r.ParseForm()
+
+	device, err := s.store.GetDevice(mac)
+	if err != nil || device == nil {
+		http.Error(w, "device not found", http.StatusNotFound)
+		return
+	}
+
+	// Collect all form values as config
+	config := make(map[string]string)
+	for key, vals := range r.Form {
+		if len(vals) > 0 && key != "" {
+			config[key] = vals[0]
+		}
+	}
+
+	device.ModeConfig = config
+	if err := s.store.UpsertDevice(device); err != nil {
+		http.Error(w, "update failed", http.StatusInternalServerError)
+		return
+	}
+
+	s.pixelRenderer.Invalidate()
+	s.renderControls(w, r, mac)
+}
+
 func (s *Server) handleBoardPreview(w http.ResponseWriter, r *http.Request) {
 	// Returns partial HTML for the board preview area
 	mac := chi.URLParam(r, "mac")
@@ -374,23 +437,16 @@ func (s *Server) renderAccessPanel(w http.ResponseWriter, mac string) {
 func (s *Server) renderControls(w http.ResponseWriter, r *http.Request, mac string) {
 	user := middleware.UserFromContext(r.Context())
 	device, _ := s.store.GetDevice(mac)
-	theme, _ := s.store.GetTheme(device.ThemeID)
-	if theme == nil {
-		theme, _ = s.store.GetTheme("classic-mta")
-	}
-	themes, _ := s.store.ListThemes()
 	access, _ := s.store.ListAccessByDevice(mac)
-	routeKeys := sortedRouteKeys(theme.RouteColors)
 
-	data := map[string]any{
-		"User":      user,
-		"Device":    device,
-		"Theme":     theme,
-		"Themes":    themes,
-		"Access":    access,
-		"Modes":     s.modes.List(),
-		"RouteKeys": routeKeys,
+	var boards []model.Device
+	if user.IsAdmin() {
+		boards, _ = s.store.ListDevices()
+	} else {
+		boards, _ = s.store.ListDevicesByUser(user.Email)
 	}
+
+	data := s.buildBoardData(user, device, mac, boards, access)
 	s.renderer.Render(w, "board_controls", data)
 }
 
@@ -412,8 +468,8 @@ func (s *Server) handleCreateTheme(w http.ResponseWriter, r *http.Request) {
 	if isHTMX(r) {
 		r.ParseForm()
 		theme.Name = r.FormValue("name")
-		// Parse route colors from form
-		theme.RouteColors = parseRouteColorsFromForm(r)
+		theme.ModeName = r.FormValue("mode_name")
+		theme.Values = parseValuesFromForm(r)
 	} else {
 		if err := json.NewDecoder(r.Body).Decode(&theme); err != nil {
 			jsonError(w, "invalid body", http.StatusBadRequest)
@@ -465,7 +521,7 @@ func (s *Server) handleUpdateTheme(w http.ResponseWriter, r *http.Request) {
 		if name := r.FormValue("name"); name != "" {
 			existing.Name = name
 		}
-		existing.RouteColors = parseRouteColorsFromForm(r)
+		existing.Values = parseValuesFromForm(r)
 	} else {
 		var update model.Theme
 		if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
@@ -475,8 +531,8 @@ func (s *Server) handleUpdateTheme(w http.ResponseWriter, r *http.Request) {
 		if update.Name != "" {
 			existing.Name = update.Name
 		}
-		if update.RouteColors != nil {
-			existing.RouteColors = update.RouteColors
+		if update.Values != nil {
+			existing.Values = update.Values
 		}
 	}
 
@@ -640,28 +696,14 @@ func jsonError(w http.ResponseWriter, msg string, code int) {
 	json.NewEncoder(w).Encode(map[string]any{"error": msg})
 }
 
-func parseRouteColorsFromForm(r *http.Request) map[string][3]uint8 {
-	colors := make(map[string][3]uint8)
+// parseValuesFromForm collects all form fields prefixed with "val_" as theme values.
+func parseValuesFromForm(r *http.Request) map[string]string {
+	values := make(map[string]string)
 	for key, vals := range r.Form {
-		if len(key) > 6 && key[:6] == "color_" && len(vals) > 0 {
-			routeKey := key[6:]
-			hex := vals[0]
-			if len(hex) == 7 && hex[0] == '#' {
-				var r, g, b uint8
-				fmt.Sscanf(hex, "#%02x%02x%02x", &r, &g, &b)
-				colors[routeKey] = [3]uint8{r, g, b}
-			}
+		if len(key) > 4 && key[:4] == "val_" && len(vals) > 0 {
+			values[key[4:]] = vals[0]
 		}
 	}
-	return colors
-}
-
-func sortedRouteKeys(m map[string][3]uint8) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
+	return values
 }
 
