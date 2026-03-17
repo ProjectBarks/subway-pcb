@@ -44,6 +44,6 @@ static const uint16_t STRIP_LED_COUNTS[NUM_STRIPS] = {
 #define SUBWAY_CLIENT_TASK_PRIORITY 4
 
 /* OTA update check interval in minutes */
-#define OTA_CHECK_INTERVAL_MIN 1
+#define OTA_CHECK_INTERVAL_MIN 60
 
 #endif /* CONFIG_H */
