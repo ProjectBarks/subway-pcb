@@ -92,8 +92,18 @@ func (fp *FeedPoller) poll() {
 	}
 
 	feed := &gtfs.FeedMessage{}
-	if err := proto.Unmarshal(body, feed); err != nil {
-		log.Printf("feed/%s: protobuf decode error: %v", fp.name, err)
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("feed/%s: protobuf panic recovered: %v", fp.name, r)
+			}
+		}()
+		if err := proto.Unmarshal(body, feed); err != nil {
+			log.Printf("feed/%s: protobuf decode error: %v", fp.name, err)
+			feed = nil
+		}
+	}()
+	if feed == nil {
 		return
 	}
 

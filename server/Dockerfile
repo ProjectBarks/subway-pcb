@@ -1,24 +1,31 @@
 # Build stage
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 RUN apk add --no-cache git
 
 WORKDIR /app
 
 # Cache dependencies
-COPY go.mod go.sum ./
+COPY server/go.mod server/go.sum ./
 RUN go mod download
 
+# Copy server source
+COPY server/ .
+
 # Build
-COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /subway-server ./cmd/subway-server/
 
 # Run stage
-FROM scratch
+FROM alpine:latest
 
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /subway-server /subway-server
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /app
+
+COPY --from=builder /subway-server /app/subway-server
+COPY server/led_map.json /app/led_map.json
+COPY server/static/ /app/static/
 
 EXPOSE 8080
 
-ENTRYPOINT ["/subway-server"]
+CMD ["/app/subway-server", "--port", "8080", "--led-map", "led_map.json"]

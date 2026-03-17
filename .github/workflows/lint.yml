@@ -1,0 +1,58 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  go:
+    name: Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache-dependency-path: server/go.sum
+
+      - name: go vet
+        run: cd server && go vet ./...
+
+      - name: go build
+        run: cd server && go build ./cmd/subway-server/
+
+  python:
+    name: Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Lint serial-logger
+        run: cd tools/serial-logger && uv run python -m py_compile main.py
+
+      - name: Lint led-debugger-ui
+        run: cd tools/led-debugger-ui && uv run python -m py_compile debugger.py
+
+  firmware:
+    name: C/C++ (PlatformIO)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build production firmware
+        run: cd firmware && pio run
+
+      - name: Build debug firmware
+        run: cd tools/debug-firmware && pio run

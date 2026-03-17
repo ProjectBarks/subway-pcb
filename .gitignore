@@ -23,8 +23,8 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Server binary
-server/subway-server
+# Server binary (the compiled output, not the source directory cmd/subway-server/)
+/server/subway-server
 
 # Managed components (downloaded at build time)
 **/managed_components/
