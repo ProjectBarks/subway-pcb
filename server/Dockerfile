@@ -28,7 +28,6 @@ COPY server/static/ /app/static/
 COPY server/templates/ /app/templates/
 
 RUN mkdir -p /app/data
-VOLUME ["/app/data"]
 
 EXPOSE 8080
 
