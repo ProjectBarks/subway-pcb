@@ -12,11 +12,14 @@ import (
 	"time"
 
 	pb "github.com/ProjectBarks/subway-pcb/server/gen/subwaypb"
+	"github.com/ProjectBarks/subway-pcb/server/internal/mode"
+	"github.com/ProjectBarks/subway-pcb/server/internal/model"
 	"github.com/ProjectBarks/subway-pcb/server/internal/mta"
+	"github.com/ProjectBarks/subway-pcb/server/internal/store"
 	"google.golang.org/protobuf/proto"
 )
 
-// Route color table (RGB)
+// Route color table (RGB) — kept as fallback for firmware without device tracking
 var routeColors = map[pb.Route][3]uint8{
 	pb.Route_ROUTE_1:  {255, 0, 0},
 	pb.Route_ROUTE_2:  {255, 0, 0},
@@ -50,13 +53,15 @@ var routeColors = map[pb.Route][3]uint8{
 var stripSizes = [9]int{97, 102, 55, 81, 70, 21, 22, 19, 11}
 
 const totalLEDs = 478
-// Send full-brightness colors — firmware handles dimming locally
-// This makes the wire data more resilient to WS2812B bit flips
-const globalBrightness = 1.0
 
 // LEDMap maps flat LED index -> station ID
 type LEDMap struct {
-	stationIDs []string // index -> station_id (len=476)
+	stationIDs []string // index -> station_id (len=478)
+}
+
+// StationIDs returns the flat station ID mapping for use by the mode system.
+func (m *LEDMap) StationIDs() []string {
+	return m.stationIDs
 }
 
 // LoadLEDMap loads the led_map.json file
@@ -71,7 +76,6 @@ func LoadLEDMap(path string) (*LEDMap, error) {
 		return nil, fmt.Errorf("parse led_map.json: %w", err)
 	}
 
-	// Build flat array: for each strip in order, for each pixel in order
 	ids := make([]string, totalLEDs)
 	offset := 0
 	for strip := 0; strip < 9; strip++ {
@@ -89,34 +93,128 @@ func LoadLEDMap(path string) (*LEDMap, error) {
 }
 
 // PixelRenderer generates PixelFrame protobuf from aggregator state.
-// It caches the rendered frame and only re-renders when the aggregator updates.
 type PixelRenderer struct {
-	ledMap   *LEDMap
-	seq      uint32
-	cached   []byte // cached protobuf bytes
-	cachedAt time.Time
-	mu       sync.Mutex
+	ledMap      *LEDMap
+	store       store.Store
+	modes       *mode.Registry
+	seq         uint32
+	cached      []byte
+	cachedAt    time.Time
+	cachedKey   string
+	mu          sync.Mutex
 }
 
-// NewPixelRenderer creates a renderer with the given LED map
+// NewPixelRenderer creates a renderer with the given LED map.
 func NewPixelRenderer(ledMap *LEDMap) *PixelRenderer {
 	return &PixelRenderer{ledMap: ledMap}
 }
 
-// GetFrame returns the cached frame, re-rendering only when aggregator has new data.
+// SetDeps sets the store and mode registry (called after construction to avoid circular init).
+func (pr *PixelRenderer) SetDeps(s store.Store, m *mode.Registry) {
+	pr.store = s
+	pr.modes = m
+}
+
+// Invalidate clears the cached frame.
+func (pr *PixelRenderer) Invalidate() {
+	pr.mu.Lock()
+	pr.cached = nil
+	pr.mu.Unlock()
+}
+
+// GetFrame returns the rendered frame for the default device (backward compat).
 func (pr *PixelRenderer) GetFrame(agg *mta.Aggregator) ([]byte, error) {
+	return pr.GetFrameForDevice(agg, "")
+}
+
+// GetFrameForDevice returns a rendered frame for a specific device, or the default if mac is empty.
+func (pr *PixelRenderer) GetFrameForDevice(agg *mta.Aggregator, mac string) ([]byte, error) {
 	pr.mu.Lock()
 	defer pr.mu.Unlock()
 
-	// Cache for 5 seconds — MTA feeds only update every ~15s anyway
-	if pr.cached != nil && time.Since(pr.cachedAt) < 5*time.Second {
+	cacheKey := mac
+	if pr.cached != nil && time.Since(pr.cachedAt) < 5*time.Second && pr.cachedKey == cacheKey {
 		return pr.cached, nil
 	}
 
-	// Re-render
-	trains := agg.GetStationTrains()
-	pr.seq++
+	var pixels []byte
+	var err error
 
+	// Try mode-based rendering if store is available
+	if pr.store != nil && pr.modes != nil && mac != "" {
+		pixels, err = pr.renderWithMode(agg, mac)
+	}
+
+	// Fallback to classic rendering
+	if pixels == nil || err != nil {
+		pixels = pr.renderClassic(agg)
+	}
+
+	pr.seq++
+	frame := &pb.PixelFrame{
+		Timestamp: uint64(time.Now().Unix()),
+		Sequence:  pr.seq,
+		LedCount:  totalLEDs,
+		Pixels:    pixels,
+	}
+
+	data, err := proto.Marshal(frame)
+	if err != nil {
+		return nil, err
+	}
+
+	pr.cached = data
+	pr.cachedAt = time.Now()
+	pr.cachedKey = cacheKey
+	log.Printf("pixels: rendered frame seq=%d for device=%s", pr.seq, mac)
+	return data, nil
+}
+
+// renderWithMode renders using the device's configured mode and theme.
+func (pr *PixelRenderer) renderWithMode(agg *mta.Aggregator, mac string) ([]byte, error) {
+	device, err := pr.store.GetDevice(mac)
+	if err != nil || device == nil {
+		return nil, fmt.Errorf("device not found: %s", mac)
+	}
+
+	modeName := device.Mode
+	if modeName == "" {
+		modeName = "track"
+	}
+
+	m, ok := pr.modes.Get(modeName)
+	if !ok {
+		return nil, fmt.Errorf("unknown mode: %s", modeName)
+	}
+
+	themeID := device.ThemeID
+	if themeID == "" {
+		themeID = "classic-mta"
+	}
+
+	theme, err := pr.store.GetTheme(themeID)
+	if err != nil || theme == nil {
+		// Fallback to classic-mta
+		theme, _ = pr.store.GetTheme("classic-mta")
+		if theme == nil {
+			return nil, fmt.Errorf("no theme available")
+		}
+	}
+
+	ctx := mode.RenderContext{
+		Aggregator: agg,
+		StationIDs: pr.ledMap.stationIDs,
+		Theme:      theme,
+		Device:     device,
+		TotalLEDs:  totalLEDs,
+	}
+
+	return m.Render(ctx)
+}
+
+// renderClassic is the original rendering logic — no mode system, hardcoded colors.
+func (pr *PixelRenderer) renderClassic(agg *mta.Aggregator) []byte {
+	trains := agg.GetStationTrains()
 	pixels := make([]byte, totalLEDs*3)
 
 	for i := 0; i < totalLEDs; i++ {
@@ -135,33 +233,16 @@ func (pr *PixelRenderer) GetFrame(agg *mta.Aggregator) ([]byte, error) {
 			continue
 		}
 
-		pixels[i*3+0] = uint8(float64(color[0]) * globalBrightness)
-		pixels[i*3+1] = uint8(float64(color[1]) * globalBrightness)
-		pixels[i*3+2] = uint8(float64(color[2]) * globalBrightness)
+		pixels[i*3+0] = color[0]
+		pixels[i*3+1] = color[1]
+		pixels[i*3+2] = color[2]
 	}
 
-	frame := &pb.PixelFrame{
-		Timestamp: uint64(time.Now().Unix()),
-		Sequence:  pr.seq,
-		LedCount:  totalLEDs,
-		Pixels:    pixels,
-	}
-
-	data, err := proto.Marshal(frame)
-	if err != nil {
-		return nil, err
-	}
-
-	pr.cached = data
-	pr.cachedAt = time.Now()
-	log.Printf("pixels: rendered frame seq=%d, %d stations active", pr.seq, len(trains))
-	return data, nil
+	return pixels
 }
 
-// handlePixels serves the pre-rendered PixelFrame
+// handlePixels serves the pre-rendered PixelFrame.
 func (s *Server) handlePixels(w http.ResponseWriter, r *http.Request) {
-	log.Printf("api: %s %s from %s", r.Method, r.URL.String(), r.RemoteAddr)
-
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -172,7 +253,27 @@ func (s *Server) handlePixels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := s.pixelRenderer.GetFrame(s.aggregator)
+	// Support per-device rendering
+	mac := r.URL.Query().Get("device")
+	if mac == "" {
+		// Check X-Device-ID header (firmware sends this)
+		mac = r.Header.Get("X-Device-ID")
+	}
+
+	// Auto-register device if it has an ID
+	if mac != "" && s.store != nil {
+		s.autoRegisterDevice(mac, r)
+	}
+
+	var data []byte
+	var err error
+
+	if mac != "" {
+		data, err = s.pixelRenderer.GetFrameForDevice(s.aggregator, mac)
+	} else {
+		data, err = s.pixelRenderer.GetFrame(s.aggregator)
+	}
+
 	if err != nil {
 		log.Printf("api: pixel render error: %v", err)
 		http.Error(w, "render error", http.StatusInternalServerError)
@@ -181,22 +282,45 @@ func (s *Server) handlePixels(w http.ResponseWriter, r *http.Request) {
 
 	format := r.URL.Query().Get("format")
 	if format == "info" {
-		// Debug: return info about the pixel data
 		w.Header().Set("Content-Type", "application/json")
-		nonZero := 0
-		for i := 0; i < len(data); i++ {
-			if data[i] != 0 {
-				nonZero++
-			}
-		}
-		fmt.Fprintf(w, `{"protobuf_bytes":%d,"led_count":%d,"pixel_bytes":%d}`,
-			len(data), totalLEDs, totalLEDs*3)
+		fmt.Fprintf(w, `{"protobuf_bytes":%d,"led_count":%d,"pixel_bytes":%d,"device":"%s"}`,
+			len(data), totalLEDs, totalLEDs*3, mac)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/x-protobuf")
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
+}
+
+// autoRegisterDevice creates or updates a device record when it connects.
+func (s *Server) autoRegisterDevice(mac string, r *http.Request) {
+	existing, _ := s.store.GetDevice(mac)
+	if existing != nil {
+		// Just update last seen
+		s.store.UpdateDeviceLastSeen(mac)
+		return
+	}
+
+	// Auto-register new device
+	device := &model.Device{
+		MAC:       mac,
+		Mode:      "track",
+		ThemeID:   "classic-mta",
+		LastSeen:  time.Now(),
+		CreatedAt: time.Now(),
+	}
+
+	// Try to get firmware version from header
+	if fwVer := r.Header.Get("X-Firmware-Version"); fwVer != "" {
+		device.FirmwareVer = fwVer
+	}
+
+	if err := s.store.UpsertDevice(device); err != nil {
+		log.Printf("api: failed to auto-register device %s: %v", mac, err)
+	} else {
+		log.Printf("api: auto-registered new device %s", mac)
+	}
 }
 
 // parseLEDMapDimension parses "strip,pixel" format

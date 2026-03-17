@@ -196,7 +196,7 @@ static void lwjson_callback(lwjson_stream_parser_t *jsp, lwjson_stream_type_t ty
                 SetFlag(handle, GHOTA_RELEASE_GOT_FNAME);
                 ESP_LOGD(TAG, "Got Filename for Asset: %s", handle->scratch.name);
             }
-            if (strcasecmp(jsp->stack[4].meta.name, "url") == 0)
+            if (strcasecmp(jsp->stack[4].meta.name, "browser_download_url") == 0)
             {
                 strncpy(handle->scratch.url, jsp->data.str.buff, CONFIG_MAX_URL_LEN);
                 SetFlag(handle, GHOTA_RELEASE_GOT_URL);
@@ -547,6 +547,7 @@ esp_err_t ghota_update(ghota_client_handle_t *handle) {
         .crt_bundle_attach = esp_crt_bundle_attach,
         .keep_alive_enable = true,
         .buffer_size_tx = 4096,
+        .max_redirection_count = 5,
     };
 
     if (handle->username) {

@@ -8,6 +8,7 @@
 #include "esp_wifi.h"
 #include "esp_netif.h"
 #include "nvs_flash.h"
+#include "esp_heap_caps.h"
 
 #include "wifi_manager.h"
 #include "esp_ghota.h"
@@ -19,9 +20,28 @@
 static const char *TAG = "main";
 static ghota_client_handle_t *s_ghota = NULL;
 
+/* Global flag: when true, subway_client pauses to give OTA exclusive HTTPS access */
+volatile bool g_ota_active = false;
+
 static void ghota_event_handler(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
-    ESP_LOGI(TAG, "OTA event: %s", ghota_get_event_str((ghota_event_e)id));
+    ghota_event_e event = (ghota_event_e)id;
+    ESP_LOGI(TAG, "OTA event: %s", ghota_get_event_str(event));
+
+    switch (event) {
+        case GHOTA_EVENT_START_CHECK:
+        case GHOTA_EVENT_START_UPDATE:
+            g_ota_active = true;
+            ESP_LOGW(TAG, "Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
+            break;
+        case GHOTA_EVENT_NOUPDATE_AVAILABLE:
+        case GHOTA_EVENT_UPDATE_FAILED:
+        case GHOTA_EVENT_FINISH_UPDATE:
+            g_ota_active = false;
+            break;
+        default:
+            break;
+    }
 }
 
 static void cb_wifi_got_ip(void *pvParameter)
@@ -32,8 +52,9 @@ static void cb_wifi_got_ip(void *pvParameter)
 
     subway_client_start();
 
-    /* Start OTA update checker */
+    /* Start OTA update checker — register events AFTER wifi_manager creates the event loop */
     if (s_ghota) {
+        esp_event_handler_register(GHOTA_EVENTS, ESP_EVENT_ANY_ID, &ghota_event_handler, NULL);
         ghota_start_update_timer(s_ghota);
         ESP_LOGI(TAG, "OTA checker started (every %d min, repo: ProjectBarks/subway-pcb)", OTA_CHECK_INTERVAL_MIN);
     } else {
@@ -71,7 +92,6 @@ void app_main(void)
     s_ghota = ghota_init(&ghota_config);
     if (s_ghota) {
         ESP_LOGI(TAG, "OTA initialized (ProjectBarks/subway-pcb, match: firmware.bin)");
-        esp_event_handler_register(GHOTA_EVENTS, ESP_EVENT_ANY_ID, &ghota_event_handler, NULL);
     } else {
         ESP_LOGE(TAG, "OTA init FAILED — version may not be valid semver");
     }

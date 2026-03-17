@@ -127,7 +127,16 @@ static void subway_client_task(void *pvParameters)
     /* PixelFrame is small enough for stack (~1.5KB) */
     subway_PixelFrame frame;
 
+    /* Declared in main.c — pauses fetching during OTA checks */
+    extern volatile bool g_ota_active;
+
     while (1) {
+        /* Yield to OTA when it's checking/downloading */
+        if (g_ota_active) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            continue;
+        }
+
         int len = fetch_pixels(s_http_buf, sizeof(s_http_buf));
         if (len > 0) {
             frame = (subway_PixelFrame)subway_PixelFrame_init_zero;

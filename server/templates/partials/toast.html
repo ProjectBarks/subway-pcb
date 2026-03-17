@@ -1,0 +1,8 @@
+{{define "toast"}}
+<div data-toast
+     class="glass border rounded-lg px-4 py-3 text-sm shadow-lg
+            {{if eq .Type "error"}}border-red-500/50 text-red-400{{else}}border-green-500/50 text-green-400{{end}}"
+     style="animation: toast-fade 3.5s ease forwards;">
+    {{.Message}}
+</div>
+{{end}}

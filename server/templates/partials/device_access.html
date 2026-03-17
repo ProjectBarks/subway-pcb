@@ -1,0 +1,45 @@
+{{define "device_access"}}
+<div id="access-panel" class="bg-dark-card border border-dark-border rounded-lg p-6">
+    <h3 class="text-gray-200 font-medium mb-4">Access</h3>
+
+    <div class="space-y-2 mb-4">
+        {{range .Access}}
+        <div class="flex items-center justify-between bg-dark rounded px-3 py-2 group">
+            <div class="flex-1 min-w-0">
+                <p class="text-sm text-gray-300 truncate">{{.UserEmail}}</p>
+                {{if .GrantedBy}}
+                <p class="text-xs text-gray-600">granted by {{.GrantedBy}}</p>
+                {{end}}
+            </div>
+            <button hx-delete="/boards/{{$.Device.MAC}}/access/{{.UserEmail}}"
+                    hx-target="#access-panel"
+                    hx-swap="outerHTML"
+                    hx-confirm="Remove access for {{.UserEmail}}?"
+                    class="text-xs text-red-400/60 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 ml-2">
+                Remove
+            </button>
+        </div>
+        {{else}}
+        <p class="text-xs text-gray-600 italic">No users have access</p>
+        {{end}}
+    </div>
+
+    <div class="border-t border-dark-border pt-4">
+        <h4 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Add User</h4>
+        <form hx-post="/boards/{{.Device.MAC}}/access"
+              hx-target="#access-panel"
+              hx-swap="outerHTML"
+              class="flex gap-2">
+            <input type="email"
+                   name="email"
+                   placeholder="user@example.com"
+                   required
+                   class="flex-1 bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm">
+            <button type="submit"
+                    class="bg-gold text-dark font-bold px-4 py-2 rounded hover:bg-yellow-600 transition text-sm">
+                Grant
+            </button>
+        </form>
+    </div>
+</div>
+{{end}}

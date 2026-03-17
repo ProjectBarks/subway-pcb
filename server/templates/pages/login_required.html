@@ -1,0 +1,80 @@
+{{define "login_required"}}
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In | NYC Subway PCB</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gold: '#c9a830',
+                        dark: {
+                            DEFAULT: '#0a0a0a',
+                            card: '#111111',
+                            border: '#1e1e1e',
+                            hover: '#1a1a1a',
+                        },
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                },
+            },
+        }
+    </script>
+
+    <style>
+        .glass {
+            background: rgba(17, 17, 17, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-dark text-gray-400 font-mono min-h-screen flex items-center justify-center">
+
+    <div class="w-full max-w-md px-4">
+        <div class="glass border border-dark-border rounded-lg p-8 text-center">
+
+            <div class="mb-6">
+                <h1 class="text-gold font-bold text-xl tracking-widest uppercase mb-1">NYC Subway PCB</h1>
+                <div class="w-12 h-0.5 bg-gold/30 mx-auto"></div>
+            </div>
+
+            <div class="mb-8">
+                <svg class="w-12 h-12 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                <h2 class="text-gray-200 text-lg font-medium mb-2">Authentication Required</h2>
+                <p class="text-gray-500 text-sm leading-relaxed">
+                    You need to sign in to access the dashboard and manage your subway PCB boards.
+                </p>
+            </div>
+
+            {{if .LoginURL}}
+            <a href="{{.LoginURL}}"
+               class="inline-block bg-gold text-dark font-bold px-6 py-3 rounded hover:bg-yellow-600 transition w-full text-center">
+                Sign In
+            </a>
+            {{end}}
+
+        </div>
+
+        <p class="text-center text-xs text-gray-600 mt-6">
+            NYC Subway PCB Dashboard
+        </p>
+    </div>
+
+</body>
+</html>
+{{end}}

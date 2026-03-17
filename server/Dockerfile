@@ -25,7 +25,11 @@ WORKDIR /app
 COPY --from=builder /subway-server /app/subway-server
 COPY server/led_map.json /app/led_map.json
 COPY server/static/ /app/static/
+COPY server/templates/ /app/templates/
+
+RUN mkdir -p /app/data
+VOLUME ["/app/data"]
 
 EXPOSE 8080
 
-CMD ["/app/subway-server", "--port", "8080", "--led-map", "led_map.json"]
+CMD ["/app/subway-server", "--port", "8080", "--led-map", "led_map.json", "--data-dir", "data", "--template-dir", "templates"]

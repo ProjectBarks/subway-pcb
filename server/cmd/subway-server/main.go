@@ -12,18 +12,47 @@ import (
 	"time"
 
 	"github.com/ProjectBarks/subway-pcb/server/internal/api"
+	"github.com/ProjectBarks/subway-pcb/server/internal/middleware"
+	"github.com/ProjectBarks/subway-pcb/server/internal/mode"
 	"github.com/ProjectBarks/subway-pcb/server/internal/mta"
+	"github.com/ProjectBarks/subway-pcb/server/internal/store"
+	"github.com/ProjectBarks/subway-pcb/server/internal/ui"
 )
 
 func main() {
 	port := flag.Int("port", 8080, "HTTP server port")
 	pollInterval := flag.Duration("poll-interval", 15*time.Second, "Feed poll interval")
 	ledMapPath := flag.String("led-map", "led_map.json", "Path to led_map.json")
+	dataDir := flag.String("data-dir", "data", "Data directory for bbolt database")
+	templateDir := flag.String("template-dir", "templates", "Path to templates directory")
 	_ = flag.String("visualizer", "", "deprecated")
 	flag.Parse()
 
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 	log.Printf("subway-server starting (port=%d, poll-interval=%s)", *port, *pollInterval)
+
+	// Auth config
+	authCfg := middleware.AuthConfigFromEnv()
+	if authCfg.EnforceAuth && authCfg.AdminEmail == "" {
+		log.Fatal("ADMIN_EMAIL must be set when ENFORCE_AUTH=true")
+	}
+
+	// Initialize store (bbolt or MySQL based on env)
+	db, err := store.New(*dataDir)
+	if err != nil {
+		log.Fatalf("Failed to initialize store: %v", err)
+	}
+	defer db.Close()
+
+	// Seed built-in themes
+	if err := store.SeedBuiltInThemes(db); err != nil {
+		log.Fatalf("Failed to seed themes: %v", err)
+	}
+
+	// Initialize mode registry
+	modeRegistry := mode.NewRegistry()
+	modeRegistry.Register(&mode.TrackMode{})
+	modeRegistry.Register(&mode.SnakeMode{})
 
 	// Create aggregator with 10-second train persistence.
 	aggregator := mta.NewAggregator(10 * time.Second)
@@ -41,9 +70,24 @@ func main() {
 		log.Fatalf("Failed to load LED map: %v", err)
 	}
 	pixelRenderer := api.NewPixelRenderer(ledMap)
+	pixelRenderer.SetDeps(db, modeRegistry)
+
+	// Initialize template renderer
+	renderer, err := ui.NewRenderer(*templateDir)
+	if err != nil {
+		log.Fatalf("Failed to load templates: %v", err)
+	}
 
 	// Set up HTTP server.
-	apiServer := api.NewServer(aggregator, pixelRenderer)
+	apiServer := api.NewServer(api.ServerConfig{
+		Aggregator:    aggregator,
+		PixelRenderer: pixelRenderer,
+		Store:         db,
+		ModeRegistry:  modeRegistry,
+		Renderer:      renderer,
+		AuthConfig:    authCfg,
+	})
+
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", *port),
 		Handler:      apiServer.Handler(),
@@ -68,6 +112,9 @@ func main() {
 
 	// Cancel feed pollers.
 	cancel()
+
+	// Close store.
+	db.Close()
 
 	// Graceful HTTP shutdown with 5-second timeout.
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)

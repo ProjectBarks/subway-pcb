@@ -1,0 +1,136 @@
+{{define "board_controls"}}
+<div id="controls" class="space-y-6">
+
+    <!-- Card 1: Mode -->
+    <details class="bg-dark-card border border-dark-border rounded-lg" open>
+        <summary class="px-6 py-4 cursor-pointer select-none flex items-center justify-between text-gray-200 font-medium hover:bg-dark-hover transition-colors rounded-lg">
+            <span>Mode</span>
+            <svg class="w-4 h-4 text-gray-500 transition-transform details-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </summary>
+        <div class="px-6 pb-6 space-y-2">
+            {{range .Modes}}
+            <button hx-put="/boards/{{$.Device.MAC}}/mode"
+                    hx-vals='{"mode":"{{.Name}}"}'
+                    hx-target="#controls"
+                    hx-swap="outerHTML"
+                    class="w-full text-left px-4 py-3 rounded-md border transition-all
+                           {{if eq $.Device.Mode .Name}}border-gold ring-2 ring-gold/30 bg-gold/5{{else}}border-dark-border hover:bg-dark-hover hover:border-dark-border/80{{end}}">
+                <div class="flex items-center gap-3">
+                    <span class="w-3 h-3 rounded-full border-2 flex items-center justify-center
+                                 {{if eq $.Device.Mode .Name}}border-gold{{else}}border-gray-600{{end}}">
+                        {{if eq $.Device.Mode .Name}}
+                        <span class="w-1.5 h-1.5 rounded-full bg-gold"></span>
+                        {{end}}
+                    </span>
+                    <div>
+                        <p class="text-sm text-gray-200 font-medium">{{.Name}}</p>
+                        {{if .Description}}
+                        <p class="text-xs text-gray-500 mt-0.5">{{.Description}}</p>
+                        {{end}}
+                    </div>
+                </div>
+            </button>
+            {{end}}
+        </div>
+    </details>
+
+    <!-- Card 2: Theme -->
+    <details class="bg-dark-card border border-dark-border rounded-lg" open>
+        <summary class="px-6 py-4 cursor-pointer select-none flex items-center justify-between text-gray-200 font-medium hover:bg-dark-hover transition-colors rounded-lg">
+            <span>Theme</span>
+            <svg class="w-4 h-4 text-gray-500 transition-transform details-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </summary>
+        <div class="px-6 pb-6">
+            <div class="mb-4">
+                <label class="text-xs uppercase tracking-wider text-gray-500 mb-2 block">Active Theme</label>
+                <select onchange="this.closest('div').querySelector('[data-theme-id]').value = this.value; htmx.trigger(this.closest('div').querySelector('[data-theme-submit]'), 'click')"
+                        class="w-full bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm">
+                    {{range .Themes}}
+                    <option value="{{.ID}}" {{if eq $.Theme.ID .ID}}selected{{end}}>{{.Name}}</option>
+                    {{end}}
+                </select>
+                <input type="hidden" data-theme-id value="{{.Theme.ID}}">
+                <button data-theme-submit
+                        hx-put="/boards/{{.Device.MAC}}/theme"
+                        hx-include="[data-theme-id]"
+                        hx-vals='js:{"theme_id": document.querySelector("[data-theme-id]").value}'
+                        hx-target="#controls"
+                        hx-swap="outerHTML"
+                        class="hidden">
+                </button>
+            </div>
+
+            {{if .Theme.RouteColors}}
+            <div class="flex items-center gap-1.5 mb-4">
+                {{range .Theme.RouteColors}}
+                <span class="w-4 h-4 rounded-full border border-dark-border/50" style="background-color: {{colorHex .}}"></span>
+                {{end}}
+            </div>
+            {{end}}
+
+            <button onclick="document.getElementById('theme-editor').classList.toggle('hidden')"
+                    class="text-xs text-gold hover:text-yellow-500 transition-colors flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+                Customize
+            </button>
+
+            <div id="theme-editor" class="hidden mt-4">
+                {{template "theme_form" .}}
+            </div>
+        </div>
+    </details>
+
+    <!-- Card 3: Device Info -->
+    <div class="bg-dark-card border border-dark-border rounded-lg p-6">
+        <h3 class="text-gray-200 font-medium mb-4">Device Info</h3>
+
+        <div class="space-y-4">
+            <div>
+                <label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Board Name</label>
+                <input type="text"
+                       value="{{.Device.Name}}"
+                       placeholder="Unnamed board"
+                       hx-put="/boards/{{.Device.MAC}}/name"
+                       hx-trigger="blur changed, keyup[keyCode==13]"
+                       hx-vals='js:{"name": event.target.value}'
+                       hx-target="#controls"
+                       hx-swap="outerHTML"
+                       class="w-full bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm">
+            </div>
+
+            <div>
+                <label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">MAC Address</label>
+                <p class="text-sm text-gray-300 font-mono">{{.Device.MAC}}</p>
+            </div>
+
+            <div>
+                <label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Firmware</label>
+                <p class="text-sm text-gray-300">{{if .Device.FirmwareVersion}}v{{.Device.FirmwareVersion}}{{else}}Unknown{{end}}</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Created</label>
+                    <p class="text-xs text-gray-500">{{timeAgo .Device.CreatedAt}}</p>
+                </div>
+                <div>
+                    <label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Last Seen</label>
+                    <p class="text-xs {{if isOnline .Device.LastSeen}}text-green-500{{else}}text-gray-500{{end}}">
+                        {{if isOnline .Device.LastSeen}}Online now{{else}}{{timeAgo .Device.LastSeen}}{{end}}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 4: Access -->
+    {{template "device_access" .}}
+
+</div>
+{{end}}
