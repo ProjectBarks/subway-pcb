@@ -10,14 +10,29 @@ __pycache__/
 *.pyc
 .venv/
 *.egg-info/
+*.lock
 
 # OS
 .DS_Store
 Thumbs.db
 
 # Logs
-serial.log
 *.log
+
+# IDE
+.vscode/
+.idea/
+
+# Server binary
+server/subway-server
+
+# Managed components (downloaded at build time)
+**/managed_components/
+**/dependencies.lock
+
+# Local config (WiFi credentials, overrides)
+wifi.txt
+**/platformio_local.ini
 
 # MCP captures & config
 mcp/captures/
@@ -27,14 +42,3 @@ mcp/sol_*.py
 mcp/fast_test.py
 mcp/benchmark.py
 mcp/a[0-9]*.py
-
-# Server binary
-server/subway-server
-
-# Managed components (downloaded at build time)
-**/managed_components/
-**/dependencies.lock
-
-# WiFi credentials
-wifi.txt
-*.lock

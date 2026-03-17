@@ -26,7 +26,7 @@ static const uint16_t STRIP_LED_COUNTS[NUM_STRIPS] = {
 #define SPI_STRIP_INDEX 8
 
 /* Server configuration */
-#define DEFAULT_SERVER_URL "http://192.168.1.19:8080/api/v1/pixels"
+#define DEFAULT_SERVER_URL "http://subway.local:8080/api/v1/pixels"
 #define SERVER_URL_NVS_KEY "server_url"
 #define SERVER_URL_MAX_LEN 128
 
