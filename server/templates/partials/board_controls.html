@@ -65,9 +65,9 @@
             </div>
 
             {{if .Theme.RouteColors}}
-            <div class="flex items-center gap-1.5 mb-4">
-                {{range .Theme.RouteColors}}
-                <span class="w-4 h-4 rounded-full border border-dark-border/50" style="background-color: {{colorHex .}}"></span>
+            <div class="flex items-center gap-1.5 mb-4 flex-wrap">
+                {{range $key, $color := .Theme.RouteColors}}
+                <span class="w-4 h-4 rounded-full border border-dark-border/50" style="background-color: {{colorHex $color}}" title="{{routeName $key}}"></span>
                 {{end}}
             </div>
             {{end}}
@@ -111,7 +111,7 @@
 
             <div>
                 <label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Firmware</label>
-                <p class="text-sm text-gray-300">{{if .Device.FirmwareVersion}}v{{.Device.FirmwareVersion}}{{else}}Unknown{{end}}</p>
+                <p class="text-sm text-gray-300">{{if .Device.FirmwareVer}}v{{.Device.FirmwareVer}}{{else}}Unknown{{end}}</p>
             </div>
 
             <div class="grid grid-cols-2 gap-4">

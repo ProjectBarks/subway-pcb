@@ -1,7 +1,7 @@
 {{define "theme_form"}}
 <div class="space-y-4">
 
-    {{if .Theme.BuiltIn}}
+    {{if .Theme.IsBuiltIn}}
     <div class="text-xs text-yellow-600 bg-yellow-500/10 border border-yellow-500/20 rounded px-3 py-2">
         Built-in themes cannot be modified. Save as a new theme instead.
     </div>
@@ -10,17 +10,19 @@
     <div class="space-y-2">
         <h4 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Route Colors</h4>
 
-        <div class="grid gap-2">
-            {{range $i, $color := .Theme.RouteColors}}
+        <div class="grid gap-2 max-h-80 overflow-y-auto pr-1">
+            {{range $key := .RouteKeys}}
+            {{$color := index $.Theme.RouteColors $key}}
             <div class="flex items-center gap-3 bg-dark rounded px-3 py-2">
-                <span class="text-xs text-gray-400 w-20 truncate">{{routeName $i}}</span>
+                <span class="text-xs text-gray-400 w-12 shrink-0">{{routeName $key}}</span>
                 <input type="color"
+                       name="color_{{$key}}"
                        value="{{colorHex $color}}"
-                       data-route-index="{{$i}}"
-                       class="route-color-input w-8 h-8 rounded cursor-pointer border border-dark-border bg-transparent"
-                       oninput="updatePreviewColor(this)">
+                       data-route-key="{{$key}}"
+                       class="route-color-input w-8 h-8 rounded cursor-pointer border border-dark-border bg-transparent shrink-0"
+                       oninput="updatePreviewColor(this); this.closest('.flex').querySelector('.route-hex').textContent = this.value; this.closest('.flex').querySelector('.route-preview').style.backgroundColor = this.value;">
                 <span class="text-xs text-gray-500 font-mono route-hex">{{colorHex $color}}</span>
-                <span class="w-4 h-4 rounded-full border border-dark-border/50 route-preview" style="background-color: {{colorHex $color}}"></span>
+                <span class="w-4 h-4 rounded-full border border-dark-border/50 route-preview shrink-0" style="background-color: {{colorHex $color}}"></span>
             </div>
             {{end}}
         </div>
@@ -38,16 +40,15 @@
                    placeholder="Theme name"
                    required
                    class="flex-1 bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm">
-            <input type="hidden" name="route_colors" id="new-theme-colors">
             <button type="submit"
-                    onclick="this.form.querySelector('#new-theme-colors').value = collectRouteColors()"
+                    onclick="collectRouteColorsToForm(this.form)"
                     class="bg-gold text-dark font-bold px-4 py-2 rounded hover:bg-yellow-600 transition text-sm">
                 Save
             </button>
         </form>
     </div>
 
-    {{if and .Theme (not .Theme.BuiltIn)}}
+    {{if and .Theme (not .Theme.IsBuiltIn)}}
     <!-- Update existing theme -->
     <div class="border-t border-dark-border pt-4">
         <form hx-put="/api/v1/themes/{{.Theme.ID}}"
@@ -55,9 +56,8 @@
               hx-swap="outerHTML"
               class="flex items-center justify-between">
             <span class="text-xs text-gray-500">Update "{{.Theme.Name}}"</span>
-            <input type="hidden" name="route_colors" id="update-theme-colors">
             <button type="submit"
-                    onclick="this.form.querySelector('#update-theme-colors').value = collectRouteColors()"
+                    onclick="collectRouteColorsToForm(this.form)"
                     class="bg-gold text-dark font-bold px-4 py-2 rounded hover:bg-yellow-600 transition text-sm">
                 Update
             </button>
@@ -68,21 +68,18 @@
 </div>
 
 <script>
-function updatePreviewColor(input) {
-    const row = input.closest('.flex');
-    const hex = row.querySelector('.route-hex');
-    const preview = row.querySelector('.route-preview');
-    if (hex) hex.textContent = input.value;
-    if (preview) preview.style.backgroundColor = input.value;
-}
-
-function collectRouteColors() {
-    const inputs = document.querySelectorAll('.route-color-input');
-    const colors = [];
-    inputs.forEach(input => {
-        colors.push(input.value);
+// Collect all color picker values into hidden form inputs
+function collectRouteColorsToForm(form) {
+    // Remove any existing color_ hidden inputs
+    form.querySelectorAll('input[name^="color_"]').forEach(el => el.remove());
+    // Add current color values from all pickers
+    document.querySelectorAll('.route-color-input').forEach(input => {
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = input.name;
+        hidden.value = input.value;
+        form.appendChild(hidden);
     });
-    return JSON.stringify(colors);
 }
 </script>
 {{end}}
