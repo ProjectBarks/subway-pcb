@@ -14,6 +14,8 @@ import (
 	"github.com/ProjectBarks/subway-pcb/server/internal/api"
 	"github.com/ProjectBarks/subway-pcb/server/internal/middleware"
 	"github.com/ProjectBarks/subway-pcb/server/internal/mode"
+	"github.com/ProjectBarks/subway-pcb/server/internal/mode/snake"
+	"github.com/ProjectBarks/subway-pcb/server/internal/mode/track"
 	"github.com/ProjectBarks/subway-pcb/server/internal/mta"
 	"github.com/ProjectBarks/subway-pcb/server/internal/store"
 	"github.com/ProjectBarks/subway-pcb/server/internal/ui"
@@ -46,8 +48,8 @@ func main() {
 
 	// Initialize mode registry
 	modeRegistry := mode.NewRegistry()
-	modeRegistry.Register(&mode.TrackMode{})
-	modeRegistry.Register(&mode.SnakeMode{})
+	modeRegistry.Register(&track.Mode{})
+	modeRegistry.Register(&snake.Mode{})
 
 	// Seed built-in themes from all registered modes
 	if err := store.SeedThemes(db, modeRegistry.AllDefaultThemes()); err != nil {
