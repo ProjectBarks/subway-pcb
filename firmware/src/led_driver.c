@@ -4,110 +4,99 @@
 #include "led_strip.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <string.h>
 
 static const char *TAG = "led_driver";
 
 static led_strip_handle_t s_strips[NUM_STRIPS];
 
+/* Time-multiplexed SPI: create SPI device for one strip, send data, destroy it,
+ * move to next strip. Uses DMA so each transfer is WiFi-immune.
+ * We only update ~1/second so the sequential overhead is negligible. */
+
+/* Pixel buffer — store all pixel data so we can re-send via SPI on refresh */
+static uint8_t s_pixel_buf[TOTAL_LEDS * 3];
+static uint16_t s_strip_offsets[NUM_STRIPS];
+
 esp_err_t led_driver_init(void)
 {
-    esp_err_t ret;
-
+    /* Compute strip offsets into flat pixel buffer */
+    uint16_t offset = 0;
     for (int i = 0; i < NUM_STRIPS; i++) {
-        if (i == SPI_STRIP_INDEX) {
-            /* Skip SPI strip - potential conflict */
-            s_strips[i] = NULL;
-            continue;
-        }
-
-        led_strip_config_t strip_config = {
-            .strip_gpio_num = STRIP_GPIOS[i],
-            .max_leds = STRIP_LED_COUNTS[i],
-            .led_pixel_format = LED_PIXEL_FORMAT_GRB,
-            .led_model = LED_MODEL_WS2812,
-        };
-
-        {
-            /* Use RMT backend for the other 8 strips */
-            led_strip_rmt_config_t rmt_config = {
-                .resolution_hz = 8 * 1000 * 1000, /* 8 MHz — wider timing margins for WS2812B */
-                .flags = {
-                    .with_dma = false,
-                },
-            };
-            ret = led_strip_new_rmt_device(&strip_config, &rmt_config, &s_strips[i]);
-        }
-
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to init strip %d (GPIO %d): %s",
-                     i, STRIP_GPIOS[i], esp_err_to_name(ret));
-            return ret;
-        }
-
-        /* Clear strip on init */
-        led_strip_clear(s_strips[i]);
+        s_strip_offsets[i] = offset;
+        offset += STRIP_LED_COUNTS[i];
     }
 
-    ESP_LOGI(TAG, "Initialized %d LED strips (%d total LEDs)", NUM_STRIPS, TOTAL_LEDS);
+    memset(s_pixel_buf, 0, sizeof(s_pixel_buf));
+    memset(s_strips, 0, sizeof(s_strips));
+
+    ESP_LOGI(TAG, "LED driver initialized (%d strips, %d LEDs, SPI time-multiplexed)", NUM_STRIPS, TOTAL_LEDS);
     return ESP_OK;
 }
 
 esp_err_t led_driver_set_pixel(uint8_t strip, uint16_t pixel, uint8_t r, uint8_t g, uint8_t b)
 {
-    if (strip >= NUM_STRIPS || !s_strips[strip]) {
+    if (strip >= NUM_STRIPS || pixel >= STRIP_LED_COUNTS[strip]) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (pixel >= STRIP_LED_COUNTS[strip]) {
-        return ESP_ERR_INVALID_ARG;
+    /* Scale brightness locally — server sends full-range colors */
+    int idx = (s_strip_offsets[strip] + pixel) * 3;
+    s_pixel_buf[idx + 0] = (uint8_t)((uint16_t)r * DEFAULT_BRIGHTNESS / 255);
+    s_pixel_buf[idx + 1] = (uint8_t)((uint16_t)g * DEFAULT_BRIGHTNESS / 255);
+    s_pixel_buf[idx + 2] = (uint8_t)((uint16_t)b * DEFAULT_BRIGHTNESS / 255);
+    return ESP_OK;
+}
+
+/* Send one strip via SPI DMA: create device, set pixels, refresh, destroy.
+ * Each strip gets exclusive use of the SPI bus during its transfer. */
+static esp_err_t refresh_strip_spi(int strip_idx)
+{
+    led_strip_config_t cfg = {
+        .strip_gpio_num = STRIP_GPIOS[strip_idx],
+        .max_leds = STRIP_LED_COUNTS[strip_idx],
+        .led_pixel_format = LED_PIXEL_FORMAT_GRB,
+        .led_model = LED_MODEL_WS2812,
+    };
+    led_strip_spi_config_t spi_cfg = {
+        .spi_bus = SPI2_HOST,
+        .flags = { .with_dma = true },
+    };
+
+    led_strip_handle_t handle = NULL;
+    esp_err_t ret = led_strip_new_spi_device(&cfg, &spi_cfg, &handle);
+    if (ret != ESP_OK) return ret;
+
+    /* Load pixel data */
+    int offset = s_strip_offsets[strip_idx];
+    for (uint16_t p = 0; p < STRIP_LED_COUNTS[strip_idx]; p++) {
+        int idx = (offset + p) * 3;
+        led_strip_set_pixel(handle, p, s_pixel_buf[idx], s_pixel_buf[idx+1], s_pixel_buf[idx+2]);
     }
-    /* Scale brightness locally — server sends full-range colors for
-     * better WS2812B signal resilience (higher values = fewer visible bit flips) */
-    r = (uint8_t)((uint16_t)r * DEFAULT_BRIGHTNESS / 255);
-    g = (uint8_t)((uint16_t)g * DEFAULT_BRIGHTNESS / 255);
-    b = (uint8_t)((uint16_t)b * DEFAULT_BRIGHTNESS / 255);
-    return led_strip_set_pixel(s_strips[strip], pixel, r, g, b);
+
+    ret = led_strip_refresh(handle);
+
+    /* Tear down — frees the SPI bus for the next strip */
+    led_strip_del(handle);
+
+    return ret;
 }
 
 esp_err_t led_driver_refresh(void)
 {
-    esp_err_t ret;
     for (int i = 0; i < NUM_STRIPS; i++) {
-        if (!s_strips[i]) continue;
-        ret = led_strip_refresh(s_strips[i]);
+        esp_err_t ret = refresh_strip_spi(i);
         if (ret != ESP_OK) {
-            ESP_LOGW(TAG, "Failed to refresh strip %d: %s", i, esp_err_to_name(ret));
+            ESP_LOGW(TAG, "Strip %d refresh failed: %s", i, esp_err_to_name(ret));
         }
     }
     return ESP_OK;
 }
 
-static void refresh_task(void *pvParameters)
-{
-    /* Continuously re-push pixel data to fix WS2812B signal glitches.
-     * Any bit corruption (causing cyan/wrong colors) self-corrects
-     * within 50ms instead of persisting until the next server poll. */
-    while (1) {
-        for (int i = 0; i < NUM_STRIPS; i++) {
-            if (!s_strips[i]) continue;
-            led_strip_refresh(s_strips[i]);
-            vTaskDelay(pdMS_TO_TICKS(1));
-        }
-        vTaskDelay(pdMS_TO_TICKS(50));
-    }
-}
-
-void led_driver_start_refresh_task(void)
-{
-    xTaskCreate(refresh_task, "led_refresh", 2048, NULL, 3, NULL);
-    ESP_LOGI(TAG, "LED refresh task started (50ms cycle)");
-}
+void led_driver_start_refresh_task(void) { /* unused */ }
 
 esp_err_t led_driver_clear(void)
 {
-    for (int i = 0; i < NUM_STRIPS; i++) {
-        if (!s_strips[i]) continue;
-        led_strip_clear(s_strips[i]);
-    }
+    memset(s_pixel_buf, 0, sizeof(s_pixel_buf));
     return led_driver_refresh();
 }
 

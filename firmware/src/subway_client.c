@@ -14,6 +14,7 @@
 
 static const char *TAG = "subway_client";
 
+
 /* Static buffer for HTTP response */
 static uint8_t s_http_buf[HTTP_BUF_SIZE];
 
@@ -89,18 +90,6 @@ static void apply_pixels(const subway_PixelFrame *frame)
     const uint8_t *p = frame->pixels.bytes;
     int offset = 0;
 
-    /* Log strip 1 non-zero pixels for debugging color glitch */
-    ESP_LOGI(TAG, "--- Strip 1 data (first 10 non-zero) ---");
-    int logged = 0;
-    int s1_start = STRIP_LED_COUNTS[0]; /* strip 1 starts after strip 0 */
-    for (uint16_t px = 0; px < STRIP_LED_COUNTS[1] && logged < 10; px++) {
-        int idx = (s1_start + px) * 3;
-        if (p[idx] || p[idx+1] || p[idx+2]) {
-            ESP_LOGI(TAG, "  s1 px%d: r=%d g=%d b=%d", px, p[idx], p[idx+1], p[idx+2]);
-            logged++;
-        }
-    }
-
     for (int strip = 0; strip < NUM_STRIPS; strip++) {
         for (uint16_t pixel = 0; pixel < STRIP_LED_COUNTS[strip]; pixel++) {
             int idx = offset * 3;
@@ -108,6 +97,7 @@ static void apply_pixels(const subway_PixelFrame *frame)
             offset++;
         }
     }
+
     led_driver_refresh();
 }
 
