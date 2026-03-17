@@ -1,3 +1,1 @@
-subway.Station.stop_id    max_size:5
-subway.Station.trains     max_count:8
-subway.SubwayState.stations max_count:500
+subway.PixelFrame.pixels  max_size:1434

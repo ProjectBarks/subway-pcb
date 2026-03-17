@@ -5,7 +5,7 @@
 
 /**
  * Start the subway client FreeRTOS task.
- * Polls the server for SubwayState protobuf and updates the renderer.
+ * Polls the server for PixelFrame protobuf and writes pixels to LED strips.
  * Should be called after WiFi is connected.
  */
 esp_err_t subway_client_start(void);

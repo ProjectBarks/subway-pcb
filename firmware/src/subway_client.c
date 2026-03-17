@@ -5,6 +5,7 @@
 
 #include "esp_log.h"
 #include "esp_http_client.h"
+#include "esp_mac.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
@@ -50,6 +51,14 @@ static int fetch_pixels(uint8_t *buf, int buf_size)
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
     if (!client) return -1;
+
+    /* Send device MAC as header so server can identify this board */
+    uint8_t mac[6];
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
+    char mac_str[18];
+    snprintf(mac_str, sizeof(mac_str), "%02x:%02x:%02x:%02x:%02x:%02x",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    esp_http_client_set_header(client, "X-Device-ID", mac_str);
 
     esp_err_t err = esp_http_client_open(client, 0);
     if (err != ESP_OK) {
