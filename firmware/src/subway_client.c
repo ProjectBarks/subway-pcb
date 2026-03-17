@@ -5,7 +5,10 @@
 
 #include "esp_log.h"
 #include "esp_http_client.h"
+#include "esp_tls.h"
+#include "esp_crt_bundle.h"
 #include "esp_mac.h"
+#include "esp_ota_ops.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "freertos/FreeRTOS.h"
@@ -47,6 +50,7 @@ static int fetch_pixels(uint8_t *buf, int buf_size)
     esp_http_client_config_t config = {
         .url = s_server_url,
         .timeout_ms = 5000,
+        .crt_bundle_attach = esp_crt_bundle_attach,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -113,6 +117,10 @@ static void apply_pixels(const subway_PixelFrame *frame)
 static void subway_client_task(void *pvParameters)
 {
     load_server_url();
+
+    /* Log app version so we can verify OTA updates */
+    const esp_app_desc_t *app = esp_app_get_description();
+    ESP_LOGI(TAG, "Firmware version: %s", app->version);
 
     int backoff_sec = POLL_INTERVAL_SEC;
 
