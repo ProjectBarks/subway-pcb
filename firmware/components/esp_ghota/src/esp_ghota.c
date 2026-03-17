@@ -542,12 +542,41 @@ esp_err_t ghota_update(ghota_client_handle_t *handle) {
         xSemaphoreGive(ghota_lock);
         return ESP_OK;
     }
+    /* Resolve the redirect first — GitHub's download URLs redirect to a CDN
+     * with signed query params. esp_https_ota doesn't handle this well. */
+    char resolved_url[1024] = {0};
+    {
+        esp_http_client_config_t resolve_cfg = {
+            .url = handle->result.url,
+            .crt_bundle_attach = esp_crt_bundle_attach,
+            .disable_auto_redirect = true,
+            .timeout_ms = 10000,
+        };
+        esp_http_client_handle_t resolve_client = esp_http_client_init(&resolve_cfg);
+        esp_http_client_set_header(resolve_client, "Accept", "application/octet-stream");
+        esp_http_client_set_method(resolve_client, HTTP_METHOD_HEAD);
+        esp_err_t resolve_err = esp_http_client_perform(resolve_client);
+        int status = esp_http_client_get_status_code(resolve_client);
+        if (resolve_err == ESP_OK && (status == 302 || status == 301)) {
+            /* Read Location header for the redirect target */
+            esp_http_client_get_url(resolve_client, resolved_url, sizeof(resolved_url));
+            /* After disable_auto_redirect + perform, get_url still returns original.
+             * The redirect URL is in the response headers — use set_redirection to follow it */
+            esp_http_client_set_redirection(resolve_client);
+            esp_http_client_get_url(resolve_client, resolved_url, sizeof(resolved_url));
+            ESP_LOGI(TAG, "Resolved redirect to: %s", resolved_url);
+        } else {
+            strncpy(resolved_url, handle->result.url, sizeof(resolved_url) - 1);
+            ESP_LOGI(TAG, "No redirect (status %d), using original URL", status);
+        }
+        esp_http_client_cleanup(resolve_client);
+    }
+
     esp_http_client_config_t httpconfig = {
-        .url = handle->result.url,
+        .url = resolved_url,
         .crt_bundle_attach = esp_crt_bundle_attach,
         .keep_alive_enable = true,
         .buffer_size_tx = 4096,
-        .max_redirection_count = 5,
     };
 
     if (handle->username) {
@@ -559,9 +588,8 @@ esp_err_t ghota_update(ghota_client_handle_t *handle) {
 
     esp_https_ota_config_t ota_config = {
         .http_config = &httpconfig,
-        .http_client_init_cb = http_client_set_header_cb, 
     };
-    
+
     esp_https_ota_handle_t https_ota_handle = NULL;
     esp_err_t err = esp_https_ota_begin(&ota_config, &https_ota_handle);
     if (err != ESP_OK) {
