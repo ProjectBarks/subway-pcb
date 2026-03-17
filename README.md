@@ -2,6 +2,8 @@
 
 Real-time NYC subway train tracker on a custom PCB with 478 WS2812B LEDs forming the subway map.
 
+![PCB Board](docs/pcb.jpg)
+
 A Go server polls MTA's GTFS real-time feeds, renders train positions as pixel data, and streams it to an ESP32 over WiFi. Each LED lights up with the subway line's color when a train is at that station.
 
 ## Architecture
