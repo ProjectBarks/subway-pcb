@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "subway-pcb": {
-      "command": "uv",
-      "args": ["run", "mcp/capture.py", "serve"]
-    }
-  }
-}
