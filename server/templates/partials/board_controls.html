@@ -5,7 +5,7 @@
     <details class="bg-dark-card border border-dark-border rounded-lg" open>
         <summary class="px-6 py-4 cursor-pointer select-none flex items-center justify-between text-gray-200 font-medium hover:bg-dark-hover transition-colors rounded-lg">
             <span>Mode</span>
-            <svg class="w-4 h-4 text-gray-500 transition-transform details-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
         </summary>
@@ -36,84 +36,154 @@
         </div>
     </details>
 
-    <!-- Card 2: Theme -->
+    <!-- Card 2: Configuration -->
+    {{if .ConfigGroups}}
     <details class="bg-dark-card border border-dark-border rounded-lg" open>
         <summary class="px-6 py-4 cursor-pointer select-none flex items-center justify-between text-gray-200 font-medium hover:bg-dark-hover transition-colors rounded-lg">
-            <span>Theme</span>
-            <svg class="w-4 h-4 text-gray-500 transition-transform details-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span>Configuration</span>
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
         </summary>
         <div class="px-6 pb-6">
-            <div class="mb-4">
-                <label class="text-xs uppercase tracking-wider text-gray-500 mb-2 block">Active Theme</label>
-                <select onchange="this.closest('div').querySelector('[data-theme-id]').value = this.value; htmx.trigger(this.closest('div').querySelector('[data-theme-submit]'), 'click')"
-                        class="w-full bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm">
-                    {{range .Themes}}
-                    <option value="{{.ID}}" {{if eq $.Theme.ID .ID}}selected{{end}}>{{.Name}}</option>
-                    {{end}}
-                </select>
-                <input type="hidden" data-theme-id value="{{.Theme.ID}}">
-                <button data-theme-submit
-                        hx-put="/boards/{{.Device.MAC}}/theme"
-                        hx-include="[data-theme-id]"
-                        hx-vals='js:{"theme_id": document.querySelector("[data-theme-id]").value}'
-                        hx-target="#controls"
-                        hx-swap="outerHTML"
-                        class="hidden">
-                </button>
-            </div>
 
-            {{if .Theme.RouteColors}}
-            <div class="flex items-center gap-1.5 mb-4 flex-wrap">
-                {{range $key, $color := .Theme.RouteColors}}
-                <span class="w-4 h-4 rounded-full border border-dark-border/50" style="background-color: {{colorHex $color}}" title="{{routeName $key}}"></span>
-                {{end}}
+            <!-- Theme preset selector -->
+            {{if .Themes}}
+            <div class="mb-5">
+                <label class="text-xs uppercase tracking-wider text-gray-500 mb-2 block">Load Preset</label>
+                <div class="flex gap-2">
+                    <select id="theme-select"
+                            class="flex-1 bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm">
+                        <option value="">— select preset —</option>
+                        {{range .Themes}}
+                        <option value="{{.ID}}" {{if eq $.Device.ThemeID .ID}}selected{{end}}>
+                            {{.Name}}{{if not .IsBuiltIn}} (yours){{end}}
+                        </option>
+                        {{end}}
+                    </select>
+                    <button type="button"
+                            onclick="const sel = document.getElementById('theme-select'); if(sel.value) { htmx.ajax('PUT', '/boards/{{.Device.MAC}}/theme', {values: {theme_id: sel.value}, target: '#controls', swap: 'outerHTML'}); }"
+                            class="bg-gold text-dark font-bold px-3 py-2 rounded hover:bg-yellow-600 transition text-sm shrink-0">
+                        Load
+                    </button>
+                </div>
             </div>
             {{end}}
 
-            <button onclick="document.getElementById('theme-editor').classList.toggle('hidden')"
-                    class="text-xs text-gold hover:text-yellow-500 transition-colors flex items-center gap-1">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                </svg>
-                Customize
-            </button>
+            <!-- Dynamic config fields -->
+            <form id="mode-config-form"
+                  hx-put="/boards/{{.Device.MAC}}/config"
+                  hx-target="#controls"
+                  hx-swap="outerHTML">
 
-            <div id="theme-editor" class="hidden mt-4">
-                {{template "theme_form" .}}
+            {{range .ConfigGroups}}
+                <div class="mb-4">
+                    <h4 class="text-xs uppercase tracking-wider text-gray-500 mb-3">{{.Name}}</h4>
+                    <div class="space-y-2">
+                    {{range .Fields}}
+                        {{if eq .Type "color"}}
+                        <div class="flex items-center gap-3 bg-dark rounded px-3 py-2">
+                            <span class="text-xs text-gray-400 w-16 shrink-0">{{.Label}}</span>
+                            <input type="color"
+                                   name="{{.Key}}"
+                                   value="{{index $.ConfigValues .Key}}"
+                                   class="w-8 h-8 rounded cursor-pointer border border-dark-border bg-transparent shrink-0">
+                            <span class="text-xs text-gray-500 font-mono">{{index $.ConfigValues .Key}}</span>
+                        </div>
+                        {{else if eq .Type "number"}}
+                        <div class="flex items-center gap-3 bg-dark rounded px-3 py-2">
+                            <label class="text-xs text-gray-400 w-32 shrink-0">{{.Label}}</label>
+                            <input type="number"
+                                   name="{{.Key}}"
+                                   value="{{index $.ConfigValues .Key}}"
+                                   {{if .Min}}min="{{.Min}}"{{end}}
+                                   {{if .Max}}max="{{.Max}}"{{end}}
+                                   class="flex-1 bg-dark-card border border-dark-border rounded px-3 py-1.5 text-gray-300 focus:border-gold focus:outline-none text-sm w-20">
+                        </div>
+                        {{else if eq .Type "select"}}
+                        <div class="flex items-center gap-3 bg-dark rounded px-3 py-2">
+                            <label class="text-xs text-gray-400 w-32 shrink-0">{{.Label}}</label>
+                            <select name="{{.Key}}"
+                                    class="flex-1 bg-dark-card border border-dark-border rounded px-3 py-1.5 text-gray-300 focus:border-gold focus:outline-none text-sm">
+                                {{$val := index $.ConfigValues .Key}}
+                                {{range .Options}}
+                                <option value="{{.}}" {{if eq $val .}}selected{{end}}>{{.}}</option>
+                                {{end}}
+                            </select>
+                        </div>
+                        {{end}}
+                    {{end}}
+                    </div>
+                </div>
+            {{end}}
+
+            <button type="submit"
+                    class="w-full bg-gold text-dark font-bold px-4 py-2 rounded hover:bg-yellow-600 transition text-sm mt-2">
+                Apply
+            </button>
+            </form>
+
+            <!-- Save as theme -->
+            <div class="border-t border-dark-border mt-4 pt-4">
+                <h4 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Save as Preset</h4>
+                <form hx-post="/api/v1/themes"
+                      hx-target="#controls"
+                      hx-swap="outerHTML"
+                      class="flex gap-2"
+                      onsubmit="collectConfigToThemeForm(this)">
+                    <input type="hidden" name="mode_name" value="{{.Device.Mode}}">
+                    <input type="text" name="name" placeholder="Preset name" required
+                           class="flex-1 bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm">
+                    <button type="submit"
+                            class="bg-gold text-dark font-bold px-3 py-2 rounded hover:bg-yellow-600 transition text-sm shrink-0">
+                        Save
+                    </button>
+                </form>
             </div>
+
+            <script>
+            function collectConfigToThemeForm(form) {
+                // Remove old val_ inputs
+                form.querySelectorAll('input[name^="val_"]').forEach(e => e.remove());
+                // Copy current config values from the config form
+                const configForm = document.getElementById('mode-config-form');
+                if (!configForm) return;
+                const inputs = configForm.querySelectorAll('input[name], select[name]');
+                inputs.forEach(el => {
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'val_' + el.name;
+                    hidden.value = el.value;
+                    form.appendChild(hidden);
+                });
+            }
+            </script>
+
         </div>
     </details>
+    {{end}}
 
     <!-- Card 3: Device Info -->
     <div class="bg-dark-card border border-dark-border rounded-lg p-6">
         <h3 class="text-gray-200 font-medium mb-4">Device Info</h3>
-
         <div class="space-y-4">
             <div>
                 <label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Board Name</label>
-                <input type="text"
-                       value="{{.Device.Name}}"
-                       placeholder="Unnamed board"
+                <input type="text" value="{{.Device.Name}}" placeholder="Unnamed board"
                        hx-put="/boards/{{.Device.MAC}}/name"
                        hx-trigger="blur changed, keyup[keyCode==13]"
                        hx-vals='js:{"name": event.target.value}'
-                       hx-target="#controls"
-                       hx-swap="outerHTML"
+                       hx-target="#controls" hx-swap="outerHTML"
                        class="w-full bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm">
             </div>
-
             <div>
                 <label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">MAC Address</label>
                 <p class="text-sm text-gray-300 font-mono">{{.Device.MAC}}</p>
             </div>
-
             <div>
                 <label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Firmware</label>
                 <p class="text-sm text-gray-300">{{if .Device.FirmwareVer}}v{{.Device.FirmwareVer}}{{else}}Unknown{{end}}</p>
             </div>
-
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Created</label>

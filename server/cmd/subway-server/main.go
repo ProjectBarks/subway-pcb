@@ -44,15 +44,15 @@ func main() {
 	}
 	defer db.Close()
 
-	// Seed built-in themes
-	if err := store.SeedBuiltInThemes(db); err != nil {
-		log.Fatalf("Failed to seed themes: %v", err)
-	}
-
 	// Initialize mode registry
 	modeRegistry := mode.NewRegistry()
 	modeRegistry.Register(&mode.TrackMode{})
 	modeRegistry.Register(&mode.SnakeMode{})
+
+	// Seed built-in themes from all registered modes
+	if err := store.SeedThemes(db, modeRegistry.AllDefaultThemes()); err != nil {
+		log.Fatalf("Failed to seed themes: %v", err)
+	}
 
 	// Create aggregator with 10-second train persistence.
 	aggregator := mta.NewAggregator(10 * time.Second)

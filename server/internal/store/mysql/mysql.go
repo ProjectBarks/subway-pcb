@@ -14,13 +14,14 @@ import (
 // ---------- GORM model structs ----------
 
 type Device struct {
-	MAC         string    `gorm:"column:mac;primaryKey;size:17"`
-	Name        string    `gorm:"column:name;size:255"`
-	Mode        string    `gorm:"column:mode;size:50;default:'idle'"`
-	ThemeID     string    `gorm:"column:theme_id;size:36"`
-	FirmwareVer string    `gorm:"column:firmware_ver;size:32"`
-	LastSeen    time.Time `gorm:"column:last_seen;autoUpdateTime"`
-	CreatedAt   time.Time `gorm:"column:created_at;autoCreateTime"`
+	MAC         string         `gorm:"column:mac;primaryKey;size:17"`
+	Name        string         `gorm:"column:name;size:255"`
+	Mode        string         `gorm:"column:mode;size:50;default:'idle'"`
+	ThemeID     string         `gorm:"column:theme_id;size:36"`
+	FirmwareVer string         `gorm:"column:firmware_ver;size:32"`
+	ModeConfig  datatypes.JSON `gorm:"column:mode_config;type:json"`
+	LastSeen    time.Time      `gorm:"column:last_seen;autoUpdateTime"`
+	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
 }
 
 type DeviceAccess struct {
@@ -31,13 +32,14 @@ type DeviceAccess struct {
 }
 
 type Theme struct {
-	ID          string         `gorm:"column:id;primaryKey;size:36"`
-	Name        string         `gorm:"column:name;size:255"`
-	OwnerEmail  string         `gorm:"column:owner_email;size:255"`
-	IsBuiltIn   bool           `gorm:"column:is_built_in;default:false"`
-	RouteColors datatypes.JSON `gorm:"column:route_colors;type:json"`
-	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	ID         string         `gorm:"column:id;primaryKey;size:50"`
+	Name       string         `gorm:"column:name;size:255"`
+	ModeName   string         `gorm:"column:mode_name;size:50;index"`
+	OwnerEmail string         `gorm:"column:owner_email;size:255;index"`
+	IsBuiltIn  bool           `gorm:"column:is_built_in;default:false"`
+	Values     datatypes.JSON `gorm:"column:vals;type:json"`
+	CreatedAt  time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt  time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 }
 
 type User struct {
@@ -239,12 +241,17 @@ func (s *MySQLStore) Close() error {
 // ---------- Conversion helpers ----------
 
 func toModelDevice(d *Device) model.Device {
+	var mc map[string]string
+	if len(d.ModeConfig) > 0 {
+		_ = json.Unmarshal(d.ModeConfig, &mc)
+	}
 	return model.Device{
 		MAC:         d.MAC,
 		Name:        d.Name,
 		Mode:        d.Mode,
 		ThemeID:     d.ThemeID,
 		FirmwareVer: d.FirmwareVer,
+		ModeConfig:  mc,
 		LastSeen:    d.LastSeen,
 		CreatedAt:   d.CreatedAt,
 	}
@@ -259,12 +266,17 @@ func toModelDevices(rows []Device) []model.Device {
 }
 
 func fromModelDevice(d *model.Device) Device {
+	var mc datatypes.JSON
+	if d.ModeConfig != nil {
+		mc, _ = json.Marshal(d.ModeConfig)
+	}
 	return Device{
 		MAC:         d.MAC,
 		Name:        d.Name,
 		Mode:        d.Mode,
 		ThemeID:     d.ThemeID,
 		FirmwareVer: d.FirmwareVer,
+		ModeConfig:  mc,
 		LastSeen:    d.LastSeen,
 		CreatedAt:   d.CreatedAt,
 	}
@@ -297,20 +309,21 @@ func fromModelDeviceAccess(a *model.DeviceAccess) DeviceAccess {
 }
 
 func toModelTheme(t *Theme) (model.Theme, error) {
-	var rc map[string][3]uint8
-	if len(t.RouteColors) > 0 {
-		if err := json.Unmarshal(t.RouteColors, &rc); err != nil {
+	var vals map[string]string
+	if len(t.Values) > 0 {
+		if err := json.Unmarshal(t.Values, &vals); err != nil {
 			return model.Theme{}, err
 		}
 	}
 	return model.Theme{
-		ID:          t.ID,
-		Name:        t.Name,
-		OwnerEmail:  t.OwnerEmail,
-		IsBuiltIn:   t.IsBuiltIn,
-		RouteColors: rc,
-		CreatedAt:   t.CreatedAt,
-		UpdatedAt:   t.UpdatedAt,
+		ID:         t.ID,
+		Name:       t.Name,
+		ModeName:   t.ModeName,
+		OwnerEmail: t.OwnerEmail,
+		IsBuiltIn:  t.IsBuiltIn,
+		Values:     vals,
+		CreatedAt:  t.CreatedAt,
+		UpdatedAt:  t.UpdatedAt,
 	}, nil
 }
 
@@ -327,18 +340,19 @@ func toModelThemes(rows []Theme) ([]model.Theme, error) {
 }
 
 func fromModelTheme(t *model.Theme) (Theme, error) {
-	rc, err := json.Marshal(t.RouteColors)
+	vals, err := json.Marshal(t.Values)
 	if err != nil {
 		return Theme{}, err
 	}
 	return Theme{
-		ID:          t.ID,
-		Name:        t.Name,
-		OwnerEmail:  t.OwnerEmail,
-		IsBuiltIn:   t.IsBuiltIn,
-		RouteColors: datatypes.JSON(rc),
-		CreatedAt:   t.CreatedAt,
-		UpdatedAt:   t.UpdatedAt,
+		ID:         t.ID,
+		Name:       t.Name,
+		ModeName:   t.ModeName,
+		OwnerEmail: t.OwnerEmail,
+		IsBuiltIn:  t.IsBuiltIn,
+		Values:     datatypes.JSON(vals),
+		CreatedAt:  t.CreatedAt,
+		UpdatedAt:  t.UpdatedAt,
 	}, nil
 }
 
