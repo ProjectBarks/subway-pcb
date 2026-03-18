@@ -1,10 +1,36 @@
 {{define "nav"}}
-<aside class="fixed top-0 left-0 w-64 h-screen bg-dark-card border-r border-dark-border flex flex-col z-40">
+<!-- Mobile hamburger button -->
+<button id="nav-toggle"
+        onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')"
+        class="lg:hidden fixed top-3 left-3 z-50 p-2 rounded-md bg-dark-card border border-dark-border text-gray-400 hover:text-gray-200 transition-colors">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+</button>
 
-    <div class="p-6">
+<!-- Backdrop overlay (mobile only) -->
+<div id="nav-backdrop"
+     onclick="document.getElementById('sidebar').classList.add('-translate-x-full')"
+     class="lg:hidden fixed inset-0 bg-black/50 z-30 hidden">
+</div>
+
+<!-- Sidebar -->
+<aside id="sidebar"
+       class="fixed top-0 left-0 w-64 h-screen bg-dark-card border-r border-dark-border flex flex-col z-40
+              transition-transform duration-200 ease-in-out
+              -translate-x-full lg:translate-x-0">
+
+    <div class="p-6 flex items-center justify-between">
         <a href="/" class="block">
             <h1 class="text-gold font-bold text-lg tracking-widest uppercase">NYC Subway PCB</h1>
         </a>
+        <!-- Close button (mobile only) -->
+        <button onclick="document.getElementById('sidebar').classList.add('-translate-x-full')"
+                class="lg:hidden p-1 text-gray-500 hover:text-gray-300 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
     </div>
 
     <div class="border-t border-dark-border"></div>
@@ -17,6 +43,7 @@
         <nav class="space-y-1 px-3">
             {{range .Boards}}
             <a href="/boards/{{.MAC}}"
+               onclick="document.getElementById('sidebar').classList.add('-translate-x-full')"
                class="flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors
                       {{if eq $.ActiveMAC .MAC}}border-l-2 border-gold bg-dark-hover text-gray-200{{else}}hover:bg-dark-hover text-gray-400{{end}}">
                 <span class="relative flex h-2 w-2">
@@ -46,7 +73,6 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/>
             </svg>
             <span>All Devices</span>
-            {{if .DeviceCount}}<span class="ml-auto text-xs text-gray-600">{{.DeviceCount}}</span>{{end}}
         </a>
     </div>
     {{end}}
@@ -64,4 +90,17 @@
     </div>
 
 </aside>
+
+<script>
+// Show/hide backdrop when sidebar toggles
+const sidebar = document.getElementById('sidebar');
+const backdrop = document.getElementById('nav-backdrop');
+if (sidebar && backdrop) {
+    const observer = new MutationObserver(() => {
+        const hidden = sidebar.classList.contains('-translate-x-full');
+        backdrop.classList.toggle('hidden', hidden);
+    });
+    observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+}
+</script>
 {{end}}
