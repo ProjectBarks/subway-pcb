@@ -1,0 +1,27 @@
+{{define "content"}}
+<div class="space-y-6">
+
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl text-gray-200 font-bold">Dashboard</h1>
+            {{if isAdmin .User.Role}}
+            <p class="text-sm text-gray-500 mt-1">
+                {{len .Boards}} board{{if ne (len .Boards) 1}}s{{end}} registered
+            </p>
+            {{end}}
+        </div>
+    </div>
+
+    <div id="board-grid"
+         hx-get="/partials/board-list"
+         hx-trigger="every 5s"
+         hx-target="#board-grid"
+         hx-swap="innerHTML"
+         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+        {{template "board_grid" .}}
+
+    </div>
+
+</div>
+{{end}}

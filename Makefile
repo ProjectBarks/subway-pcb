@@ -3,22 +3,38 @@ PORT := $(shell ls /dev/cu.usbserial-* 2>/dev/null | head -1)
 
 .DEFAULT_GOAL := help
 
-# ─── Server ──────────────────────────────────────────────
+# ─── Frontend ────────────────────────────────────────────
 
-.PHONY: server/build server/start server/stop server/dev
+.PHONY: frontend/install frontend/build frontend/dev frontend/lint
 
-server/build:                          ## Build the Go server binary
-	cd server && go build ./cmd/subway-server/
+frontend/install:                      ## Install frontend dependencies
+	cd service/frontend && npm install
 
-server/start: server/build             ## Build and start server → http://localhost:8080
+frontend/build:                        ## Build frontend (TypeScript + Vite)
+	cd service/frontend && npm run build
+
+frontend/dev:                          ## Watch and rebuild frontend on changes
+	cd service/frontend && npm run dev
+
+frontend/lint:                         ## Lint frontend TypeScript
+	cd service/frontend && npm run lint
+
+# ─── Backend ─────────────────────────────────────────────
+
+.PHONY: backend/build backend/start backend/stop backend/dev
+
+backend/build:                         ## Build the Go backend binary
+	cd service/backend && go build ./cmd/subway-server/
+
+backend/start: backend/build           ## Build and start backend → http://localhost:8080
 	@pkill -9 -f subway-server 2>/dev/null; sleep 1
-	cd server && ./subway-server --port 8080 --led-map led_map.json --data-dir data --template-dir templates &
+	cd service/backend && ./subway-server --port 8080 --led-map led_map.json --data-dir data --template-dir templates --static-dir ../static &
 	@echo "→ http://localhost:8080/"
 
-server/dev:                            ## Start server with auto-reload on file changes
-	cd server && air
+backend/dev:                           ## Start backend with auto-reload on file changes
+	cd service/backend && air
 
-server/stop:                           ## Stop the running server
+backend/stop:                          ## Stop the running backend
 	@pkill -9 -f subway-server 2>/dev/null && echo "Stopped" || echo "Not running"
 
 # ─── Firmware (production) ───────────────────────────────
@@ -49,7 +65,7 @@ firmware/debug-flash:                  ## Compile and flash debug firmware
 
 # ─── Tools ───────────────────────────────────────────────
 
-.PHONY: tools/monitor tools/debugger
+.PHONY: tools/monitor tools/debugger tools/viewer
 
 tools/monitor:                         ## Stream ESP32 serial output to console + serial.log
 	cd tools/serial-logger && uv run main.py
@@ -57,14 +73,17 @@ tools/monitor:                         ## Stream ESP32 serial output to console 
 tools/debugger:                        ## Start click-to-light web debugger → http://localhost:8090
 	cd tools/led-debugger-ui && uv run debugger.py --port $(PORT) --http 8090
 
+tools/viewer:                          ## Start standalone board viewer → http://localhost:8888
+	cd tools/board-viewer && uv run serve.py
+
 # ─── Shortcuts ───────────────────────────────────────────
 
 .PHONY: all clean help
 
-all: server/build firmware/build       ## Build server + firmware
+all: backend/build firmware/build      ## Build backend + firmware
 
 clean:                                 ## Remove all build artifacts
-	rm -rf firmware/.pio/build tools/debug-firmware/.pio/build server/subway-server
+	rm -rf firmware/.pio/build tools/debug-firmware/.pio/build service/backend/subway-server
 
 help:                                  ## Show available commands
 	@echo ""

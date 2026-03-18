@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Subway PCB — Board Viewer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a1a;
+    color: #999;
+    font-family: 'JetBrains Mono', monospace;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+  #header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 32px;
+    background: rgba(5,5,5,0.95);
+    border-bottom: 1px solid #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 100;
+    font-size: 11px;
+  }
+  .title { color: #c9a830; font-weight: 700; letter-spacing: 2px; font-size: 11px; }
+  #status { display: flex; align-items: center; gap: 10px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #333; }
+  .dot.ok { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+  .dot.err { background: #f44; }
+  #canvas-wrap { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #tooltip {
+    position: fixed; pointer-events: none;
+    background: rgba(10,10,10,0.96);
+    border: 1px solid #333;
+    padding: 5px 9px;
+    font-size: 10px;
+    color: #ddd;
+    display: none;
+    z-index: 200;
+    white-space: nowrap;
+    border-radius: 3px;
+  }
+  .sid { color: #c9a830; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="header">
+  <span class="title">NYC SUBWAY PCB</span>
+  <div id="status">
+    <span id="info">connecting...</span>
+    <div id="dot" class="dot"></div>
+  </div>
+</div>
+<div id="canvas-wrap"><canvas id="c"></canvas></div>
+<div id="tooltip"></div>
+
+<script type="module">
+// Inline standalone viewer — no build step required
+
+const TOTAL_LEDS = 478;
+const STRIP_SIZES = [97, 102, 55, 81, 70, 21, 22, 19, 11];
+
+// --- Protobuf decoder ---
+function decodePixelFrame(buf) {
+  const bytes = new Uint8Array(buf);
+  let pos = 0;
+  const result = { timestamp: 0, sequence: 0, ledCount: 0, pixels: null };
+  function readVarint() {
+    let val = 0, shift = 0;
+    while (pos < bytes.length) {
+      const b = bytes[pos++];
+      val |= (b & 0x7f) << shift; shift += 7;
+      if ((b & 0x80) === 0) break;
+    }
+    return val >>> 0;
+  }
+  while (pos < bytes.length) {
+    const tag = readVarint();
+    const fieldNum = tag >>> 3, wireType = tag & 0x7;
+    if (wireType === 0) {
+      const val = readVarint();
+      if (fieldNum === 1) result.timestamp = val;
+      else if (fieldNum === 2) result.sequence = val;
+      else if (fieldNum === 3) result.ledCount = val;
+    } else if (wireType === 2) {
+      const len = readVarint();
+      if (fieldNum === 4) result.pixels = bytes.slice(pos, pos + len);
+      pos += len;
+    } else if (wireType === 5) { pos += 4; }
+    else if (wireType === 1) { pos += 8; }
+  }
+  return result;
+}
+
+// --- Simple board renderer ---
+class Board {
+  constructor(canvasId, tooltipId) {
+    this.canvas = document.getElementById(canvasId);
+    this.ctx = this.canvas.getContext('2d');
+    this.tooltip = document.getElementById(tooltipId);
+    this.leds = [];
+    this.pixelColors = new Uint8Array(TOTAL_LEDS * 3);
+    this.boardSvg = null;
+    this.boardSvgOpacity = 0.07;
+  }
+
+  async init(ledsUrl, svgUrl) {
+    const resp = await fetch(ledsUrl);
+    this.leds = await resp.json();
+
+    const svgResp = await fetch(svgUrl);
+    const svgText = await svgResp.text();
+    const blob = new Blob([svgText], { type: 'image/svg+xml' });
+    this.boardSvg = new Image();
+    this.boardSvg.src = URL.createObjectURL(blob);
+    await new Promise(r => this.boardSvg.onload = r);
+
+    this.canvas.addEventListener('mousemove', e => this._onMouse(e));
+    this.canvas.addEventListener('mouseleave', () => { this.tooltip.style.display = 'none'; });
+  }
+
+  setPixels(data) {
+    this.pixelColors.set(data.subarray(0, TOTAL_LEDS * 3));
+  }
+
+  clearPixels() {
+    this.pixelColors.fill(0);
+  }
+
+  startDrawLoop() {
+    const draw = () => { this._draw(); requestAnimationFrame(draw); };
+    draw();
+  }
+
+  _draw() {
+    const c = this.canvas, ctx = this.ctx;
+    const rect = c.parentElement.getBoundingClientRect();
+    c.width = rect.width * devicePixelRatio;
+    c.height = rect.height * devicePixelRatio;
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    const w = rect.width, h = rect.height;
+    ctx.clearRect(0, 0, w, h);
+
+    if (!this.leds.length) return;
+
+    // Compute transform to fit board
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const led of this.leds) {
+      minX = Math.min(minX, led[0]); maxX = Math.max(maxX, led[0]);
+      minY = Math.min(minY, led[1]); maxY = Math.max(maxY, led[1]);
+    }
+    const bw = maxX - minX, bh = maxY - minY;
+    const pad = 20;
+    const scale = Math.min((w - pad * 2) / bw, (h - pad * 2) / bh);
+    const ox = (w - bw * scale) / 2 - minX * scale;
+    const oy = (h - bh * scale) / 2 - minY * scale;
+
+    // Draw SVG background
+    if (this.boardSvg) {
+      ctx.globalAlpha = this.boardSvgOpacity;
+      ctx.drawImage(this.boardSvg, ox + minX * scale - 5, oy + minY * scale - 5, bw * scale + 10, bh * scale + 10);
+      ctx.globalAlpha = 1;
+    }
+
+    // Draw LEDs
+    const radius = Math.max(2, 3 * scale / 4);
+    for (let i = 0; i < this.leds.length && i < TOTAL_LEDS; i++) {
+      const [x, y] = this.leds[i];
+      const sx = ox + x * scale, sy = oy + y * scale;
+      const r = this.pixelColors[i * 3], g = this.pixelColors[i * 3 + 1], b = this.pixelColors[i * 3 + 2];
+
+      if (r || g || b) {
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.shadowColor = `rgb(${r},${g},${b})`;
+        ctx.shadowBlur = radius * 2;
+      } else {
+        ctx.fillStyle = 'rgba(40,40,40,0.5)';
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+      }
+      ctx.beginPath();
+      ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    this._scale = scale; this._ox = ox; this._oy = oy;
+  }
+
+  _onMouse(e) {
+    if (!this._scale) return;
+    const rect = this.canvas.parentElement.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const radius = Math.max(2, 3 * this._scale / 4);
+    let hit = -1;
+    for (let i = 0; i < this.leds.length; i++) {
+      const sx = this._ox + this.leds[i][0] * this._scale;
+      const sy = this._oy + this.leds[i][1] * this._scale;
+      if (Math.hypot(mx - sx, my - sy) < radius + 4) { hit = i; break; }
+    }
+    if (hit >= 0) {
+      const sid = this.leds[hit][2] || '';
+      const r = this.pixelColors[hit * 3], g = this.pixelColors[hit * 3 + 1], b = this.pixelColors[hit * 3 + 2];
+      this.tooltip.innerHTML = `LED ${hit} <span class="sid">${sid}</span> rgb(${r},${g},${b})`;
+      this.tooltip.style.display = 'block';
+      this.tooltip.style.left = (e.clientX + 12) + 'px';
+      this.tooltip.style.top = (e.clientY - 20) + 'px';
+    } else {
+      this.tooltip.style.display = 'none';
+    }
+  }
+}
+
+// --- Main ---
+const board = new Board('c', 'tooltip');
+const statusDot = document.getElementById('dot');
+const statusInfo = document.getElementById('info');
+let lastSeq = 0;
+
+async function fetchPixels() {
+  try {
+    const resp = await fetch('/api/v1/pixels');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const buf = await resp.arrayBuffer();
+    if (buf.byteLength === 0) { board.clearPixels(); return; }
+    const frame = decodePixelFrame(buf);
+    lastSeq = frame.sequence;
+    if (frame.pixels && frame.pixels.length >= TOTAL_LEDS * 3) {
+      board.setPixels(frame.pixels);
+    }
+    let active = 0;
+    for (let i = 0; i < TOTAL_LEDS; i++) {
+      if (board.pixelColors[i*3] || board.pixelColors[i*3+1] || board.pixelColors[i*3+2]) active++;
+    }
+    statusDot.className = 'dot ok';
+    statusInfo.textContent = `${active} trains | seq ${lastSeq}`;
+  } catch {
+    statusDot.className = 'dot err';
+    statusInfo.textContent = 'disconnected';
+  }
+}
+
+await board.init('/static/leds.json', '/static/board.svg');
+board.startDrawLoop();
+await fetchPixels();
+setInterval(fetchPixels, 1000);
+</script>
+</body>
+</html>

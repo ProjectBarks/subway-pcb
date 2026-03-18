@@ -1,0 +1,70 @@
+{{define "theme_form"}}
+<div class="space-y-4">
+
+    {{if .Theme.IsBuiltIn}}
+    <div class="text-xs text-yellow-600 bg-yellow-500/10 border border-yellow-500/20 rounded px-3 py-2">
+        Built-in themes cannot be modified. Save as a new theme instead.
+    </div>
+    {{end}}
+
+    <div class="space-y-2">
+        <h4 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Route Colors</h4>
+
+        <div class="grid gap-2 max-h-80 overflow-y-auto pr-1">
+            {{range $key := .RouteKeys}}
+            {{$color := index $.Theme.RouteColors $key}}
+            <div class="flex items-center gap-3 bg-dark rounded px-3 py-2">
+                <span class="text-xs text-gray-400 w-12 shrink-0">{{routeName $key}}</span>
+                <input type="color"
+                       name="color_{{$key}}"
+                       value="{{colorHex $color}}"
+                       data-route-key="{{$key}}"
+                       class="route-color-input w-8 h-8 rounded cursor-pointer border border-dark-border bg-transparent shrink-0"
+                       oninput="updatePreviewColor(this); this.closest('.flex').querySelector('.route-hex').textContent = this.value; this.closest('.flex').querySelector('.route-preview').style.backgroundColor = this.value;">
+                <span class="text-xs text-gray-500 font-mono route-hex">{{colorHex $color}}</span>
+                <span class="w-4 h-4 rounded-full border border-dark-border/50 route-preview shrink-0" style="background-color: {{colorHex $color}}"></span>
+            </div>
+            {{end}}
+        </div>
+    </div>
+
+    <!-- Save as new theme -->
+    <div class="border-t border-dark-border pt-4">
+        <h4 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Save as New Theme</h4>
+        <form hx-post="/api/v1/themes"
+              hx-target="#controls"
+              hx-swap="outerHTML"
+              class="flex gap-2">
+            <input type="text"
+                   name="name"
+                   placeholder="Theme name"
+                   required
+                   class="flex-1 bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm">
+            <button type="submit"
+                    onclick="collectRouteColorsToForm(this.form)"
+                    class="bg-gold text-dark font-bold px-4 py-2 rounded hover:bg-yellow-600 transition text-sm">
+                Save
+            </button>
+        </form>
+    </div>
+
+    {{if and .Theme (not .Theme.IsBuiltIn)}}
+    <!-- Update existing theme -->
+    <div class="border-t border-dark-border pt-4">
+        <form hx-put="/api/v1/themes/{{.Theme.ID}}"
+              hx-target="#controls"
+              hx-swap="outerHTML"
+              class="flex items-center justify-between">
+            <span class="text-xs text-gray-500">Update "{{.Theme.Name}}"</span>
+            <button type="submit"
+                    onclick="collectRouteColorsToForm(this.form)"
+                    class="bg-gold text-dark font-bold px-4 py-2 rounded hover:bg-yellow-600 transition text-sm">
+                Update
+            </button>
+        </form>
+    </div>
+    {{end}}
+
+</div>
+
+{{end}}

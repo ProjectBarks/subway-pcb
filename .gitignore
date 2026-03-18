@@ -10,7 +10,6 @@ __pycache__/
 *.pyc
 .venv/
 *.egg-info/
-*.lock
 
 # OS
 .DS_Store
@@ -23,9 +22,14 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Server binary (the compiled output, not the source directory cmd/subway-server/)
-/server/subway-server
-/server/tmp/
+# Backend
+service/backend/subway-server
+service/backend/tmp/
+service/backend/data/
+
+# Frontend
+service/frontend/node_modules/
+service/static/dist/
 
 # Managed components (downloaded at build time)
 **/managed_components/
@@ -38,6 +42,14 @@ wifi.txt
 # Database files
 *.db
 
-# Random Stuff
+# Generated textures (regenerate with tools/pcb-glb-generator)
+pcb/top_texture.png
+pcb/bottom_texture.png
+pcb/top_metallic_roughness.png
+pcb/bottom_metallic_roughness.png
+
+# Claude
 CLAUDE.md
 plan.md
+.claude
+.investigations
