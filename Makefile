@@ -5,15 +5,18 @@ PORT := $(shell ls /dev/cu.usbserial-* 2>/dev/null | head -1)
 
 # ─── Server ──────────────────────────────────────────────
 
-.PHONY: server/build server/start server/stop
+.PHONY: server/build server/start server/stop server/dev
 
 server/build:                          ## Build the Go server binary
 	cd server && go build ./cmd/subway-server/
 
 server/start: server/build             ## Build and start server → http://localhost:8080
 	@pkill -9 -f subway-server 2>/dev/null; sleep 1
-	cd server && ./subway-server --port 8080 --led-map led_map.json &
+	cd server && ./subway-server --port 8080 --led-map led_map.json --data-dir data --template-dir templates &
 	@echo "→ http://localhost:8080/"
+
+server/dev:                            ## Start server with auto-reload on file changes
+	cd server && air
 
 server/stop:                           ## Stop the running server
 	@pkill -9 -f subway-server 2>/dev/null && echo "Stopped" || echo "Not running"

@@ -25,6 +25,7 @@ Thumbs.db
 
 # Server binary (the compiled output, not the source directory cmd/subway-server/)
 /server/subway-server
+/server/tmp/
 
 # Managed components (downloaded at build time)
 **/managed_components/
@@ -37,11 +38,6 @@ wifi.txt
 # Database files
 *.db
 
-# MCP captures & config
-mcp/captures/
-mcp/config.json
-mcp/test_*.py
-mcp/sol_*.py
-mcp/fast_test.py
-mcp/benchmark.py
-mcp/a[0-9]*.py
+# Random Stuff
+CLAUDE.md
+plan.md
