@@ -1,12 +1,15 @@
 {{define "nav"}}
-<!-- Mobile hamburger button -->
-<button id="nav-toggle"
-        onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')"
-        class="lg:hidden fixed top-3 left-3 z-50 p-2 rounded-md bg-dark-card border border-dark-border text-gray-400 hover:text-gray-200 transition-colors">
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-    </svg>
-</button>
+<!-- Mobile top bar -->
+<div id="mobile-topbar" class="lg:hidden fixed top-0 left-0 right-0 z-30 h-12 bg-dark-card border-b border-dark-border flex items-center px-3">
+    <button id="nav-toggle"
+            onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')"
+            class="p-2 rounded-md text-gray-400 hover:text-gray-200 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+    </button>
+    <span class="text-gold font-bold text-sm tracking-widest uppercase ml-2">NYC SUBWAY PCB</span>
+</div>
 
 <!-- Backdrop overlay (mobile only) -->
 <div id="nav-backdrop"
