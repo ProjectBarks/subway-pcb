@@ -18,7 +18,7 @@
 		"rules": {
 			"recommended": true,
 			"style": {
-				"noNonNullAssertion": "warn",
+				"noNonNullAssertion": "off",
 				"noUnusedTemplateLiteral": "off"
 			},
 			"suspicious": {

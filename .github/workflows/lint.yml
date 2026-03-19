@@ -42,7 +42,7 @@ jobs:
         run: uvx ruff check tools/ --exclude '**/.venv'
 
       - name: Typecheck with ty
-        run: uvx ty check tools/ --exclude '**/.venv' --ignore unresolved-import
+        run: uvx ty check tools/ --config-file tools/ty.toml
 
   frontend:
     name: Frontend
