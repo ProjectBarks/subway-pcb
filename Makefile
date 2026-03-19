@@ -28,7 +28,7 @@ backend/build:                         ## Build the Go backend binary
 
 backend/start: backend/build           ## Build and start backend → http://localhost:8080
 	@pkill -9 -f subway-server 2>/dev/null; sleep 1
-	cd service/backend && ./subway-server --port 8080 --led-map led_map.json --data-dir data --template-dir templates --static-dir ../static &
+	cd service/backend && ./subway-server --port 8080 --led-map led_map.json --data-dir data --static-dir ../static &
 	@echo "→ http://localhost:8080/"
 
 backend/dev:                           ## Start backend with auto-reload on file changes

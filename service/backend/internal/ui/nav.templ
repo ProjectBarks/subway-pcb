@@ -1,0 +1,102 @@
+package ui
+
+import "github.com/ProjectBarks/subway-pcb/server/internal/model"
+
+templ Nav(user *model.User, boards []model.Device, activeMAC string) {
+	<!-- Mobile top bar -->
+	<div id="mobile-topbar" class="lg:hidden fixed top-0 left-0 right-0 z-30 h-12 bg-dark-card border-b border-dark-border flex items-center px-3">
+		<button
+			id="nav-toggle"
+			onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')"
+			class="p-2 rounded-md text-gray-400 hover:text-gray-200 transition-colors"
+		>
+			<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+			</svg>
+		</button>
+		<span class="text-gold font-bold text-sm tracking-widest uppercase ml-2">NYC SUBWAY PCB</span>
+	</div>
+	<!-- Backdrop overlay (mobile only) -->
+	<div
+		id="nav-backdrop"
+		onclick="document.getElementById('sidebar').classList.add('-translate-x-full')"
+		class="lg:hidden fixed inset-0 bg-black/50 z-30 hidden"
+	></div>
+	<!-- Sidebar -->
+	<aside
+		id="sidebar"
+		class="fixed top-0 left-0 w-64 h-screen bg-dark-card border-r border-dark-border flex flex-col z-40 transition-transform duration-200 ease-in-out -translate-x-full lg:translate-x-0"
+	>
+		<div class="p-6">
+			<a href="/" class="block">
+				<h1 class="text-gold font-bold text-lg tracking-widest uppercase">NYC Subway PCB</h1>
+			</a>
+		</div>
+		<div class="border-t border-dark-border"></div>
+		<div class="flex-1 overflow-y-auto py-4">
+			<div class="px-6 mb-3">
+				<h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Boards</h2>
+			</div>
+			<nav class="space-y-1 px-3">
+				if len(boards) > 0 {
+					for _, board := range boards {
+						<a
+							href={ templ.URL("/boards/" + board.MAC) }
+							onclick="document.getElementById('sidebar').classList.add('-translate-x-full')"
+							class={
+								"flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+								templ.KV("border-l-2 border-gold bg-dark-hover text-gray-200", activeMAC == board.MAC),
+								templ.KV("hover:bg-dark-hover text-gray-400", activeMAC != board.MAC),
+							}
+						>
+							<span class="relative flex h-2 w-2">
+								if IsOnline(board.LastSeen) {
+									<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+									<span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+								} else {
+									<span class="relative inline-flex rounded-full h-2 w-2 bg-gray-600"></span>
+								}
+							</span>
+							<span class="truncate">
+								if board.Name != "" {
+									{ board.Name }
+								} else {
+									{ board.MAC }
+								}
+							</span>
+						</a>
+					}
+				} else {
+					<p class="px-3 text-xs text-gray-600 italic">No boards registered</p>
+				}
+			</nav>
+		</div>
+		if user.Role == "admin" {
+			<div class="border-t border-dark-border"></div>
+			<div class="py-4 px-6">
+				<h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Admin</h2>
+				<a href="/admin/devices" class="flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-dark-hover transition-colors">
+					<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+					</svg>
+					<span>All Devices</span>
+				</a>
+			</div>
+		}
+		<div class="border-t border-dark-border"></div>
+		<div class="p-4 flex items-center gap-3">
+			<div class="flex-1 min-w-0">
+				<p class="text-xs text-gray-400 truncate">{ user.Email }</p>
+			</div>
+			<span
+				class={
+					"text-xs px-2 py-0.5 rounded-full font-medium",
+					templ.KV("bg-gold/20 text-gold", user.Role == "admin"),
+					templ.KV("bg-gray-700 text-gray-400", user.Role != "admin"),
+				}
+			>
+				{ user.Role }
+			</span>
+		</div>
+	</aside>
+}

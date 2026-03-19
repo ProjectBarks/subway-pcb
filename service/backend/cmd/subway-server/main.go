@@ -18,7 +18,6 @@ import (
 	"github.com/ProjectBarks/subway-pcb/server/internal/mode/track"
 	"github.com/ProjectBarks/subway-pcb/server/internal/mta"
 	"github.com/ProjectBarks/subway-pcb/server/internal/store"
-	"github.com/ProjectBarks/subway-pcb/server/internal/ui"
 )
 
 func main() {
@@ -26,7 +25,6 @@ func main() {
 	pollInterval := flag.Duration("poll-interval", 15*time.Second, "Feed poll interval")
 	ledMapPath := flag.String("led-map", "led_map.json", "Path to led_map.json")
 	dataDir := flag.String("data-dir", "data", "Data directory for bbolt database")
-	templateDir := flag.String("template-dir", "templates", "Path to templates directory")
 	staticDir := flag.String("static-dir", "", "Path to static assets directory (serves /static/)")
 	_ = flag.String("visualizer", "", "deprecated")
 	flag.Parse()
@@ -75,19 +73,12 @@ func main() {
 	pixelRenderer := api.NewPixelRenderer(ledMap)
 	pixelRenderer.SetDeps(db, modeRegistry)
 
-	// Initialize template renderer
-	renderer, err := ui.NewRenderer(*templateDir)
-	if err != nil {
-		log.Fatalf("Failed to load templates: %v", err)
-	}
-
 	// Set up HTTP server.
 	apiServer := api.NewServer(api.ServerConfig{
 		Aggregator:    aggregator,
 		PixelRenderer: pixelRenderer,
 		Store:         db,
 		ModeRegistry:  modeRegistry,
-		Renderer:      renderer,
 		AuthConfig:    authCfg,
 		StaticDir:     *staticDir,
 	})

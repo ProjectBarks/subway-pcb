@@ -1,0 +1,66 @@
+package ui
+
+templ BoardPage(data BoardData) {
+	@Base(deviceTitle(data.Device), data.User, data.Boards, data.ActiveMAC) {
+		<div class="space-y-6">
+			<div class="flex items-center gap-3 mb-2">
+				<a href="/" class="text-gray-500 hover:text-gray-300 transition-colors">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+					</svg>
+				</a>
+				<h1 class="text-2xl text-gray-200 font-bold">
+					if data.Device.Name != "" {
+						{ data.Device.Name }
+					} else {
+						{ data.Device.MAC }
+					}
+				</h1>
+				<span class="relative flex h-2.5 w-2.5">
+					if IsOnline(data.Device.LastSeen) {
+						<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500 shadow-lg shadow-green-500/50"></span>
+					} else {
+						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-600"></span>
+					}
+				</span>
+			</div>
+			<div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+				<!-- Left column: Live Board Preview -->
+				<div class="lg:col-span-3 space-y-4">
+					<div class="bg-dark-card border border-dark-border rounded-lg p-6">
+						<h3 class="text-xs uppercase tracking-wider text-gray-500 mb-4">Live Preview</h3>
+						<div id="canvas-wrap" data-device-mac={ data.Device.MAC } class="relative w-full" style="aspect-ratio: 4/3;">
+							<canvas id="c" class="w-full h-full rounded border border-dark-border bg-dark" style="display:block;width:100%;height:100%;"></canvas>
+						</div>
+						<div
+							id="tooltip"
+							class="hidden fixed glass border border-dark-border rounded px-2 py-1 text-xs text-gray-300 pointer-events-none z-10"
+							style="display:none;"
+						></div>
+						<!-- Status bar -->
+						<div class="flex items-center gap-4 mt-4 text-xs text-gray-500">
+							<div class="flex items-center gap-1.5">
+								<span id="dot" class="relative flex h-2 w-2">
+									<span class="relative inline-flex rounded-full h-2 w-2 bg-gray-600"></span>
+								</span>
+								<span id="status-text">Connecting...</span>
+							</div>
+							<div>
+								Trains: <span id="train-count">--</span>
+							</div>
+							<div>
+								Seq: <span id="frame-seq">--</span>
+							</div>
+						</div>
+					</div>
+				</div>
+				<!-- Right column: Controls -->
+				<div class="lg:col-span-2">
+					@BoardControls(data)
+				</div>
+			</div>
+		</div>
+		<script type="module" src="/static/dist/board-page.js"></script>
+	}
+}

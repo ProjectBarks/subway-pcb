@@ -1,0 +1,86 @@
+package ui
+
+import "github.com/ProjectBarks/subway-pcb/server/internal/model"
+
+templ DashboardPage(user *model.User, boards []model.Device, cards []BoardCard) {
+	@Base("Dashboard", user, boards, "") {
+		<div class="space-y-6">
+			<div class="flex items-center justify-between">
+				<div>
+					<h1 class="text-2xl text-gray-200 font-bold">Dashboard</h1>
+					if user.IsAdmin() {
+						<p class="text-sm text-gray-500 mt-1">
+							{ lenStr(boards) } board{ plural(boards) } registered
+						</p>
+					}
+				</div>
+			</div>
+			<div
+				id="board-grid"
+				hx-get="/partials/board-list"
+				hx-trigger="every 5s"
+				hx-target="#board-grid"
+				hx-swap="innerHTML"
+				class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+			>
+				@BoardGrid(cards)
+			</div>
+		</div>
+	}
+}
+
+templ BoardGrid(cards []BoardCard) {
+	if len(cards) > 0 {
+		for _, card := range cards {
+			@boardCard(card)
+		}
+	} else {
+		<div class="col-span-full flex flex-col items-center justify-center py-24">
+			<div class="w-16 h-16 mb-6 rounded-full border-2 border-dark-border flex items-center justify-center" style="animation: pulse-subtle 3s ease-in-out infinite;">
+				<svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+				</svg>
+			</div>
+			<p class="text-gray-500 text-lg mb-2">No boards connected yet</p>
+			<p class="text-gray-600 text-sm">Boards will appear here once they connect to the server</p>
+		</div>
+	}
+}
+
+templ boardCard(card BoardCard) {
+	<a href={ templ.URL("/boards/" + card.Device.MAC) } class="block group">
+		<div class="bg-dark-card border border-dark-border rounded-lg p-6 hover:bg-dark-hover hover:border-dark-border/80 transition-all duration-200">
+			<div class="flex items-start justify-between mb-4">
+				<h3 class="text-gray-200 font-medium truncate mr-2">
+					if card.Device.Name != "" {
+						{ card.Device.Name }
+					} else {
+						{ card.Device.MAC }
+					}
+				</h3>
+				<span class="relative flex h-2.5 w-2.5 mt-1.5 shrink-0">
+					if IsOnline(card.Device.LastSeen) {
+						<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500 shadow-lg shadow-green-500/50"></span>
+					} else {
+						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-600"></span>
+					}
+				</span>
+			</div>
+			if card.Device.Mode != "" {
+				<div class="mb-4">
+					<span class="inline-block text-xs px-2.5 py-0.5 rounded-full bg-gold/15 text-gold font-medium">
+						{ card.Device.Mode }
+					</span>
+				</div>
+			}
+			<div class="text-xs text-gray-600">
+				if IsOnline(card.Device.LastSeen) {
+					<span class="text-green-500/70">online</span>
+				} else {
+					seen { TimeAgo(card.Device.LastSeen) }
+				}
+			</div>
+		</div>
+	</a>
+}

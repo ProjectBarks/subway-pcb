@@ -25,7 +25,6 @@ type ServerConfig struct {
 	PixelRenderer *PixelRenderer
 	Store         store.Store
 	ModeRegistry  *mode.Registry
-	Renderer      *ui.Renderer
 	AuthConfig    middleware.AuthConfig
 	StaticDir     string // optional: directory to serve at /static/
 }
@@ -36,7 +35,6 @@ type Server struct {
 	pixelRenderer *PixelRenderer
 	store         store.Store
 	modes         *mode.Registry
-	renderer      *ui.Renderer
 	authConfig    middleware.AuthConfig
 	staticDir     string
 	startTime     time.Time
@@ -50,7 +48,6 @@ func NewServer(cfg ServerConfig) *Server {
 		pixelRenderer: cfg.PixelRenderer,
 		store:         cfg.Store,
 		modes:         cfg.ModeRegistry,
-		renderer:      cfg.Renderer,
 		authConfig:    cfg.AuthConfig,
 		staticDir:     cfg.StaticDir,
 		startTime:     time.Now(),
@@ -145,32 +142,8 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load themes for color swatches
-	type boardCard struct {
-		Device model.Device
-		Theme  *model.Theme
-	}
-	cards := make([]boardCard, len(boards))
-	for i, d := range boards {
-		cards[i].Device = d
-		if d.ThemeID != "" {
-			t, _ := s.store.GetTheme(d.ThemeID)
-			cards[i].Theme = t
-		}
-	}
-
-	data := map[string]any{
-		"User":      user,
-		"Boards":    boards,
-		"Cards":     cards,
-		"ActiveMAC": "",
-	}
-
-	if isHTMX(r) {
-		s.renderer.Render(w, "dashboard_content", data)
-		return
-	}
-	s.renderer.Render(w, "dashboard", data)
+	cards := s.buildBoardCards(boards)
+	ui.DashboardPage(user, boards, cards).Render(r.Context(), w)
 }
 
 func (s *Server) handleBoardListPartial(w http.ResponseWriter, r *http.Request) {
@@ -182,24 +155,8 @@ func (s *Server) handleBoardListPartial(w http.ResponseWriter, r *http.Request) 
 		boards, _ = s.store.ListDevicesByUser(user.Email)
 	}
 
-	type boardCard struct {
-		Device model.Device
-		Theme  *model.Theme
-	}
-	cards := make([]boardCard, len(boards))
-	for i, d := range boards {
-		cards[i].Device = d
-		if d.ThemeID != "" {
-			t, _ := s.store.GetTheme(d.ThemeID)
-			cards[i].Theme = t
-		}
-	}
-
-	data := map[string]any{
-		"User":  user,
-		"Cards": cards,
-	}
-	s.renderer.Render(w, "board_grid", data)
+	cards := s.buildBoardCards(boards)
+	ui.BoardGrid(cards).Render(r.Context(), w)
 }
 
 // --- Board View ---
@@ -225,11 +182,24 @@ func (s *Server) handleBoardView(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := s.buildBoardData(user, device, mac, boards, access)
-	s.renderer.Render(w, "board", data)
+	ui.BoardPage(data).Render(r.Context(), w)
 }
 
-// buildBoardData builds the template data for the board view and controls.
-func (s *Server) buildBoardData(user *model.User, device *model.Device, mac string, boards []model.Device, access []model.DeviceAccess) map[string]any {
+// buildBoardCards creates board card data for dashboard display.
+func (s *Server) buildBoardCards(boards []model.Device) []ui.BoardCard {
+	cards := make([]ui.BoardCard, len(boards))
+	for i, d := range boards {
+		cards[i].Device = d
+		if d.ThemeID != "" {
+			t, _ := s.store.GetTheme(d.ThemeID)
+			cards[i].Theme = t
+		}
+	}
+	return cards
+}
+
+// buildBoardData builds the typed data for the board view and controls.
+func (s *Server) buildBoardData(user *model.User, device *model.Device, mac string, boards []model.Device, access []model.DeviceAccess) ui.BoardData {
 	modeName := device.Mode
 	if modeName == "" {
 		modeName = "track"
@@ -269,17 +239,16 @@ func (s *Server) buildBoardData(user *model.User, device *model.Device, mac stri
 		}
 	}
 
-	return map[string]any{
-		"User":         user,
-		"Device":       device,
-		"Themes":       modeThemes,
-		"Access":       access,
-		"Modes":        s.modes.List(),
-		"Boards":       boards,
-		"ActiveMAC":    mac,
-		"ConfigFields": configFields,
-		"ConfigGroups": configGroups,
-		"ConfigValues": configValues,
+	return ui.BoardData{
+		User:         user,
+		Device:       device,
+		Themes:       modeThemes,
+		Access:       access,
+		Modes:        s.modes.List(),
+		Boards:       boards,
+		ActiveMAC:    mac,
+		ConfigGroups: configGroups,
+		ConfigValues: configValues,
 	}
 }
 
@@ -417,7 +386,7 @@ func (s *Server) handleGrantAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.renderAccessPanel(w, mac)
+	s.renderAccessPanel(w, r, mac)
 }
 
 func (s *Server) handleRevokeAccess(w http.ResponseWriter, r *http.Request) {
@@ -429,17 +398,13 @@ func (s *Server) handleRevokeAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.renderAccessPanel(w, mac)
+	s.renderAccessPanel(w, r, mac)
 }
 
-func (s *Server) renderAccessPanel(w http.ResponseWriter, mac string) {
+func (s *Server) renderAccessPanel(w http.ResponseWriter, r *http.Request, mac string) {
 	access, _ := s.store.ListAccessByDevice(mac)
 	device, _ := s.store.GetDevice(mac)
-	data := map[string]any{
-		"Device": device,
-		"Access": access,
-	}
-	s.renderer.Render(w, "device_access", data)
+	ui.DeviceAccess(device, access).Render(r.Context(), w)
 }
 
 func (s *Server) renderControls(w http.ResponseWriter, r *http.Request, mac string) {
@@ -455,7 +420,7 @@ func (s *Server) renderControls(w http.ResponseWriter, r *http.Request, mac stri
 	}
 
 	data := s.buildBoardData(user, device, mac, boards, access)
-	s.renderer.Render(w, "board_controls", data)
+	ui.BoardControls(data).Render(r.Context(), w)
 }
 
 // --- Theme API ---

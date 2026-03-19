@@ -1,0 +1,259 @@
+package ui
+
+import (
+	"fmt"
+	"github.com/ProjectBarks/subway-pcb/server/internal/mode"
+)
+
+templ BoardControls(data BoardData) {
+	<div id="controls" class="space-y-6">
+		<!-- Card 1: Mode -->
+		<details class="bg-dark-card border border-dark-border rounded-lg" open>
+			<summary class="px-6 py-4 cursor-pointer select-none flex items-center justify-between text-gray-200 font-medium hover:bg-dark-hover transition-colors rounded-lg">
+				<span>Mode</span>
+				<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+				</svg>
+			</summary>
+			<div class="px-6 pb-6 space-y-2">
+				for _, m := range data.Modes {
+					<button
+						hx-put={ "/boards/" + data.Device.MAC + "/mode" }
+						hx-vals={ fmt.Sprintf(`{"mode":"%s"}`, m.Name()) }
+						hx-target="#controls"
+						hx-swap="outerHTML"
+						class={
+							"w-full text-left px-4 py-3 rounded-md border transition-all",
+							templ.KV("border-gold ring-2 ring-gold/30 bg-gold/5", data.Device.Mode == m.Name()),
+							templ.KV("border-dark-border hover:bg-dark-hover hover:border-dark-border/80", data.Device.Mode != m.Name()),
+						}
+					>
+						<div class="flex items-center gap-3">
+							<span
+								class={
+									"w-3 h-3 rounded-full border-2 flex items-center justify-center",
+									templ.KV("border-gold", data.Device.Mode == m.Name()),
+									templ.KV("border-gray-600", data.Device.Mode != m.Name()),
+								}
+							>
+								if data.Device.Mode == m.Name() {
+									<span class="w-1.5 h-1.5 rounded-full bg-gold"></span>
+								}
+							</span>
+							<div>
+								<p class="text-sm text-gray-200 font-medium">{ m.Name() }</p>
+								if m.Description() != "" {
+									<p class="text-xs text-gray-500 mt-0.5">{ m.Description() }</p>
+								}
+							</div>
+						</div>
+					</button>
+				}
+			</div>
+		</details>
+		<!-- Card 2: Configuration -->
+		if len(data.ConfigGroups) > 0 {
+			<details class="bg-dark-card border border-dark-border rounded-lg" open>
+				<summary class="px-6 py-4 cursor-pointer select-none flex items-center justify-between text-gray-200 font-medium hover:bg-dark-hover transition-colors rounded-lg">
+					<span>Configuration</span>
+					<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+					</svg>
+				</summary>
+				<div class="px-6 pb-6">
+					<!-- Theme preset selector -->
+					if len(data.Themes) > 0 {
+						<div class="mb-5">
+							<label class="text-xs uppercase tracking-wider text-gray-500 mb-2 block">Load Preset</label>
+							<form
+								hx-put={ "/boards/" + data.Device.MAC + "/theme" }
+								hx-target="#controls"
+								hx-swap="outerHTML"
+								class="flex gap-2"
+							>
+								<select
+									name="theme_id"
+									class="flex-1 bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm"
+								>
+									<option value="">— select preset —</option>
+									for _, theme := range data.Themes {
+										<option
+											value={ theme.ID }
+											selected?={ data.Device.ThemeID == theme.ID }
+										>
+											if theme.IsBuiltIn {
+												{ theme.Name }
+											} else {
+												{ theme.Name } (yours)
+											}
+										</option>
+									}
+								</select>
+								<button
+									type="submit"
+									class="bg-gold text-dark font-bold px-3 py-2 rounded hover:bg-yellow-600 transition text-sm shrink-0"
+								>
+									Load
+								</button>
+							</form>
+						</div>
+					}
+					<!-- Dynamic config fields -->
+					<form
+						id="mode-config-form"
+						hx-put={ "/boards/" + data.Device.MAC + "/config" }
+						hx-target="#controls"
+						hx-swap="outerHTML"
+					>
+						for _, group := range data.ConfigGroups {
+							<div class="mb-4">
+								<h4 class="text-xs uppercase tracking-wider text-gray-500 mb-3">{ group.Name }</h4>
+								<div class="space-y-2">
+									for _, field := range group.Fields {
+										@configField(field, data.ConfigValues)
+									}
+								</div>
+							</div>
+						}
+						<button
+							type="submit"
+							class="w-full bg-gold text-dark font-bold px-4 py-2 rounded hover:bg-yellow-600 transition text-sm mt-2"
+						>
+							Apply
+						</button>
+					</form>
+					<!-- Save as theme -->
+					<div class="border-t border-dark-border mt-4 pt-4">
+						<h4 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Save as Preset</h4>
+						<form
+							hx-post="/api/v1/themes"
+							hx-target="#controls"
+							hx-swap="outerHTML"
+							class="flex gap-2"
+							onsubmit="collectConfigToThemeForm(this)"
+						>
+							<input type="hidden" name="mode_name" value={ data.Device.Mode }/>
+							<input
+								type="text"
+								name="name"
+								placeholder="Preset name"
+								required
+								class="flex-1 bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm"
+							/>
+							<button
+								type="submit"
+								class="bg-gold text-dark font-bold px-3 py-2 rounded hover:bg-yellow-600 transition text-sm shrink-0"
+							>
+								Save
+							</button>
+						</form>
+					</div>
+				</div>
+			</details>
+		}
+		<!-- Card 3: Device Info -->
+		<div class="bg-dark-card border border-dark-border rounded-lg p-6">
+			<h3 class="text-gray-200 font-medium mb-4">Device Info</h3>
+			<div class="space-y-4">
+				<div>
+					<label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Board Name</label>
+					<input
+						type="text"
+						value={ data.Device.Name }
+						placeholder="Unnamed board"
+						hx-put={ "/boards/" + data.Device.MAC + "/name" }
+						hx-trigger="blur changed, keyup[keyCode==13]"
+						hx-vals="js:{&quot;name&quot;: event.target.value}"
+						hx-target="#controls"
+						hx-swap="outerHTML"
+						class="w-full bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm"
+					/>
+				</div>
+				<div>
+					<label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">MAC Address</label>
+					<p class="text-sm text-gray-300 font-mono">{ data.Device.MAC }</p>
+				</div>
+				<div>
+					<label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Firmware</label>
+					<p class="text-sm text-gray-300">
+						if data.Device.FirmwareVer != "" {
+							v{ data.Device.FirmwareVer }
+						} else {
+							Unknown
+						}
+					</p>
+				</div>
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Created</label>
+						<p class="text-xs text-gray-500">{ TimeAgo(data.Device.CreatedAt) }</p>
+					</div>
+					<div>
+						<label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Last Seen</label>
+						<p
+							class={
+								"text-xs",
+								templ.KV("text-green-500", IsOnline(data.Device.LastSeen)),
+								templ.KV("text-gray-500", !IsOnline(data.Device.LastSeen)),
+							}
+						>
+							if IsOnline(data.Device.LastSeen) {
+								Online now
+							} else {
+								{ TimeAgo(data.Device.LastSeen) }
+							}
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- Card 4: Access -->
+		@DeviceAccess(data.Device, data.Access)
+	</div>
+}
+
+templ configField(field mode.ConfigField, configValues map[string]string) {
+	switch field.Type {
+		case mode.FieldColor:
+			<div class="flex items-center gap-3 bg-dark rounded px-3 py-2">
+				<span class="text-xs text-gray-400 w-16 shrink-0">{ field.Label }</span>
+				<input
+					type="color"
+					name={ field.Key }
+					value={ configValues[field.Key] }
+					class="w-8 h-8 rounded cursor-pointer border border-dark-border bg-transparent shrink-0"
+				/>
+				<span class="text-xs text-gray-500 font-mono">{ configValues[field.Key] }</span>
+			</div>
+		case mode.FieldNumber:
+			<div class="flex items-center gap-3 bg-dark rounded px-3 py-2">
+				<label class="text-xs text-gray-400 w-32 shrink-0">{ field.Label }</label>
+				<input
+					type="number"
+					name={ field.Key }
+					value={ configValues[field.Key] }
+					if field.Min != "" {
+						min={ field.Min }
+					}
+					if field.Max != "" {
+						max={ field.Max }
+					}
+					class="flex-1 bg-dark-card border border-dark-border rounded px-3 py-1.5 text-gray-300 focus:border-gold focus:outline-none text-sm w-20"
+				/>
+			</div>
+		case mode.FieldSelect:
+			<div class="flex items-center gap-3 bg-dark rounded px-3 py-2">
+				<label class="text-xs text-gray-400 w-32 shrink-0">{ field.Label }</label>
+				<select
+					name={ field.Key }
+					class="flex-1 bg-dark-card border border-dark-border rounded px-3 py-1.5 text-gray-300 focus:border-gold focus:outline-none text-sm"
+				>
+					for _, opt := range field.Options {
+						<option value={ opt } selected?={ configValues[field.Key] == opt }>
+							{ opt }
+						</option>
+					}
+				</select>
+			</div>
+	}
+}
