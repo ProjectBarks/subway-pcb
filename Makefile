@@ -96,8 +96,9 @@ lint: lint/go lint/python lint/firmware lint/frontend  ## Run all linters
 lint/go:                               ## Lint Go backend
 	cd service/backend && templ generate && go vet ./...
 
-lint/python:                           ## Lint Python tools with ruff
+lint/python:                           ## Lint and typecheck Python tools
 	ruff check tools/ --exclude '**/.venv'
+	ty check tools/ --exclude '**/.venv' --exclude 'tools/pcb-glb-generator'
 
 lint/firmware:                         ## Lint firmware (PlatformIO build)
 	cd firmware && $(PIO) run

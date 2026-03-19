@@ -57,7 +57,7 @@ class LEDController:
 
 
 class DebugHandler(SimpleHTTPRequestHandler):
-    controller = None
+    controller: "LEDController | None" = None
 
     def do_GET(self):
         if self.path == "/":
@@ -78,11 +78,11 @@ class DebugHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/led":
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
             action = body.get("action", "")
-            if action == "on":
+            if action == "on" and self.controller:
                 resp = self.controller.send(
                     f"on {body['strip']} {body['pixel']} {body.get('r',255)} {body.get('g',255)} {body.get('b',255)}")
                 self._json({"ok": resp == "ok", "resp": resp})
-            elif action == "clear":
+            elif action == "clear" and self.controller:
                 self._json({"ok": self.controller.send("clear") == "ok"})
             else:
                 self._json({"ok": False})
@@ -102,13 +102,13 @@ class DebugHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
 
-    def log_message(self, fmt, *args):
+    def log_message(self, format: str, *args: object) -> None:
         try:
             if args and isinstance(args[0], str) and "/api/" in args[0]:
                 return
         except Exception:
             pass
-        super().log_message(fmt, *args)
+        super().log_message(format, *args)
 
 
 def main():
