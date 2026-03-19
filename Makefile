@@ -98,7 +98,7 @@ lint/go:                               ## Lint Go backend
 
 lint/python:                           ## Lint and typecheck Python tools
 	ruff check tools/ --exclude '**/.venv'
-	ty check tools/ --exclude '**/.venv' --exclude 'tools/pcb-glb-generator'
+	ty check tools/ --exclude '**/.venv' --ignore unresolved-import
 
 lint/firmware:                         ## Lint firmware (PlatformIO build)
 	cd firmware && $(PIO) run

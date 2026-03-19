@@ -154,7 +154,7 @@ export class Board {
 
 	private _resize(): void {
 		const dpr = window.devicePixelRatio || 1;
-		const rect = this.canvas.parentElement?.getBoundingClientRect();
+		const rect = this.canvas.parentElement!.getBoundingClientRect();
 		this.canvas.width = rect.width * dpr;
 		this.canvas.height = rect.height * dpr;
 		this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -168,7 +168,7 @@ export class Board {
 	}
 
 	private _draw(): void {
-		const rect = this.canvas.parentElement?.getBoundingClientRect();
+		const rect = this.canvas.parentElement!.getBoundingClientRect();
 		this.ctx.clearRect(0, 0, rect.width, rect.height);
 
 		// Board SVG background

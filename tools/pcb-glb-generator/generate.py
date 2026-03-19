@@ -40,6 +40,8 @@ from pygerber.gerberx3.api.v2 import GerberFile, ColorScheme
 from pygerber.gerberx3.api._v2 import PixelFormatEnum, ImageFormatEnum
 from pygerber.common.rgba import RGBA
 import trimesh
+import trimesh.visual
+import trimesh.visual.material
 
 
 # --- Color schemes ---
@@ -171,7 +173,7 @@ def composite_face(layers):
     w, h = layers[0].size
     result = Image.new("RGBA", (w, h), (25, 25, 20, 255))
     for layer in layers:
-        lyr = layer.resize((w, h), Image.LANCZOS) if layer.size != (w, h) else layer
+        lyr = layer.resize((w, h), Image.Resampling.LANCZOS) if layer.size != (w, h) else layer
         result = Image.alpha_composite(result, lyr)
     return result.convert("RGB")
 
@@ -179,7 +181,7 @@ def composite_face(layers):
 def build_metallic_roughness(copper_mask, solder_mask, silk_mask, size):
     w, h = size
     def to_array(img):
-        return np.array(img.resize((w, h), Image.LANCZOS).convert("L"), dtype=np.float32) / 255.0
+        return np.array(img.resize((w, h), Image.Resampling.LANCZOS).convert("L"), dtype=np.float32) / 255.0
     copper_a = to_array(copper_mask)
     mask_a = to_array(solder_mask)
     silk_a = to_array(silk_mask)
@@ -399,7 +401,7 @@ def import_components(scene, glb_path, board_bounds):
         return
 
     print(f"Importing components from {glb_path}...")
-    src = trimesh.load(glb_path)
+    src: trimesh.Scene = trimesh.load(glb_path)  # type: ignore[assignment]
 
     bmin_x, bmin_y, bmax_x, bmax_y = board_bounds
     board_cx = (bmin_x + bmax_x) / 2
@@ -452,7 +454,7 @@ def import_components(scene, glb_path, board_bounds):
             world_transform, geom_name = src.graph.get(node)
         except (ValueError, KeyError):
             continue
-        if geom_name is None or geom_name not in src.geometry:
+        if geom_name is None or not isinstance(geom_name, str) or geom_name not in src.geometry:
             continue
         if geom_name.startswith("design_soldermask"):
             continue
@@ -561,19 +563,19 @@ def main():
     size = top_texture.size
 
     def make_exposed(cu_w, mask_w, sz):
-        cu_arr = np.array(cu_w.resize(sz, Image.LANCZOS).convert("L"), dtype=np.float32) / 255.0
-        mk_arr = np.array(mask_w.resize(sz, Image.LANCZOS).convert("L"), dtype=np.float32) / 255.0
+        cu_arr = np.array(cu_w.resize(sz, Image.Resampling.LANCZOS).convert("L"), dtype=np.float32) / 255.0
+        mk_arr = np.array(mask_w.resize(sz, Image.Resampling.LANCZOS).convert("L"), dtype=np.float32) / 255.0
         return Image.fromarray((np.minimum(cu_arr, mk_arr) * 255).astype(np.uint8), "L")
 
     f_exposed = make_exposed(f_cu_white, f_mask_openings, size)
-    f_mask_cov = Image.fromarray(255 - np.array(f_mask_openings.resize(size, Image.LANCZOS).convert("L")), "L")
+    f_mask_cov = Image.fromarray(255 - np.array(f_mask_openings.resize(size, Image.Resampling.LANCZOS).convert("L")), "L")
     f_silk_m = f_silk_white if f_silk_white else Image.new("L", size, 0)
     top_mr = build_metallic_roughness(f_exposed, f_mask_cov, f_silk_m, size)
 
     if b_cu_white and b_mask_openings:
         bsize = bottom_texture.size
         b_exposed = make_exposed(b_cu_white, b_mask_openings, bsize)
-        b_mask_cov = Image.fromarray(255 - np.array(b_mask_openings.resize(bsize, Image.LANCZOS).convert("L")), "L")
+        b_mask_cov = Image.fromarray(255 - np.array(b_mask_openings.resize(bsize, Image.Resampling.LANCZOS).convert("L")), "L")
         b_silk_m = b_silk_white if b_silk_white else Image.new("L", bsize, 0)
         bot_mr = build_metallic_roughness(b_exposed, b_mask_cov, b_silk_m, bsize)
     else:
