@@ -549,7 +549,7 @@ def main():
     print("Compositing textures...")
     top_texture = composite_face(front_layers)
 
-    back_layers = [l for l in [b_cu, b_mask, b_silk] if l is not None]
+    back_layers = [layer for layer in [b_cu, b_mask, b_silk] if layer is not None]
     bottom_texture = composite_face(back_layers) if back_layers else top_texture
 
     if args.save_textures:

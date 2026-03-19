@@ -60,59 +60,65 @@ func (s *Server) buildRouter() {
 	r := chi.NewRouter()
 	r.Use(chimw.Logger, chimw.Recoverer)
 
-	// Open endpoints (firmware + health + static assets)
+	// Device routes — accessible on all hosts including RESTRICTED_HOST
 	r.Get("/api/v1/pixels", s.handlePixels)
-	r.Get("/api/v1/state", s.handleState)
-	r.Get("/health", s.handleHealth)
 
-	// Keep led_map.json accessible (used by firmware and preview)
-	r.Get("/static/led_map.json", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "led_map.json")
-	})
-	r.Get("/static/leds.json", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "leds.json")
-	})
-
-	// Serve frontend static assets (JS/CSS bundles) when static-dir is set
-	if s.staticDir != "" {
-		fileServer := http.FileServer(http.Dir(s.staticDir))
-		r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
-	}
-
-	// Authenticated routes
-	authMW := middleware.Auth(s.store, s.authConfig)
-	requireBoardAccess := middleware.RequireBoardAccess(s.store)
-
+	// App routes — restricted to ALLOWED_HOSTS
 	r.Group(func(r chi.Router) {
-		r.Use(authMW)
+		r.Use(middleware.HostRestriction(s.authConfig.AllowedHosts))
 
-		r.Get("/", s.handleDashboard)
-		r.Get("/partials/board-list", s.handleBoardListPartial)
+		r.Get("/api/v1/state", s.handleState)
+		r.Get("/health", s.handleHealth)
 
-		// Board view (per-user access check — admins bypass)
-		r.Route("/boards/{mac}", func(r chi.Router) {
-			r.Use(requireBoardAccess)
-			r.Get("/", s.handleBoardView)
-			r.Put("/mode", s.handleSetMode)
-			r.Put("/theme", s.handleSetTheme)
-			r.Put("/name", s.handleSetName)
-			r.Put("/config", s.handleSetModeConfig)
-			r.Get("/preview", s.handleBoardPreview)
-			// Access management
-			r.Post("/access", s.handleGrantAccess)
-			r.Delete("/access/{email}", s.handleRevokeAccess)
+		// Keep led_map.json accessible (used by firmware and preview)
+		r.Get("/static/led_map.json", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "led_map.json")
+		})
+		r.Get("/static/leds.json", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "leds.json")
 		})
 
-		// Theme API
-		r.Get("/api/v1/themes", s.handleListThemes)
-		r.Post("/api/v1/themes", s.handleCreateTheme)
-		r.Put("/api/v1/themes/{id}", s.handleUpdateTheme)
-		r.Delete("/api/v1/themes/{id}", s.handleDeleteTheme)
+		// Serve frontend static assets (JS/CSS bundles) when static-dir is set
+		if s.staticDir != "" {
+			fileServer := http.FileServer(http.Dir(s.staticDir))
+			r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
+		}
 
-		// Admin-only
+		// Authenticated routes
+		authMW := middleware.Auth(s.store, s.authConfig)
+		requireBoardAccess := middleware.RequireBoardAccess(s.store)
+
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.RequireAdmin)
-			r.Get("/api/v1/users", s.handleListUsers)
+			r.Use(authMW)
+
+			r.Get("/", s.handleDashboard)
+			r.Get("/partials/board-list", s.handleBoardListPartial)
+
+			// Board view (per-user access check — admins bypass)
+			r.Route("/boards/{mac}", func(r chi.Router) {
+				r.Use(requireBoardAccess)
+				r.Get("/", s.handleBoardView)
+				r.Put("/mode", s.handleSetMode)
+				r.Put("/theme", s.handleSetTheme)
+				r.Put("/name", s.handleSetName)
+				r.Put("/config", s.handleSetModeConfig)
+				r.Get("/preview", s.handleBoardPreview)
+				// Access management
+				r.Post("/access", s.handleGrantAccess)
+				r.Delete("/access/{email}", s.handleRevokeAccess)
+			})
+
+			// Theme API
+			r.Get("/api/v1/themes", s.handleListThemes)
+			r.Post("/api/v1/themes", s.handleCreateTheme)
+			r.Put("/api/v1/themes/{id}", s.handleUpdateTheme)
+			r.Delete("/api/v1/themes/{id}", s.handleDeleteTheme)
+
+			// Admin-only
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequireAdmin)
+				r.Get("/api/v1/users", s.handleListUsers)
+			})
 		})
 	})
 

@@ -12,15 +12,17 @@ import (
 
 // AuthConfig holds authentication configuration.
 type AuthConfig struct {
-	EnforceAuth bool
-	AdminEmail  string
+	EnforceAuth  bool
+	AdminEmail   string
+	AllowedHosts string
 }
 
 // AuthConfigFromEnv reads auth configuration from environment variables.
 func AuthConfigFromEnv() AuthConfig {
 	return AuthConfig{
-		EnforceAuth: os.Getenv("ENFORCE_AUTH") == "true",
-		AdminEmail:  os.Getenv("ADMIN_EMAIL"),
+		EnforceAuth:  os.Getenv("ENFORCE_AUTH") == "true",
+		AdminEmail:   os.Getenv("ADMIN_EMAIL"),
+		AllowedHosts: os.Getenv("ALLOWED_HOSTS"),
 	}
 }
 

@@ -87,6 +87,34 @@ site/build:                            ## Build static landing page → _site/
 site/preview: site/build               ## Build and open landing page in browser
 	open _site/index.html
 
+# ─── Lint ────────────────────────────────────────────────
+
+.PHONY: lint lint/go lint/python lint/firmware lint/frontend
+
+lint: lint/go lint/python lint/firmware lint/frontend  ## Run all linters
+
+lint/go:                               ## Lint Go backend
+	cd service/backend && templ generate && go vet ./...
+
+lint/python:                           ## Lint Python tools with ruff
+	ruff check tools/ --exclude '**/.venv'
+
+lint/firmware:                         ## Lint firmware (PlatformIO build)
+	cd firmware && $(PIO) run
+	cd tools/debug-firmware && $(PIO) run
+
+lint/frontend:                         ## Lint frontend with Biome
+	cd service/frontend && npx biome check
+
+# ─── Hooks ───────────────────────────────────────────────
+
+.PHONY: hooks
+
+hooks:                                 ## Install git pre-commit hook
+	@printf '#!/bin/sh\nmake lint\n' > .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "Installed .git/hooks/pre-commit"
+
 # ─── Shortcuts ───────────────────────────────────────────
 
 .PHONY: all clean help

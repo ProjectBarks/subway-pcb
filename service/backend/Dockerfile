@@ -9,11 +9,14 @@ WORKDIR /app
 COPY service/backend/go.mod service/backend/go.sum ./
 RUN go mod download
 
+# Install templ
+RUN go install github.com/a-h/templ/cmd/templ@latest
+
 # Copy backend source
 COPY service/backend/ .
 
-# Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /subway-server ./cmd/subway-server/
+# Generate templ files and build
+RUN templ generate && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /subway-server ./cmd/subway-server/
 
 # Frontend build stage
 FROM node:20-alpine AS frontend

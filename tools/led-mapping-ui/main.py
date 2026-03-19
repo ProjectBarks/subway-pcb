@@ -601,8 +601,7 @@ class App:
         # Bind Enter key to trigger the label_current function.
         self.label_btn.bind("<Return>", lambda event: self.label_current())
 
-        # Optionally, customize the button's style to show an active/focus state.
-        style = ttk.Style()
+        ttk.Style()
         self.label_btn.pack(side="left", padx=5)
         
         # Visited LED Map Frame
@@ -667,7 +666,7 @@ class App:
             return
         try:
             led_id = selection.split(":")[0].strip()
-        except Exception as ex:
+        except Exception:
             messagebox.showerror("Error", "Invalid selection format.")
             return
         key = f"{current_strip},{current_pixel}"

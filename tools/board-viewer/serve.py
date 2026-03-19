@@ -15,7 +15,6 @@ import argparse
 import http.server
 import os
 import urllib.request
-import sys
 
 DEFAULT_API = "https://subway-pcb-production.up.railway.app"
 DEFAULT_DEVICE = "b0:b2:1c:41:2c:28"

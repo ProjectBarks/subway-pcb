@@ -14,14 +14,20 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
-          cache-dependency-path: server/go.sum
+          go-version: '1.25'
+          cache-dependency-path: service/backend/go.sum
+
+      - name: Install templ
+        run: go install github.com/a-h/templ/cmd/templ@latest
+
+      - name: Generate templ
+        run: cd service/backend && templ generate
 
       - name: go vet
-        run: cd server && go vet ./...
+        run: cd service/backend && go vet ./...
 
       - name: go build
-        run: cd server && go build ./cmd/subway-server/
+        run: cd service/backend && go build ./cmd/subway-server/
 
   python:
     name: Python
@@ -29,14 +35,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
+      - name: Install ruff
         uses: astral-sh/setup-uv@v4
 
-      - name: Lint serial-logger
-        run: cd tools/serial-logger && uv run python -m py_compile main.py
+      - name: Lint with ruff
+        run: uvx ruff check tools/ --exclude '**/.venv'
 
-      - name: Lint led-debugger-ui
-        run: cd tools/led-debugger-ui && uv run python -m py_compile debugger.py
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: cd service/frontend && npm ci
+
+      - name: Biome check
+        run: cd service/frontend && npx biome check
+
+      - name: Typecheck
+        run: cd service/frontend && npx tsc --noEmit
 
   firmware:
     name: C/C++ (PlatformIO)
