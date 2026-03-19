@@ -52,4 +52,10 @@ pcb/bottom_metallic_roughness.png
 CLAUDE.md
 plan.md
 .claude
-.investigations
+.investigations/
+
+# Templ
+*_templ.go
+
+# Site
+_site/

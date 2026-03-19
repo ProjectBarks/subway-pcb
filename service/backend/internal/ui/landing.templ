@@ -1,0 +1,460 @@
+package ui
+
+templ Landing() {
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<title>NYC Subway PCB — Real-Time Transit Map on a Circuit Board</title>
+		<meta name="description" content="A custom PCB that displays live NYC subway train positions using 478 LEDs, powered by an ESP32 and real-time MTA data."/>
+		<meta property="og:title" content="NYC Subway PCB"/>
+		<meta property="og:description" content="Real-time NYC subway map on a custom circuit board with 478 LEDs."/>
+		<meta property="og:type" content="website"/>
+		<link rel="preconnect" href="https://fonts.googleapis.com"/>
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+		<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+		<style>
+			*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+			:root {
+				--gold: #c9a830;
+				--gold-dim: #a08520;
+				--dark: #060606;
+				--card: #0d0d0d;
+				--border: #1a1a1a;
+				--text: #999;
+				--text-bright: #e0e0e0;
+			}
+
+			html { scroll-behavior: smooth; }
+
+			body {
+				background: var(--dark);
+				color: var(--text);
+				font-family: 'Inter', system-ui, sans-serif;
+				font-size: 16px;
+				line-height: 1.6;
+				-webkit-font-smoothing: antialiased;
+				overflow-x: hidden;
+			}
+
+			body::before {
+				content: '';
+				position: fixed;
+				inset: 0;
+				background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+				pointer-events: none;
+				z-index: 9999;
+			}
+
+			.mono { font-family: 'JetBrains Mono', monospace; }
+
+			nav {
+				position: fixed;
+				top: 0;
+				left: 0;
+				right: 0;
+				z-index: 100;
+				padding: 1.25rem 2rem;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				background: rgba(6, 6, 6, 0.8);
+				backdrop-filter: blur(16px);
+				-webkit-backdrop-filter: blur(16px);
+				border-bottom: 1px solid var(--border);
+			}
+			nav .logo {
+				font-family: 'JetBrains Mono', monospace;
+				font-weight: 700;
+				font-size: 0.85rem;
+				color: var(--gold);
+				letter-spacing: 0.15em;
+				text-transform: uppercase;
+				text-decoration: none;
+			}
+			nav a.gh {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				color: var(--text);
+				text-decoration: none;
+				font-family: 'JetBrains Mono', monospace;
+				font-size: 0.75rem;
+				letter-spacing: 0.05em;
+				transition: color 0.2s;
+			}
+			nav a.gh:hover { color: var(--text-bright); }
+			nav a.gh svg { width: 20px; height: 20px; fill: currentColor; }
+
+			.hero {
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				padding: 8rem 2rem 4rem;
+				text-align: center;
+				position: relative;
+			}
+			.hero::after {
+				content: '';
+				position: absolute;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				height: 200px;
+				background: linear-gradient(to top, var(--dark), transparent);
+				pointer-events: none;
+			}
+			.hero-badge {
+				font-family: 'JetBrains Mono', monospace;
+				font-size: 0.7rem;
+				letter-spacing: 0.2em;
+				text-transform: uppercase;
+				color: var(--gold);
+				border: 1px solid var(--gold-dim);
+				padding: 0.4rem 1.2rem;
+				border-radius: 100px;
+				margin-bottom: 2rem;
+				opacity: 0;
+				animation: fade-up 0.6s ease forwards;
+			}
+			.hero h1 {
+				font-family: 'JetBrains Mono', monospace;
+				font-weight: 800;
+				font-size: clamp(2.5rem, 6vw, 5rem);
+				color: var(--text-bright);
+				line-height: 1.05;
+				letter-spacing: -0.03em;
+				margin-bottom: 1.5rem;
+				opacity: 0;
+				animation: fade-up 0.6s ease 0.1s forwards;
+			}
+			.hero h1 span { color: var(--gold); }
+			.hero p {
+				max-width: 560px;
+				font-size: 1.1rem;
+				color: var(--text);
+				line-height: 1.7;
+				margin-bottom: 3rem;
+				opacity: 0;
+				animation: fade-up 0.6s ease 0.2s forwards;
+			}
+			.hero-image {
+				position: relative;
+				max-width: 600px;
+				width: 100%;
+				opacity: 0;
+				animation: fade-up 0.8s ease 0.35s forwards;
+			}
+			.hero-image img {
+				width: 100%;
+				height: auto;
+				border-radius: 12px;
+				border: 1px solid var(--border);
+			}
+			.hero-image .glow {
+				position: absolute;
+				inset: -40px;
+				background: radial-gradient(ellipse at center, rgba(201, 168, 48, 0.08) 0%, transparent 70%);
+				pointer-events: none;
+				z-index: -1;
+			}
+
+			.specs {
+				display: flex;
+				justify-content: center;
+				gap: 3rem;
+				padding: 3rem 2rem;
+				flex-wrap: wrap;
+			}
+			.spec { text-align: center; }
+			.spec .num {
+				font-family: 'JetBrains Mono', monospace;
+				font-weight: 700;
+				font-size: 2rem;
+				color: var(--gold);
+				line-height: 1;
+			}
+			.spec .label {
+				font-family: 'JetBrains Mono', monospace;
+				font-size: 0.7rem;
+				letter-spacing: 0.12em;
+				text-transform: uppercase;
+				color: var(--text);
+				margin-top: 0.4rem;
+			}
+
+			section {
+				padding: 6rem 2rem;
+				max-width: 1100px;
+				margin: 0 auto;
+			}
+			.section-label {
+				font-family: 'JetBrains Mono', monospace;
+				font-size: 0.7rem;
+				letter-spacing: 0.2em;
+				text-transform: uppercase;
+				color: var(--gold-dim);
+				margin-bottom: 1rem;
+			}
+			section h2 {
+				font-family: 'JetBrains Mono', monospace;
+				font-weight: 700;
+				font-size: clamp(1.5rem, 3vw, 2.2rem);
+				color: var(--text-bright);
+				letter-spacing: -0.02em;
+				margin-bottom: 3rem;
+			}
+
+			.features {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+				gap: 1.5rem;
+			}
+			.feature {
+				background: var(--card);
+				border: 1px solid var(--border);
+				border-radius: 12px;
+				padding: 2rem;
+				transition: border-color 0.3s;
+			}
+			.feature:hover { border-color: #2a2a2a; }
+			.feature-icon {
+				width: 40px;
+				height: 40px;
+				border-radius: 10px;
+				background: rgba(201, 168, 48, 0.1);
+				border: 1px solid rgba(201, 168, 48, 0.15);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				margin-bottom: 1.25rem;
+				color: var(--gold);
+			}
+			.feature h3 {
+				font-family: 'JetBrains Mono', monospace;
+				font-weight: 600;
+				font-size: 0.95rem;
+				color: var(--text-bright);
+				margin-bottom: 0.6rem;
+			}
+			.feature p {
+				font-size: 0.9rem;
+				color: var(--text);
+				line-height: 1.6;
+			}
+
+			.steps {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+				gap: 2rem;
+				counter-reset: step;
+			}
+			.step { counter-increment: step; }
+			.step::before {
+				content: counter(step, decimal-leading-zero);
+				font-family: 'JetBrains Mono', monospace;
+				font-weight: 700;
+				font-size: 2.5rem;
+				color: var(--border);
+				line-height: 1;
+				margin-bottom: 1rem;
+				display: block;
+			}
+			.step h3 {
+				font-family: 'JetBrains Mono', monospace;
+				font-weight: 600;
+				font-size: 0.9rem;
+				color: var(--text-bright);
+				margin-bottom: 0.5rem;
+			}
+			.step p {
+				font-size: 0.85rem;
+				color: var(--text);
+				line-height: 1.6;
+			}
+
+			.cta {
+				text-align: center;
+				padding: 6rem 2rem 8rem;
+			}
+			.cta h2 {
+				font-family: 'JetBrains Mono', monospace;
+				font-weight: 700;
+				font-size: clamp(1.5rem, 3vw, 2rem);
+				color: var(--text-bright);
+				margin-bottom: 1rem;
+			}
+			.cta p {
+				color: var(--text);
+				max-width: 480px;
+				margin: 0 auto 2rem;
+				font-size: 0.95rem;
+			}
+			.cta-btn {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.6rem;
+				background: var(--gold);
+				color: var(--dark);
+				font-family: 'JetBrains Mono', monospace;
+				font-weight: 700;
+				font-size: 0.85rem;
+				letter-spacing: 0.05em;
+				padding: 0.85rem 2rem;
+				border-radius: 8px;
+				text-decoration: none;
+				transition: background 0.2s;
+			}
+			.cta-btn:hover { background: var(--gold-dim); }
+			.cta-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+			footer {
+				border-top: 1px solid var(--border);
+				padding: 2rem;
+				text-align: center;
+				font-family: 'JetBrains Mono', monospace;
+				font-size: 0.7rem;
+				color: #444;
+				letter-spacing: 0.05em;
+			}
+
+			@keyframes fade-up {
+				from { opacity: 0; transform: translateY(20px); }
+				to { opacity: 1; transform: translateY(0); }
+			}
+
+			@media (max-width: 640px) {
+				.specs { gap: 2rem; }
+				.hero { padding: 7rem 1.5rem 3rem; }
+				section { padding: 4rem 1.5rem; }
+			}
+		</style>
+	</head>
+	<body>
+		<nav>
+			<a href="/" class="logo">NYC Subway PCB</a>
+			<a href="https://github.com/ProjectBarks/subway-pcb" class="gh" target="_blank" rel="noopener">
+				<svg viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+				<span>Source</span>
+			</a>
+		</nav>
+
+		<section class="hero">
+			<div class="hero-badge">Open-source hardware</div>
+			<h1>The NYC Subway,<br/>on a <span>circuit board</span></h1>
+			<p>
+				A custom PCB that tracks every train in New York City in real time.
+				478 LEDs. Live MTA data. Mounted on your wall.
+			</p>
+		</section>
+
+		<div class="specs">
+			<div class="spec">
+				<div class="num">478</div>
+				<div class="label">Addressable LEDs</div>
+			</div>
+			<div class="spec">
+				<div class="num">36</div>
+				<div class="label">Subway lines</div>
+			</div>
+			<div class="spec">
+				<div class="num">15s</div>
+				<div class="label">Update interval</div>
+			</div>
+			<div class="spec">
+				<div class="num">ESP32</div>
+				<div class="label">Microcontroller</div>
+			</div>
+		</div>
+
+		<section>
+			<div class="section-label">Features</div>
+			<h2>What makes it tick</h2>
+			<div class="features">
+				<div class="feature">
+					<div class="feature-icon">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+					</div>
+					<h3>Real-time tracking</h3>
+					<p>Pulls live GTFS feeds from the MTA every 15 seconds. Each LED represents a station — it lights up in the route color when a train is present.</p>
+				</div>
+				<div class="feature">
+					<div class="feature-icon">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 7h5M17 17h5"/></svg>
+					</div>
+					<h3>Web dashboard</h3>
+					<p>Configure modes, themes, and colors from any browser. Live canvas preview shows exactly what the board displays. No reflashing needed.</p>
+				</div>
+				<div class="feature">
+					<div class="feature-icon">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+					</div>
+					<h3>Custom themes</h3>
+					<p>Built-in color presets for every subway line. Create your own palettes, save them, and switch between them instantly.</p>
+				</div>
+				<div class="feature">
+					<div class="feature-icon">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+					</div>
+					<h3>Multiple modes</h3>
+					<p>Switch between live subway tracking, animated snake mode, and more. Each mode has its own configurable parameters.</p>
+				</div>
+				<div class="feature">
+					<div class="feature-icon">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M15 20v2M9 2v2M9 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></svg>
+					</div>
+					<h3>Custom PCB</h3>
+					<p>Purpose-built 4-layer board with the entire NYC subway map etched into copper. Borough labels in silkscreen. Wall-mountable.</p>
+				</div>
+				<div class="feature">
+					<div class="feature-icon">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+					</div>
+					<h3>Fully open source</h3>
+					<p>Firmware, server, dashboard, and PCB design files — all on GitHub. Build your own or fork it for a different city.</p>
+				</div>
+			</div>
+		</section>
+
+		<section>
+			<div class="section-label">Architecture</div>
+			<h2>How it works</h2>
+			<div class="steps">
+				<div class="step">
+					<h3>Ingest MTA feeds</h3>
+					<p>A Go backend polls 9 GTFS-realtime feeds from the MTA, parsing protobuf data into a unified transit state.</p>
+				</div>
+				<div class="step">
+					<h3>Render pixel frames</h3>
+					<p>The active mode maps station occupancy to LED colors, merging theme presets with per-device config overrides.</p>
+				</div>
+				<div class="step">
+					<h3>Stream to hardware</h3>
+					<p>The ESP32 fetches rendered frames over HTTP every second and drives 478 addressable WS2812B LEDs across 9 strips.</p>
+				</div>
+				<div class="step">
+					<h3>Control from anywhere</h3>
+					<p>An HTMX dashboard lets you switch modes, tweak colors, and see a live canvas preview — all without touching firmware.</p>
+				</div>
+			</div>
+		</section>
+
+		<div class="cta">
+			<h2>Build your own</h2>
+			<p>Everything you need is on GitHub — PCB gerbers, firmware, server, and dashboard.</p>
+			<a href="https://github.com/ProjectBarks/subway-pcb" class="cta-btn" target="_blank" rel="noopener">
+				<svg viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+				View on GitHub
+			</a>
+		</div>
+
+		<footer>
+			NYC Subway PCB — Open-source hardware project
+		</footer>
+	</body>
+	</html>
+}

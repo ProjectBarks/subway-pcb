@@ -1,0 +1,58 @@
+name: Deploy Landing Page
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'service/backend/internal/ui/landing.templ'
+      - 'service/backend/cmd/generate-site/**'
+      - 'service/frontend/public/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: service/backend/go.mod
+
+      - name: Install templ
+        run: go install github.com/a-h/templ/cmd/templ@latest
+
+      - name: Generate templ
+        working-directory: service/backend
+        run: templ generate ./internal/ui/
+
+      - name: Render static HTML
+        working-directory: service/backend
+        run: go run ./cmd/generate-site/ ../../_site
+
+      - name: Copy frontend public assets
+        run: cp -r service/frontend/public/* _site/ 2>/dev/null || true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

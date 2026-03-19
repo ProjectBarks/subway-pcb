@@ -76,6 +76,17 @@ tools/debugger:                        ## Start click-to-light web debugger → 
 tools/viewer:                          ## Start standalone board viewer → http://localhost:8888
 	cd tools/board-viewer && uv run serve.py
 
+# ─── Site ────────────────────────────────────────────────
+
+.PHONY: site/build site/preview
+
+site/build:                            ## Build static landing page → _site/
+	cd service/backend && templ generate ./internal/ui/ && go run ./cmd/generate-site/ ../../_site
+	cp -r service/frontend/public/* _site/ 2>/dev/null || true
+
+site/preview: site/build               ## Build and open landing page in browser
+	open _site/index.html
+
 # ─── Shortcuts ───────────────────────────────────────────
 
 .PHONY: all clean help
