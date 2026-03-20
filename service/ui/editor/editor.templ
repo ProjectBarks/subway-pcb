@@ -8,6 +8,7 @@ import (
 templ EditorPage(user *model.User) {
 	@components.Base("Plugin Editor", user, "/editor") {
 		<div id="editor-root" class="h-[calc(100vh-4rem)] flex overflow-hidden"></div>
+		<link rel="stylesheet" href="/static/dist/prism-lua.css"/>
 		<script type="module" src="/static/dist/editor.js"></script>
 	}
 }

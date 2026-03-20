@@ -50,6 +50,7 @@ templ CommunityPage(user *model.User, plugins []model.Plugin, installed map[stri
 			</div>
 		</div>
 		@communityCodeModal()
+		<link rel="stylesheet" href="/static/dist/prism-lua.css"/>
 		<script type="module" src="/static/dist/community.js"></script>
 		<script>
 		function showCodeModal(pluginId, name, author) {
