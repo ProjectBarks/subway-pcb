@@ -1,0 +1,14 @@
+package landing
+
+templ showcaseCard(title string, author string, description string) {
+	<div class="bg-bg-surface border border-border-subtle rounded-2xl overflow-hidden hover:border-accent-gold transition-all" data-animate="fade-up">
+		<div class="h-48 bg-bg-surface-raised flex items-center justify-center">
+			<span class="text-text-muted text-sm">Plugin Preview</span>
+		</div>
+		<div class="p-5">
+			<h4 class="text-text-primary mb-1">{ title }</h4>
+			<p class="text-text-muted text-xs mb-2">{ author }</p>
+			<p class="text-text-secondary text-sm">{ description }</p>
+		</div>
+	</div>
+}

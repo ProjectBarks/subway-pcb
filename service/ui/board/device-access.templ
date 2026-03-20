@@ -1,0 +1,8 @@
+package board
+
+import "github.com/ProjectBarks/subway-pcb/service/internal/model"
+
+// DeviceAccess is the legacy component name. Kept as a redirect for backward compat.
+templ DeviceAccess(device *model.Device, access []model.DeviceAccess) {
+	@AccessList(device.MAC, access)
+}

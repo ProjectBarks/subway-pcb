@@ -22,15 +22,12 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Backend
-service/backend/subway-server
-service/backend/tmp/
-service/backend/data/
-service/backend/static/
-
-# Frontend
-service/frontend/node_modules/
+# Service
+service/subway-server
+service/tmp/
+service/data/
 service/static/
+service/node_modules/
 
 # Generated assets (regenerate with tools/pcb-glb-generator)
 pcb/top_texture.png
@@ -56,8 +53,9 @@ plan.md
 .claude
 .investigations/
 
-# Templ
+# Generated Go (templ + UI barrel exports)
 *_templ.go
+*_gen.go
 
 # Site
 _site/

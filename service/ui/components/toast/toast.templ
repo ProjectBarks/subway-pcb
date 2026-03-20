@@ -1,0 +1,20 @@
+package toast
+
+import "github.com/ProjectBarks/subway-pcb/service/ui/components/icon"
+
+templ Toast(toastType string, message string) {
+	<div
+		data-toast
+		class={
+			"alert shadow-lg animate-toast-fade-in",
+			templ.KV("alert-destructive", toastType == "error"),
+		}
+	>
+		if toastType == "error" {
+			@icon.Icon("alert-circle", "size-5")
+		} else {
+			@icon.Icon("check-circle2", "size-5")
+		}
+		<span>{ message }</span>
+	</div>
+}

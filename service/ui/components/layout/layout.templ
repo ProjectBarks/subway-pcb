@@ -1,0 +1,36 @@
+package layout
+
+import (
+	"github.com/ProjectBarks/subway-pcb/service/internal/model"
+	"github.com/ProjectBarks/subway-pcb/service/ui/components/nav"
+)
+
+templ Base(title string, user *model.User, activePath string) {
+	<!DOCTYPE html>
+	<html lang="en" class="dark">
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<title>
+			if title != "" {
+				{ title } | NYC Subway PCB
+			} else {
+				NYC Subway PCB
+			}
+		</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com"/>
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+		<link rel="stylesheet" href="/static/dist/main.css"/>
+		<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+		<script type="module" src="/static/dist/app-shell.js"></script>
+	</head>
+	<body class="min-h-screen bg-bg-primary text-text-primary">
+		@nav.Nav(user, activePath)
+		<main class="pt-16">
+			{ children... }
+		</main>
+		<div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3"></div>
+	</body>
+	</html>
+}

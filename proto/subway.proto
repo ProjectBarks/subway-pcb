@@ -1,7 +1,7 @@
 syntax = "proto3";
 package subway;
 
-option go_package = "github.com/ProjectBarks/subway-pcb/server/gen/subwaypb";
+option go_package = "github.com/ProjectBarks/subway-pcb/service/gen/subwaypb";
 
 enum Route {
   ROUTE_UNKNOWN = 0;

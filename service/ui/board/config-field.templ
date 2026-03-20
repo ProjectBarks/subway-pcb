@@ -1,0 +1,49 @@
+package board
+
+import "github.com/ProjectBarks/subway-pcb/service/internal/plugin"
+
+templ configField(field plugin.ConfigField, configValues map[string]string) {
+	switch field.Type {
+		case plugin.FieldColor:
+			<div class="flex items-center gap-3 bg-bg-surface-raised/50 rounded-lg px-3 py-2">
+				<span class="text-text-muted text-xs uppercase tracking-wide w-20 shrink-0">{ field.Label }</span>
+				<input
+					type="color"
+					name={ field.Key }
+					value={ configValues[field.Key] }
+					class="h-10 w-10 rounded-lg border border-border-subtle bg-transparent cursor-pointer shrink-0"
+				/>
+				<span class="text-text-secondary text-xs font-mono">{ configValues[field.Key] }</span>
+			</div>
+		case plugin.FieldNumber:
+			<div class="flex items-center gap-3 bg-bg-surface-raised/50 rounded-lg px-3 py-2">
+				<label class="text-text-muted text-xs uppercase tracking-wide w-32 shrink-0">{ field.Label }</label>
+				<input
+					type="number"
+					name={ field.Key }
+					value={ configValues[field.Key] }
+					if field.Min != "" {
+						min={ field.Min }
+					}
+					if field.Max != "" {
+						max={ field.Max }
+					}
+					class="input w-24"
+				/>
+			</div>
+		case plugin.FieldSelect:
+			<div class="flex items-center gap-3 bg-bg-surface-raised/50 rounded-lg px-3 py-2">
+				<label class="text-text-muted text-xs uppercase tracking-wide w-32 shrink-0">{ field.Label }</label>
+				<select
+					name={ field.Key }
+					class="select"
+				>
+					for _, opt := range field.Options {
+						<option value={ opt } selected?={ configValues[field.Key] == opt }>
+							{ opt }
+						</option>
+					}
+				</select>
+			</div>
+	}
+}

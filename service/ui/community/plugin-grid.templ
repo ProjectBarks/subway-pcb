@@ -1,0 +1,22 @@
+package community
+
+import (
+	"github.com/ProjectBarks/subway-pcb/service/internal/model"
+	"github.com/ProjectBarks/subway-pcb/service/ui/components"
+)
+
+templ CommunityPluginGrid(plugins []model.Plugin, installed map[string]bool) {
+	if len(plugins) > 0 {
+		for _, p := range plugins {
+			@communityPluginCard(p, installed[p.ID])
+		}
+	} else {
+		<div class="col-span-full text-center py-20">
+			<div class="size-20 rounded-full bg-bg-surface border border-border-subtle flex items-center justify-center mx-auto mb-6">
+				@components.Icon("search", "size-10 text-text-muted")
+			</div>
+			<h3 class="text-text-primary mb-2">No plugins found</h3>
+			<p class="text-text-secondary mb-4">Try adjusting your search or be the first to publish one!</p>
+		</div>
+	}
+}

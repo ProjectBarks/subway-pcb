@@ -15,19 +15,16 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25'
-          cache-dependency-path: service/backend/go.sum
+          cache-dependency-path: service/go.sum
 
       - name: Install templ
         run: go install github.com/a-h/templ/cmd/templ@latest
 
-      - name: Generate templ
-        run: cd service/backend && templ generate
+      - name: Lint
+        run: make lint/go
 
-      - name: go vet
-        run: cd service/backend && go vet ./...
-
-      - name: go build
-        run: cd service/backend && go build ./cmd/subway-server/
+      - name: Build
+        run: make backend/build
 
   python:
     name: Python
@@ -38,11 +35,8 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
-      - name: Lint with ruff
-        run: uvx ruff check tools/ --exclude '**/.venv'
-
-      - name: Typecheck with ty
-        run: uvx ty check tools/ --config-file tools/ty.toml
+      - name: Lint
+        run: make lint/python
 
   frontend:
     name: Frontend
@@ -55,13 +49,13 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: cd service/frontend && npm ci
+        run: make frontend/install
 
-      - name: Biome check
-        run: cd service/frontend && npx biome check
+      - name: Lint
+        run: make frontend/lint
 
       - name: Typecheck
-        run: cd service/frontend && npx tsc --noEmit
+        run: make frontend/typecheck
 
   firmware:
     name: C/C++ (PlatformIO)
@@ -76,8 +70,5 @@ jobs:
       - name: Install PlatformIO
         run: pip install --upgrade platformio
 
-      - name: Build production firmware
-        run: cd firmware && pio run
-
-      - name: Build debug firmware
-        run: cd tools/debug-firmware && pio run
+      - name: Build
+        run: make lint/firmware

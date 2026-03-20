@@ -1,0 +1,116 @@
+package board
+
+templ ActivePluginContent(data BoardData) {
+	<div class="space-y-6">
+		<!-- Current plugin info -->
+		<div>
+			<h3 class="text-text-primary mb-1">
+				if data.Device.PluginName != "" {
+					{ data.ActivePluginName() }
+				} else {
+					No Plugin Selected
+				}
+			</h3>
+			for _, p := range data.Plugins {
+				if p.Name() == data.Device.PluginName && p.Description() != "" {
+					<p class="text-text-secondary text-sm">{ p.Description() }</p>
+				}
+			}
+			for _, ip := range data.InstalledPlugins {
+				if ip.ID == data.Device.PluginName && ip.Description != "" {
+					<p class="text-text-secondary text-sm">{ ip.Description }</p>
+				}
+			}
+		</div>
+		<!-- Configuration -->
+		if len(data.ConfigGroups) > 0 {
+			<!-- Preset selector -->
+			if len(data.Presets) > 0 {
+				<div>
+					<label class="text-text-muted block mb-2">Load Preset</label>
+					<form
+						hx-put={ "/boards/" + data.Device.MAC + "/preset" }
+						hx-target="#controls"
+						hx-swap="outerHTML"
+						class="flex gap-2"
+					>
+						<select
+							name="preset_id"
+							class="select flex-1"
+						>
+							<option value="">-- select preset --</option>
+							for _, preset := range data.Presets {
+								<option
+									value={ preset.ID }
+									selected?={ data.Device.PresetID == preset.ID }
+								>
+									if preset.IsBuiltIn {
+										{ preset.Name }
+									} else {
+										{ preset.Name } (yours)
+									}
+								</option>
+							}
+						</select>
+						<button
+							type="submit"
+							class="btn-primary h-10"
+						>
+							Load
+						</button>
+					</form>
+				</div>
+			}
+			<!-- Dynamic config fields -->
+			<form
+				id="plugin-config-form"
+				hx-put={ "/boards/" + data.Device.MAC + "/config" }
+				hx-target="#controls"
+				hx-swap="outerHTML"
+				class="space-y-4"
+			>
+				for _, group := range data.ConfigGroups {
+					<div>
+						<label class="text-text-muted block mb-3">{ group.Name }</label>
+						<div class="space-y-2">
+							for _, field := range group.Fields {
+								@configField(field, data.ConfigValues)
+							}
+						</div>
+					</div>
+				}
+				<button
+					type="submit"
+					class="btn-primary w-full h-10"
+				>
+					Apply
+				</button>
+			</form>
+		}
+		<!-- Save as preset -->
+		<div class="border-t border-border-subtle pt-4">
+			<form
+				hx-post="/api/v1/presets"
+				hx-target="#controls"
+				hx-swap="outerHTML"
+				class="space-y-2"
+				onsubmit="collectConfigToPresetForm(this)"
+			>
+				<input type="hidden" name="plugin_name" value={ data.Device.PluginName }/>
+				<input
+					type="text"
+					name="name"
+					placeholder="Preset name"
+					required
+					class="input w-full"
+				/>
+				<button
+					type="submit"
+					class="btn-outline w-full h-10 rounded-full"
+				>
+					Save as Preset
+				</button>
+			</form>
+		</div>
+	</div>
+}

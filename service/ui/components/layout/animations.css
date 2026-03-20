@@ -1,0 +1,70 @@
+/* ============================================================
+   AnimXYZ Custom Compositions
+   ============================================================ */
+
+/* Page entrance: fade + up */
+.xyz-page-enter {
+	--xyz-opacity: 0;
+	--xyz-translate-y: 20px;
+	--xyz-duration: 0.5s;
+	--xyz-ease: ease-out;
+}
+
+/* Card stagger: fade + scale */
+.xyz-card-stagger {
+	--xyz-opacity: 0;
+	--xyz-scale-x: 0.95;
+	--xyz-scale-y: 0.95;
+	--xyz-duration: 0.4s;
+	--xyz-ease: ease-out;
+	--xyz-stagger: 0.1s;
+}
+
+/* Toast enter/exit: fade + down */
+.xyz-toast {
+	--xyz-opacity: 0;
+	--xyz-translate-y: -10px;
+	--xyz-duration: 0.3s;
+	--xyz-ease: ease-out;
+}
+
+/* Panel slide: fade + left */
+.xyz-panel-slide {
+	--xyz-opacity: 0;
+	--xyz-translate-x: -20px;
+	--xyz-duration: 0.4s;
+	--xyz-ease: ease-out;
+}
+
+/* Modal enter: fade + scale */
+.xyz-modal {
+	--xyz-opacity: 0;
+	--xyz-scale-x: 0.9;
+	--xyz-scale-y: 0.9;
+	--xyz-translate-y: 20px;
+	--xyz-duration: 0.3s;
+	--xyz-ease: ease-out;
+}
+
+/* Nav entrance: slide down + fade */
+.xyz-nav {
+	--xyz-opacity: 0;
+	--xyz-translate-y: -100px;
+	--xyz-duration: 0.5s;
+	--xyz-ease: ease-out;
+}
+
+/* Subtle pulse for status indicators */
+@keyframes pulse-subtle {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.7;
+	}
+}
+
+.animate-pulse-subtle {
+	animation: pulse-subtle 2s ease-in-out infinite;
+}

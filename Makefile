@@ -5,34 +5,37 @@ PORT := $(shell ls /dev/cu.usbserial-* 2>/dev/null | head -1)
 
 # ─── Frontend ────────────────────────────────────────────
 
-.PHONY: frontend/install frontend/build frontend/dev frontend/lint
+.PHONY: frontend/install frontend/build frontend/dev frontend/lint frontend/typecheck
 
 frontend/install:                      ## Install frontend dependencies
-	cd service/frontend && npm install
+	cd service && npm ci
 
 frontend/build:                        ## Build frontend (TypeScript + Vite)
-	cd service/frontend && npm run build
+	cd service && npm run build
 
 frontend/dev:                          ## Watch and rebuild frontend on changes
-	cd service/frontend && npm run dev
+	cd service && npm run dev
 
-frontend/lint:                         ## Lint frontend TypeScript
-	cd service/frontend && npm run lint
+frontend/lint:                         ## Lint frontend with Biome
+	cd service && npx biome check
+
+frontend/typecheck:                    ## Typecheck frontend TypeScript
+	cd service && npx tsc --noEmit
 
 # ─── Backend ─────────────────────────────────────────────
 
 .PHONY: backend/build backend/start backend/stop backend/dev
 
 backend/build:                         ## Build the Go backend binary
-	cd service/backend && go build ./cmd/subway-server/
+	cd service && go build ./cmd/subway-server/
 
 backend/start: backend/build           ## Build and start backend → http://localhost:8080
 	@pkill -9 -f subway-server 2>/dev/null; sleep 1
-	cd service/backend && ./subway-server --port 8080 --led-map led_map.json --data-dir data --static-dir ../static &
+	cd service && ./subway-server --port 8080 --led-map led_map.json --data-dir data --static-dir static &
 	@echo "→ http://localhost:8080/"
 
 backend/dev:                           ## Start backend with auto-reload on file changes
-	cd service/backend && air
+	cd service && air
 
 backend/stop:                          ## Stop the running backend
 	@pkill -9 -f subway-server 2>/dev/null && echo "Stopped" || echo "Not running"
@@ -80,9 +83,10 @@ tools/viewer:                          ## Start standalone board viewer → http
 
 .PHONY: site/build site/preview
 
-site/build:                            ## Build static landing page → _site/
-	cd service/backend && templ generate ./internal/ui/ && go run ./cmd/generate-site/ ../../_site
-	cp -r service/frontend/public/* _site/ 2>/dev/null || true
+site/build: frontend/build             ## Build static landing page → _site/
+	cd service && templ generate && go generate ./ui/... && go run ./cmd/generate-site/ ../_site
+	mkdir -p _site/static/dist
+	cp -r service/static/dist/* _site/static/dist/
 
 site/preview: site/build               ## Build and open landing page in browser
 	open _site/index.html
@@ -94,18 +98,18 @@ site/preview: site/build               ## Build and open landing page in browser
 lint: lint/go lint/python lint/firmware lint/frontend  ## Run all linters
 
 lint/go:                               ## Lint Go backend
-	cd service/backend && templ generate && go vet ./...
+	cd service && templ generate && go generate ./ui/... && go vet ./...
 
 lint/python:                           ## Lint and typecheck Python tools
-	ruff check tools/ --exclude '**/.venv'
-	ty check tools/ --config-file tools/ty.toml
+	uvx ruff check tools/ --exclude '**/.venv'
+	uvx ty check tools/ --config-file tools/ty.toml
 
 lint/firmware:                         ## Lint firmware (PlatformIO build)
 	cd firmware && $(PIO) run
 	cd tools/debug-firmware && $(PIO) run
 
 lint/frontend:                         ## Lint frontend with Biome
-	cd service/frontend && npx biome check
+	cd service && npx biome check
 
 # ─── Hooks ───────────────────────────────────────────────
 
@@ -122,8 +126,8 @@ hooks:                                 ## Install git pre-commit hook
 
 dev: frontend/build                    ## Start frontend watch + backend with auto-reload
 	@trap 'kill 0' EXIT; \
-	(cd service/frontend && npm run dev) & \
-	(cd service/backend && air) & \
+	(cd service && npm run dev) & \
+	(cd service && air) & \
 	wait
 
 # ─── Shortcuts ───────────────────────────────────────────
@@ -133,7 +137,7 @@ dev: frontend/build                    ## Start frontend watch + backend with au
 all: backend/build firmware/build      ## Build backend + firmware
 
 clean:                                 ## Remove all build artifacts
-	rm -rf firmware/.pio/build tools/debug-firmware/.pio/build service/backend/subway-server
+	rm -rf firmware/.pio/build tools/debug-firmware/.pio/build service/subway-server
 
 help:                                  ## Show available commands
 	@echo ""

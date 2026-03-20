@@ -1,0 +1,65 @@
+package board
+
+import "github.com/ProjectBarks/subway-pcb/service/ui/components"
+
+templ ConnectionCard(data BoardData) {
+	<div class="glass p-5 rounded-2xl">
+		<div class="flex items-center gap-2 mb-4">
+			if components.IsOnline(data.Device.LastSeen) {
+				@components.Icon("wifi", "size-4 text-status-online")
+			} else {
+				@components.Icon("wifi-off", "size-4 text-text-muted")
+			}
+			<h3 class="text-text-primary">Connection</h3>
+		</div>
+		<div class="space-y-3 text-sm">
+			<div class="flex justify-between">
+				<span class="text-text-secondary">Status</span>
+				if components.IsOnline(data.Device.LastSeen) {
+					<span class="text-status-online">Online</span>
+				} else {
+					<span class="text-text-muted">Offline</span>
+				}
+			</div>
+			<div class="flex justify-between">
+				<span class="text-text-secondary">Board</span>
+				<span class="text-text-primary">
+					if data.Device.Name != "" {
+						{ data.Device.Name }
+					} else {
+						{ data.Device.MAC }
+					}
+				</span>
+			</div>
+			<div class="flex justify-between">
+				<span class="text-text-secondary">MAC</span>
+				<span class="text-text-primary font-mono text-xs">{ data.Device.MAC }</span>
+			</div>
+			<div class="flex justify-between">
+				<span class="text-text-secondary">Last Seen</span>
+				<span
+					class={
+						"text-text-primary",
+						templ.KV("text-status-online", components.IsOnline(data.Device.LastSeen)),
+					}
+				>
+					if components.IsOnline(data.Device.LastSeen) {
+						Online now
+					} else {
+						{ components.TimeAgo(data.Device.LastSeen) }
+					}
+				</span>
+			</div>
+			<div class="flex justify-between">
+				<span class="text-text-secondary">Firmware</span>
+				<span class="text-text-primary">
+					if data.Device.FirmwareVer != "" {
+						v{ data.Device.FirmwareVer }
+					} else {
+						Unknown
+					}
+				</span>
+			</div>
+		</div>
+	</div>
+}

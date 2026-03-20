@@ -1,0 +1,31 @@
+package landing
+
+import "github.com/ProjectBarks/subway-pcb/service/ui/components"
+
+templ cta() {
+	<section class="py-20 px-5 lg:px-10 bg-black text-white">
+		<div class="max-w-4xl mx-auto text-center" data-animate="fade-up">
+			<h2 class="text-white mb-4">Build Your Own</h2>
+			<p class="text-xl text-gray-400 mb-8">
+				Open source hardware and software. Order the PCB from JLCPCB or design your own board.
+			</p>
+			<div class="flex flex-col sm:flex-row gap-4 justify-center">
+				<a
+					href="https://github.com/ProjectBarks/subway-pcb"
+					class="h-12 px-8 border border-white/20 rounded-full flex items-center justify-center gap-2 hover:bg-white/10 transition-colors hover:scale-105 active:scale-95"
+					target="_blank"
+					rel="noopener"
+				>
+					@components.Icon("github", "size-5")
+					View on GitHub
+				</a>
+				<a
+					href="#"
+					class="h-12 px-8 bg-white text-black rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+				>
+					Order PCB
+				</a>
+			</div>
+		</div>
+	</section>
+}

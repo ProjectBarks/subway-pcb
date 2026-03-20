@@ -1,0 +1,8 @@
+package icon
+
+import "github.com/kaugesaar/lucide-go"
+
+// Icon renders a lucide icon SVG by name with custom class
+templ Icon(name string, class string) {
+	@templ.Raw(string(lucide.Icon(name, map[string]any{"class": class})))
+}

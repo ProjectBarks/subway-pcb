@@ -1,0 +1,102 @@
+package board
+
+import "github.com/ProjectBarks/subway-pcb/service/ui/components"
+
+templ BoardSettingsContent(data BoardData) {
+	<div class="space-y-6">
+		<!-- Board Name -->
+		<div class="glass rounded-2xl overflow-hidden">
+			<div class="p-6 border-b border-border-subtle">
+				<div class="flex items-center gap-3">
+					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center">
+						@components.Icon("settings", "size-5 text-accent-gold")
+					</div>
+					<div>
+						<h3 class="text-base font-semibold text-text-primary">Board Info</h3>
+						<p class="text-xs text-text-muted">Configure your board</p>
+					</div>
+				</div>
+			</div>
+			<div class="p-6 space-y-4">
+				<div>
+					<label class="block text-xs font-medium text-text-secondary mb-2">Board Name</label>
+					<input
+						type="text"
+						value={ data.Device.Name }
+						placeholder="Unnamed board"
+						hx-put={ "/boards/" + data.Device.MAC + "/name" }
+						hx-trigger="blur changed, keyup[keyCode==13]"
+						hx-vals="js:{&quot;name&quot;: event.target.value}"
+						hx-target="#controls"
+						hx-swap="outerHTML"
+						class="input w-full"
+					/>
+				</div>
+				<div class="bg-bg-surface-raised/50 rounded-xl p-4 border border-border-subtle">
+					<div class="flex items-center justify-between mb-2">
+						<span class="text-xs text-text-muted">MAC Address</span>
+						<span class="text-sm font-mono text-text-secondary">{ data.Device.MAC }</span>
+					</div>
+					<div class="flex items-center justify-between">
+						<span class="text-xs text-text-muted">Active Plugin</span>
+						<span class="text-sm text-text-secondary">{ data.ActivePluginName() }</span>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- WiFi Settings -->
+		<div class="glass rounded-2xl overflow-hidden">
+			<div class="p-6 border-b border-border-subtle">
+				<div class="flex items-center gap-3">
+					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center">
+						@components.Icon("wifi", "size-5 text-accent-gold")
+					</div>
+					<div>
+						<h3 class="text-base font-semibold text-text-primary">WiFi Settings</h3>
+						<p class="text-xs text-text-muted">Manage wireless connection</p>
+					</div>
+				</div>
+			</div>
+			<div class="p-6">
+				<div id="serial-wifi-panel" class="glass rounded-2xl p-8 text-center">
+					@components.Icon("wifi-off", "size-12 text-text-muted mx-auto mb-4")
+					<h3 class="text-lg font-semibold text-text-primary mb-2">Board Not Connected</h3>
+					<p class="text-sm text-text-secondary mb-4">Connect your board via USB to access settings</p>
+					<button onclick="window.boardSerial && window.boardSerial.connect()" class="btn-primary mx-auto flex items-center justify-center gap-2">
+						@components.Icon("usb", "size-4")
+						Connect via USB
+					</button>
+				</div>
+			</div>
+		</div>
+		<!-- Firmware Update -->
+		<div class="glass rounded-2xl overflow-hidden">
+			<div class="p-6 border-b border-border-subtle">
+				<div class="flex items-center gap-3">
+					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center">
+						@components.Icon("upload", "size-5 text-accent-gold")
+					</div>
+					<div>
+						<h3 class="text-base font-semibold text-text-primary">Firmware Update</h3>
+						<p class="text-xs text-text-muted">Upload new firmware to your board</p>
+					</div>
+				</div>
+			</div>
+			<div class="p-6 space-y-4">
+				<div class="bg-bg-surface-raised/50 rounded-xl p-4 border border-border-subtle">
+					<div class="flex items-center justify-between mb-2">
+						<span class="text-xs text-text-muted">Current Version</span>
+						<span class="text-sm font-mono text-text-secondary">
+							if data.Device.FirmwareVer != "" {
+								v{ data.Device.FirmwareVer }
+							} else {
+								Unknown
+							}
+						</span>
+					</div>
+				</div>
+				<p class="text-xs text-text-secondary">Connect via USB to update firmware</p>
+			</div>
+		</div>
+	</div>
+}

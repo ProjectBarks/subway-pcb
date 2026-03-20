@@ -1,0 +1,38 @@
+package board
+
+import "github.com/ProjectBarks/subway-pcb/service/ui/components"
+
+templ AccessCard(data BoardData) {
+	<div id="access-panel" class="glass p-5 rounded-2xl">
+		<div class="flex items-center gap-2 mb-4">
+			@components.Icon("users", "size-4 text-accent-gold")
+			<h3 class="text-text-primary">Manage Access</h3>
+		</div>
+		<p class="text-text-muted text-xs mb-3">Grant specific users access to view and control this board</p>
+		<!-- Add user form -->
+		<form
+			hx-post={ "/boards/" + data.Device.MAC + "/access" }
+			hx-target="#access-list"
+			hx-swap="innerHTML"
+			class="flex gap-2 mb-4"
+		>
+			<input
+				type="email"
+				name="email"
+				placeholder="user@example.com"
+				required
+				class="input flex-1 h-10"
+			/>
+			<button
+				type="submit"
+				class="btn-primary h-10"
+			>
+				Add
+			</button>
+		</form>
+		<!-- Access list -->
+		<div id="access-list">
+			@AccessList(data.Device.MAC, data.Access)
+		</div>
+	</div>
+}

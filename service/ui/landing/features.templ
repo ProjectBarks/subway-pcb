@@ -1,0 +1,19 @@
+package landing
+
+templ features() {
+	<section id="how-it-works" class="py-20 px-5 lg:px-10 bg-black text-white rounded-t-[48px]">
+		<div class="max-w-7xl mx-auto">
+			<div class="mb-16" data-animate="fade-up">
+				<p class="text-accent-gold text-sm font-semibold mb-2 uppercase tracking-wider">Features</p>
+				<h2 class="text-white text-4xl md:text-5xl lg:text-6xl font-bold">What makes it tick</h2>
+			</div>
+			<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+				@featureCard("zap", "Real-time tracking", "Pulls live GTFS feeds from the MTA. Each LED represents a station — it lights up in the route color when a train is present.")
+				@featureCard("code", "Lua Scripting", "Write custom LED patterns with simple Lua code. Full control over every pixel.")
+				@featureCard("wifi", "Web dashboard", "Configure plugins, themes, and colors from any browser. Live canvas preview shows exactly what the board displays. No reflashing needed.")
+				@featureCard("users", "Community Plugins", "Browse and install plugins created by the community. Share your own creations.")
+				@featureCard("github", "Fully open source", "Firmware, server, dashboard, and PCB design files — all on GitHub. Build your own or fork it for a different city.")
+			</div>
+		</div>
+	</section>
+}

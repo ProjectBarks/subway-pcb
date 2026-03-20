@@ -1,0 +1,33 @@
+package dashboard
+
+import (
+	"github.com/ProjectBarks/subway-pcb/service/internal/model"
+	"github.com/ProjectBarks/subway-pcb/service/ui/components"
+)
+
+templ DashboardPage(user *model.User, boards []model.Device, cards []BoardCard) {
+	@components.Base("My Boards", user, "/boards") {
+		<div class="min-h-screen pt-8 pb-16 px-5 lg:px-10">
+			<div class="max-w-7xl mx-auto">
+				<!-- Header -->
+				<div class="mb-10">
+					<h1 class="text-text-primary mb-2">My Boards</h1>
+					<p class="text-text-secondary">
+						Manage and control your LED PCB boards
+					</p>
+				</div>
+				<!-- Board Grid (htmx polling target) -->
+				<div
+					id="board-grid"
+					hx-get="/partials/board-list"
+					hx-trigger="every 5s"
+					hx-target="#board-grid"
+					hx-swap="innerHTML"
+					class="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+				>
+					@BoardGrid(cards)
+				</div>
+			</div>
+		</div>
+	}
+}

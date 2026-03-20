@@ -1,0 +1,29 @@
+package dashboard
+
+import (
+	"fmt"
+
+	"github.com/ProjectBarks/subway-pcb/service/ui/components"
+)
+
+templ BoardGrid(cards []BoardCard) {
+	if len(cards) > 0 {
+		for i, card := range cards {
+			<div class="animate-fade-up" style={ fmt.Sprintf("--delay: %dms", i*100) }>
+				@boardCard(card)
+			</div>
+		}
+		<div class="animate-fade-up" style={ fmt.Sprintf("--delay: %dms", len(cards)*100) }>
+			@addBoardCard()
+		</div>
+	} else {
+		<!-- Empty State -->
+		<div class="col-span-full text-center py-20">
+			<div class="size-20 rounded-full bg-bg-surface border border-border-subtle flex items-center justify-center mx-auto mb-6">
+				@components.Icon("plus", "size-10 text-text-muted")
+			</div>
+			<h3 class="text-text-primary mb-2">No boards yet</h3>
+			<p class="text-text-secondary mb-6">Plug in your board to get started</p>
+		</div>
+	}
+}

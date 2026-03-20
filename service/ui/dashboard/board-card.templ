@@ -1,0 +1,40 @@
+package dashboard
+
+import "github.com/ProjectBarks/subway-pcb/service/ui/components"
+
+templ boardCard(card BoardCard) {
+	<a href={ templ.URL("/boards/" + card.Device.MAC) } class="block">
+		<div class="p-5 bg-bg-surface border border-border-subtle rounded-2xl hover:border-border-hover hover:scale-[1.005] cursor-pointer transition-all">
+			<!-- Preview area -->
+			<div class="h-40 bg-bg-surface-raised rounded-xl mb-4 overflow-hidden relative flex items-center justify-center">
+				<span class="text-text-muted text-sm">Board Preview</span>
+			</div>
+			<!-- Board Info -->
+			<div class="space-y-2">
+				<div>
+					<h3 class="text-text-primary mb-0.5">
+						if card.Device.Name != "" {
+							{ card.Device.Name }
+						} else {
+							{ card.Device.MAC }
+						}
+					</h3>
+					<p class="text-text-muted text-xs uppercase tracking-wide">NYC Subway</p>
+				</div>
+				<div class="flex items-center gap-2">
+					if components.IsOnline(card.Device.LastSeen) {
+						<div class="size-2 rounded-full bg-status-online animate-pulse"></div>
+					} else {
+						<div class="size-2 rounded-full bg-gray-600"></div>
+					}
+				</div>
+				if card.Device.PluginName != "" {
+					<div class="flex items-center justify-between pt-2 border-t border-border-subtle">
+						<span class="text-text-secondary text-sm">Active Plugin</span>
+						<span class="text-text-primary text-sm font-medium">{ card.Device.PluginName }</span>
+					</div>
+				}
+			</div>
+		</div>
+	</a>
+}

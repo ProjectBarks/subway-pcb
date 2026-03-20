@@ -1,0 +1,28 @@
+package landing
+
+import "github.com/ProjectBarks/subway-pcb/service/ui/components"
+
+templ showcase() {
+	<section class="py-20 px-5 lg:px-10 bg-black text-white">
+		<div class="max-w-7xl mx-auto">
+			<div class="mb-16" data-animate="fade-up">
+				<p class="text-accent-gold text-sm font-semibold mb-2 uppercase tracking-wider">Community</p>
+				<h2 class="text-white text-4xl md:text-5xl lg:text-6xl font-bold">See what people are building</h2>
+			</div>
+			<div class="grid md:grid-cols-3 gap-6">
+				@showcaseCard("Live MTA Data", "Official", "Real-time subway train positions")
+				@showcaseCard("Rainbow Wave", "@alexchen", "Smooth color transitions")
+				@showcaseCard("Starfield", "@sarahkim", "Twinkling star effect")
+			</div>
+			<div class="text-center mt-12">
+				<a
+					href="/community"
+					class="h-12 px-8 bg-white text-black rounded-full inline-flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+				>
+					Browse All Plugins
+					@components.Icon("arrow-right", "size-4")
+				</a>
+			</div>
+		</div>
+	</section>
+}

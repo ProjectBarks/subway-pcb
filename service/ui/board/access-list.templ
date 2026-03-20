@@ -1,0 +1,29 @@
+package board
+
+import (
+	"github.com/ProjectBarks/subway-pcb/service/internal/model"
+	"github.com/ProjectBarks/subway-pcb/service/ui/components"
+)
+
+templ AccessList(mac string, access []model.DeviceAccess) {
+	if len(access) > 0 {
+		<div class="space-y-2">
+			for _, a := range access {
+				<div class="flex items-center justify-between bg-bg-surface-raised/50 rounded-lg px-3 py-2 group hover:bg-bg-surface-raised transition-colors">
+					<span class="text-text-primary text-sm">{ a.UserEmail }</span>
+					<button
+						hx-delete={ "/boards/" + mac + "/access/" + a.UserEmail }
+						hx-target="#access-list"
+						hx-swap="innerHTML"
+						hx-confirm="Remove access?"
+						class="size-6 rounded flex items-center justify-center text-text-muted hover:text-status-offline hover:bg-status-offline/10 transition-colors"
+					>
+						@components.Icon("x", "size-4")
+					</button>
+				</div>
+			}
+		</div>
+	} else {
+		<div class="text-center py-4 text-text-muted text-xs">No users added yet</div>
+	}
+}

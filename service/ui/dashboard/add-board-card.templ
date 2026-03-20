@@ -1,0 +1,15 @@
+package dashboard
+
+import "github.com/ProjectBarks/subway-pcb/service/ui/components"
+
+templ addBoardCard() {
+	<div class="p-5 bg-bg-surface border border-border-subtle rounded-2xl hover:border-border-hover transition-all min-h-[280px] flex flex-col items-center justify-center gap-4 text-text-secondary hover:text-text-primary cursor-pointer">
+		<div class="size-16 rounded-full bg-bg-surface-raised border border-border-subtle flex items-center justify-center">
+			@components.Icon("plus", "size-8")
+		</div>
+		<div class="text-center">
+			<div class="font-medium mb-1">Add Board</div>
+			<div class="text-sm text-text-muted">Plug in to get started</div>
+		</div>
+	</div>
+}

@@ -4,9 +4,12 @@ on:
   push:
     branches: [main]
     paths:
-      - 'service/backend/internal/ui/landing.templ'
-      - 'service/backend/cmd/generate-site/**'
-      - 'service/frontend/**'
+      - 'service/ui/landing/**'
+      - 'service/ui/components/**'
+      - 'service/cmd/generate-site/**'
+      - 'service/public/**'
+      - 'service/package-lock.json'
+      - 'service/vite.config.ts'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -27,33 +30,22 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: service/backend/go.mod
+          go-version-file: service/go.mod
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: service/frontend/package-lock.json
+          cache-dependency-path: service/package-lock.json
 
       - name: Install templ
         run: go install github.com/a-h/templ/cmd/templ@latest
 
-      - name: Generate templ
-        working-directory: service/backend
-        run: templ generate ./internal/ui/
+      - name: Install frontend dependencies
+        run: make frontend/install
 
-      - name: Render static HTML
-        working-directory: service/backend
-        run: go run ./cmd/generate-site/ ../../_site
-
-      - name: Build frontend
-        working-directory: service/frontend
-        run: npm ci && npm run build
-
-      - name: Copy built assets
-        run: |
-          mkdir -p _site/static/dist
-          cp -r service/static/dist/* _site/static/dist/
+      - name: Build site
+        run: make site/build
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -1,0 +1,77 @@
+package community
+
+import (
+	"github.com/ProjectBarks/subway-pcb/service/internal/model"
+	"github.com/ProjectBarks/subway-pcb/service/ui/components"
+)
+
+templ CommunityPage(user *model.User, plugins []model.Plugin, installed map[string]bool) {
+	@components.Base("Community Plugins", user, "/community") {
+		<div class="min-h-screen pt-8 pb-16 px-5 lg:px-10">
+			<div class="max-w-7xl mx-auto">
+				<!-- Header -->
+				<div class="mb-10">
+					<div class="flex items-center justify-between mb-6">
+						<div>
+							<h1 class="text-text-primary mb-2">Community Plugins</h1>
+							<p class="text-text-secondary">Browse and install LED patterns created by the community</p>
+						</div>
+						<a href="/editor" class="h-10 px-6 bg-white text-black rounded-full flex items-center gap-2 transition-all font-medium">
+							@components.Icon("code", "size-4")
+							Create Plugin
+						</a>
+					</div>
+					<!-- Search bar -->
+					<div class="flex flex-col lg:flex-row gap-4">
+						<div class="flex-1 relative">
+							@components.Icon("search", "absolute left-4 top-1/2 -translate-y-1/2 size-5 text-text-muted")
+							<input
+								type="text"
+								name="q"
+								placeholder="Search plugins or authors..."
+								hx-get="/community/search"
+								hx-trigger="keyup changed delay:300ms"
+								hx-target="#plugin-grid"
+								hx-include="[name='q'],[name='sort']"
+								class="w-full h-12 pl-12 pr-4 bg-bg-surface border border-border-subtle rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-gold focus:border-accent-gold"
+							/>
+						</div>
+						<select name="sort" hx-get="/community/search" hx-trigger="change" hx-target="#plugin-grid" hx-include="[name='q'],[name='sort']" class="h-12 px-4 bg-bg-surface border border-border-subtle rounded-xl text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-gold focus:border-accent-gold lg:min-w-[180px]">
+							<option>Most Popular</option>
+							<option>Recently Updated</option>
+							<option>Most Installed</option>
+						</select>
+					</div>
+				</div>
+				<!-- Plugin Grid -->
+				<div id="plugin-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+					@CommunityPluginGrid(plugins, installed)
+				</div>
+			</div>
+		</div>
+		@communityCodeModal()
+		<script>
+		function showCodeModal(pluginId, name, author) {
+			document.getElementById('modal-plugin-name').textContent = name;
+			document.getElementById('modal-plugin-author').textContent = 'by ' + author;
+			document.getElementById('modal-code-content').textContent = 'Loading...';
+			document.getElementById('code-modal').classList.remove('hidden');
+			fetch('/api/v1/plugins/' + pluginId)
+				.then(function(r) { return r.json(); })
+				.then(function(data) {
+					var p = data.data;
+					document.getElementById('modal-code-content').textContent = p.lua_source || '-- No source available';
+				})
+				.catch(function() {
+					document.getElementById('modal-code-content').textContent = '-- Failed to load source';
+				});
+		}
+		function copyModalCode() {
+			var code = document.getElementById('modal-code-content').textContent;
+			navigator.clipboard.writeText(code).then(function() {
+				document.body.dispatchEvent(new CustomEvent('showToast', { detail: { message: 'Code copied to clipboard', type: 'success' } }));
+			});
+		}
+		</script>
+	}
+}

@@ -1,0 +1,54 @@
+package board
+
+templ PluginPanel(data BoardData) {
+	<div id="controls" class="glass p-6 rounded-2xl">
+		<!-- Tab bar -->
+		<div class="flex gap-1 p-1 bg-bg-surface rounded-lg mb-6">
+			<button
+				onclick="switchTab('active', this)"
+				class="tab-btn flex-1 h-9 px-4 rounded-md text-sm font-medium transition-colors bg-bg-surface-raised text-text-primary"
+			>Active Plugin</button>
+			<button
+				onclick="switchTab('browse', this)"
+				class="tab-btn flex-1 h-9 px-4 rounded-md text-sm font-medium transition-colors text-text-secondary hover:text-text-primary"
+			>Browse Plugins</button>
+			<button
+				onclick="switchTab('settings', this)"
+				class="tab-btn flex-1 h-9 px-4 rounded-md text-sm font-medium transition-colors text-text-secondary hover:text-text-primary"
+			>Board Settings</button>
+		</div>
+		<!-- Tab Content: Active Plugin -->
+		<div id="tab-active" class="panel-tab" style="transition: opacity 150ms ease">
+			@ActivePluginContent(data)
+		</div>
+		<!-- Tab Content: Browse Plugins -->
+		<div id="tab-browse" class="panel-tab hidden" style="transition: opacity 150ms ease">
+			@BrowsePluginsContent(data)
+		</div>
+		<!-- Tab Content: Board Settings -->
+		<div id="tab-settings" class="panel-tab hidden" style="transition: opacity 150ms ease">
+			@BoardSettingsContent(data)
+		</div>
+		<script>
+			function switchTab(tabId, btn) {
+				var panels = document.querySelectorAll('.panel-tab');
+				panels.forEach(function(el) {
+					el.style.opacity = '0';
+					setTimeout(function() { el.classList.add('hidden'); el.style.opacity = ''; }, 150);
+				});
+				setTimeout(function() {
+					var target = document.getElementById('tab-' + tabId);
+					target.classList.remove('hidden');
+					target.style.opacity = '0';
+					requestAnimationFrame(function() { target.style.opacity = '1'; });
+				}, 150);
+				document.querySelectorAll('.tab-btn').forEach(function(el) {
+					el.classList.remove('bg-bg-surface-raised', 'text-text-primary');
+					el.classList.add('text-text-secondary');
+				});
+				btn.classList.add('bg-bg-surface-raised', 'text-text-primary');
+				btn.classList.remove('text-text-secondary');
+			}
+		</script>
+	</div>
+}

@@ -1,0 +1,32 @@
+package landing
+
+import "github.com/ProjectBarks/subway-pcb/service/ui/components"
+
+templ hero() {
+	<section class="pt-10 pb-12 md:pt-16 md:pb-20 px-5 lg:px-10 overflow-hidden lg:overflow-visible">
+		<div class="max-w-7xl mx-auto overflow-hidden lg:overflow-visible">
+			<div class="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center overflow-hidden lg:overflow-visible">
+				<!-- Left: text -->
+				<div class="relative z-10">
+					<h1 class="mb-6 text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-black leading-[1.1] tracking-tight animate-fade-up" style="--delay: 300ms">
+						The NYC Subway, <span class="text-accent-gold">on a circuit board</span>.
+					</h1>
+					<p class="text-lg md:text-xl text-gray-600 mb-8 leading-relaxed animate-fade-up" style="--delay: 400ms">
+						A custom PCB that tracks every train in New York City in real time.<br/>
+						478 LEDs. Live MTA data. Mounted on your wall.
+					</p>
+					<a
+						href="#how-it-works"
+						class="h-12 px-8 border-2 border-black text-black rounded-full inline-flex items-center gap-2 transition-all font-medium hover:bg-black hover:text-white hover:scale-105 active:scale-95 animate-fade-up"
+						style="--delay: 500ms"
+					>
+						Learn More
+						@components.Icon("arrow-right", "size-4")
+					</a>
+				</div>
+				<!-- Right: 3D board -->
+				<div id="hero-board" class="h-[400px] md:h-[500px] lg:h-[650px] lg:-mr-10 overflow-hidden lg:overflow-visible animate-fade-up" style="--delay: 400ms"></div>
+			</div>
+		</div>
+	</section>
+}

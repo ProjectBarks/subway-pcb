@@ -1,0 +1,77 @@
+package board
+
+import "fmt"
+
+templ BrowsePluginsContent(data BoardData) {
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+		<!-- Built-in plugins -->
+		for _, p := range data.Plugins {
+			<button
+				hx-put={ "/boards/" + data.Device.MAC + "/plugin" }
+				hx-vals={ fmt.Sprintf(`{"plugin":"%s"}`, p.Name()) }
+				hx-target="#controls"
+				hx-swap="outerHTML"
+				class={
+					"rounded-xl border transition-all text-left flex flex-col overflow-hidden",
+					templ.KV("border-accent-gold bg-accent-gold/5", data.Device.PluginName == p.Name()),
+					templ.KV("border-border-subtle bg-bg-surface hover:border-border-hover", data.Device.PluginName != p.Name()),
+				}
+			>
+				<!-- Preview placeholder -->
+				<div class="h-32 bg-bg-surface-raised relative overflow-hidden flex items-center justify-center">
+					<span class="text-text-muted text-sm">Plugin Preview</span>
+				</div>
+				<!-- Plugin Info -->
+				<div class="p-4 flex flex-col">
+					<div class="flex items-start justify-between mb-1">
+						<div class="text-text-primary text-sm font-medium">{ p.Name() }</div>
+						if data.Device.PluginName == p.Name() {
+							<div class="size-3 rounded-full bg-accent-gold animate-pulse"></div>
+						}
+					</div>
+					if p.Description() != "" {
+						<p class="text-text-secondary text-xs leading-relaxed line-clamp-2">{ p.Description() }</p>
+					}
+					<span class="text-text-muted text-xs mt-1">Built-in</span>
+				</div>
+			</button>
+		}
+		<!-- User-installed plugins from DB -->
+		for _, ip := range data.InstalledPlugins {
+			<button
+				hx-put={ "/boards/" + data.Device.MAC + "/plugin" }
+				hx-vals={ fmt.Sprintf(`{"plugin":"%s"}`, ip.ID) }
+				hx-target="#controls"
+				hx-swap="outerHTML"
+				class={
+					"rounded-xl border transition-all text-left flex flex-col overflow-hidden",
+					templ.KV("border-accent-gold bg-accent-gold/5", data.Device.PluginName == ip.ID),
+					templ.KV("border-border-subtle bg-bg-surface hover:border-border-hover", data.Device.PluginName != ip.ID),
+				}
+			>
+				<!-- Preview placeholder -->
+				<div class="h-32 bg-bg-surface-raised relative overflow-hidden flex items-center justify-center">
+					<span class="text-text-muted text-sm">Plugin Preview</span>
+				</div>
+				<!-- Plugin Info -->
+				<div class="p-4 flex flex-col">
+					<div class="flex items-start justify-between mb-1">
+						<div class="text-text-primary text-sm font-medium">{ ip.Name }</div>
+						if data.Device.PluginName == ip.ID {
+							<div class="size-3 rounded-full bg-accent-gold animate-pulse"></div>
+						}
+					</div>
+					if ip.Description != "" {
+						<p class="text-text-secondary text-xs leading-relaxed line-clamp-2">{ ip.Description }</p>
+					}
+					<span class="text-text-muted text-xs mt-1">{ ip.AuthorEmail }</span>
+				</div>
+			</button>
+		}
+		if len(data.Plugins) == 0 && len(data.InstalledPlugins) == 0 {
+			<div class="col-span-full text-center py-10">
+				<p class="text-text-secondary text-sm">No plugins available. Install some from the <a href="/community" class="text-accent-gold hover:underline">Community</a> page.</p>
+			</div>
+		}
+	</div>
+}
