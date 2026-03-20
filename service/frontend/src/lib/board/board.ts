@@ -1,4 +1,4 @@
-import type { LedPosition } from "../types";
+import type { LedPosition } from "../../types";
 import { STRIP_SIZES, TOTAL_LEDS } from "./constants";
 
 export type OnHoverCallback = (

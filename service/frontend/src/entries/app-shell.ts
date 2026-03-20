@@ -1,5 +1,5 @@
 import "../types";
-import { initNavBackdrop } from "../global/nav";
+import { initNav } from "../global/nav";
 import { initToastHandler } from "../global/toast";
 import { Board } from "../lib/board";
 
@@ -7,4 +7,4 @@ import { Board } from "../lib/board";
 window.Board = Board;
 
 initToastHandler();
-initNavBackdrop();
+initNav();

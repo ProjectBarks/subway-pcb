@@ -1,18 +1,23 @@
 import "../types";
 import {
-	collectConfigToThemeForm,
+	collectConfigToPresetForm,
 	collectRouteColorsToForm,
 	updatePreviewColor,
 } from "../global/form-helpers";
-import { Board } from "../lib/board";
-import { TOTAL_LEDS } from "../lib/constants";
+import { Board, TOTAL_LEDS } from "../lib/board";
 import { PreviewRenderer } from "../lib/preview";
 import { decodePixelFrame } from "../lib/protobuf";
+import { BoardSerial, encodeCommand } from "../lib/serial";
 
 // Expose form helpers globally for inline event handlers in Go templates
 window.updatePreviewColor = updatePreviewColor;
 window.collectRouteColorsToForm = collectRouteColorsToForm;
-window.collectConfigToThemeForm = collectConfigToThemeForm;
+window.collectConfigToPresetForm = collectConfigToPresetForm;
+
+// Initialize WebSerial for board settings
+const boardSerial = new BoardSerial();
+window.boardSerial = boardSerial;
+window.encodeCommand = encodeCommand;
 
 const canvasWrap = document.getElementById("canvas-wrap");
 const mac = canvasWrap?.dataset.deviceMac ?? "";

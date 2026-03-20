@@ -13,10 +13,10 @@ import (
 
 	"github.com/ProjectBarks/subway-pcb/server/internal/api"
 	"github.com/ProjectBarks/subway-pcb/server/internal/middleware"
-	"github.com/ProjectBarks/subway-pcb/server/internal/mode"
-	"github.com/ProjectBarks/subway-pcb/server/internal/mode/snake"
-	"github.com/ProjectBarks/subway-pcb/server/internal/mode/track"
 	"github.com/ProjectBarks/subway-pcb/server/internal/mta"
+	"github.com/ProjectBarks/subway-pcb/server/internal/plugin"
+	"github.com/ProjectBarks/subway-pcb/server/internal/plugin/snake"
+	"github.com/ProjectBarks/subway-pcb/server/internal/plugin/track"
 	"github.com/ProjectBarks/subway-pcb/server/internal/store"
 )
 
@@ -26,6 +26,7 @@ func main() {
 	ledMapPath := flag.String("led-map", "led_map.json", "Path to led_map.json")
 	dataDir := flag.String("data-dir", "data", "Data directory for bbolt database")
 	staticDir := flag.String("static-dir", "", "Path to static assets directory (serves /static/)")
+	devMode := flag.Bool("dev", false, "Enable dev-only routes (e.g. /landing)")
 	_ = flag.String("visualizer", "", "deprecated")
 	flag.Parse()
 
@@ -45,14 +46,14 @@ func main() {
 	}
 	defer db.Close()
 
-	// Initialize mode registry
-	modeRegistry := mode.NewRegistry()
-	modeRegistry.Register(&track.Mode{})
-	modeRegistry.Register(&snake.Mode{})
+	// Initialize plugin registry
+	pluginRegistry := plugin.NewRegistry()
+	pluginRegistry.Register(&track.Plugin{})
+	pluginRegistry.Register(&snake.Plugin{})
 
-	// Seed built-in themes from all registered modes
-	if err := store.SeedThemes(db, modeRegistry.AllDefaultThemes()); err != nil {
-		log.Fatalf("Failed to seed themes: %v", err)
+	// Seed built-in presets from all registered plugins
+	if err := store.SeedPresets(db, pluginRegistry.AllDefaultPresets()); err != nil {
+		log.Fatalf("Failed to seed presets: %v", err)
 	}
 
 	// Create aggregator with 10-second train persistence.
@@ -71,16 +72,17 @@ func main() {
 		log.Fatalf("Failed to load LED map: %v", err)
 	}
 	pixelRenderer := api.NewPixelRenderer(ledMap)
-	pixelRenderer.SetDeps(db, modeRegistry)
+	pixelRenderer.SetDeps(db, pluginRegistry)
 
 	// Set up HTTP server.
 	apiServer := api.NewServer(api.ServerConfig{
-		Aggregator:    aggregator,
-		PixelRenderer: pixelRenderer,
-		Store:         db,
-		ModeRegistry:  modeRegistry,
-		AuthConfig:    authCfg,
-		StaticDir:     *staticDir,
+		Aggregator:     aggregator,
+		PixelRenderer:  pixelRenderer,
+		Store:          db,
+		PluginRegistry: pluginRegistry,
+		AuthConfig:     authCfg,
+		StaticDir:      *staticDir,
+		DevMode:        *devMode,
 	})
 
 	httpServer := &http.Server{

@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@import "basecoat-css";
+@import "@animxyz/core";
+@import "./theme.css";
+@import "./animations.css";
+@import "./prism-lua.css";
+
+/* Scan backend templ files and frontend TS for Tailwind class names */
+@source "../../backend/internal/ui/*.templ";
+@source "../src/**/*.ts";
+@source "../src/**/*.tsx";

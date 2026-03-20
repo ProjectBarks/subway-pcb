@@ -23,6 +23,13 @@
 			},
 			"suspicious": {
 				"useIterableCallbackReturn": "off"
+			},
+			"a11y": {
+				"noSvgWithoutTitle": "off",
+				"noLabelWithoutControl": "off",
+				"noAutofocus": "off",
+				"noStaticElementInteractions": "off",
+				"useKeyWithClickEvents": "off"
 			}
 		}
 	},

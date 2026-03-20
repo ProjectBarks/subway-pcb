@@ -3,8 +3,8 @@ package track
 import (
 	"time"
 
-	"github.com/ProjectBarks/subway-pcb/server/internal/mode"
 	"github.com/ProjectBarks/subway-pcb/server/internal/model"
+	"github.com/ProjectBarks/subway-pcb/server/internal/plugin"
 )
 
 // MTA route keys in display order.
@@ -22,19 +22,19 @@ var routeKeys = []string{
 	"ROUTE_SI",
 }
 
-// Mode renders the standard subway map view.
-type Mode struct{}
+// Plugin renders the standard subway map view.
+type Plugin struct{}
 
-func (m *Mode) Name() string        { return "track" }
-func (m *Mode) Description() string { return "Live subway map — trains at their current stations" }
+func (p *Plugin) Name() string        { return "track" }
+func (p *Plugin) Description() string { return "Live subway map — trains at their current stations" }
 
-func (m *Mode) ConfigFields() []mode.ConfigField {
-	fields := make([]mode.ConfigField, 0, len(routeKeys))
+func (p *Plugin) ConfigFields() []plugin.ConfigField {
+	fields := make([]plugin.ConfigField, 0, len(routeKeys))
 	for _, key := range routeKeys {
-		fields = append(fields, mode.ConfigField{
+		fields = append(fields, plugin.ConfigField{
 			Key:     key,
 			Label:   key[6:], // "ROUTE_1" -> "1"
-			Type:    mode.FieldColor,
+			Type:    plugin.FieldColor,
 			Default: classicMTA[key],
 			Group:   "Route Colors",
 		})
@@ -42,23 +42,23 @@ func (m *Mode) ConfigFields() []mode.ConfigField {
 	return fields
 }
 
-func (m *Mode) DefaultThemes() []model.Theme {
+func (p *Plugin) DefaultPresets() []model.Preset {
 	now := time.Now()
-	theme := func(id, name string, vals map[string]string) model.Theme {
-		return model.Theme{ID: id, Name: name, ModeName: "track", IsBuiltIn: true, Values: vals, CreatedAt: now, UpdatedAt: now}
+	preset := func(id, name string, vals map[string]string) model.Preset {
+		return model.Preset{ID: id, Name: name, PluginName: "track", IsBuiltIn: true, Values: vals, CreatedAt: now, UpdatedAt: now}
 	}
-	return []model.Theme{
-		theme("track-classic-mta", "Classic MTA", classicMTA),
-		theme("track-night", "Night Mode", nightMode),
-		theme("track-sunset", "Sunset", sunset),
-		theme("track-ocean", "Ocean", ocean),
-		theme("track-monochrome", "Monochrome", monochrome),
+	return []model.Preset{
+		preset("track-classic-mta", "Classic MTA", classicMTA),
+		preset("track-night", "Night Mode", nightMode),
+		preset("track-sunset", "Sunset", sunset),
+		preset("track-ocean", "Ocean", ocean),
+		preset("track-monochrome", "Monochrome", monochrome),
 	}
 }
 
-func (m *Mode) Render(ctx mode.RenderContext) ([]byte, error) {
+func (p *Plugin) Render(ctx plugin.RenderContext) ([]byte, error) {
 	trains := ctx.Aggregator.GetStationTrains()
-	fields := m.ConfigFields()
+	fields := p.ConfigFields()
 	pixels := make([]byte, ctx.TotalLEDs*3)
 
 	for i := 0; i < ctx.TotalLEDs; i++ {

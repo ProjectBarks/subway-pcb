@@ -1,0 +1,282 @@
+
+/* ============================================================
+   Subway PCB Theme — Apple Glass Material Design
+   Overrides basecoat-css variables for a unified glass aesthetic.
+   All surfaces use translucent backgrounds + backdrop blur so
+   basecoat components (card, btn, input, select) inherit the
+   frosted-glass look without one-off class overrides.
+   ============================================================ */
+
+:root {
+  /* ---- Basecoat Core: Surfaces ---- */
+  /* Translucent backgrounds create layered glass depth */
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: rgba(29, 29, 31, 0.72);
+  --card-foreground: #ffffff;
+  --popover: rgba(29, 29, 31, 0.85);
+  --popover-foreground: #ffffff;
+
+  /* Primary = gold accent (action color) */
+  --primary: #c9a830;
+  --primary-foreground: #000000;
+
+  /* Secondary = glass layer */
+  --secondary: rgba(255, 255, 255, 0.06);
+  --secondary-foreground: #ffffff;
+
+  /* Muted = subdued elements */
+  --muted: rgba(255, 255, 255, 0.04);
+  --muted-foreground: #888888;
+
+  /* Accent = hover / interactive */
+  --accent: rgba(255, 255, 255, 0.08);
+  --accent-foreground: #ffffff;
+
+  /* Destructive */
+  --destructive: #ef4444;
+
+  /* Borders & rings — soft glass edges */
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: rgba(201, 168, 48, 0.5);
+
+  /* Radius — slightly larger for softer feel */
+  --radius: 0.75rem;
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --scrollbar-track: transparent;
+
+  color-scheme: dark;
+}
+
+/* ============================================================
+   Custom CSS Variables — subway design tokens
+   ============================================================ */
+
+:root {
+  /* Text hierarchy */
+  --text-secondary: #888888;
+  --text-tertiary: #555555;
+  --text-muted: #444444;
+
+  /* Border variants */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.15);
+
+  /* Accent variants */
+  --accent-dim: #8a7420;
+  --accent-gold-hover: #d4b840;
+
+  /* Status */
+  --status-online: #22c55e;
+  --status-offline: #ef4444;
+  --status-error: #ef4444;
+
+  /* Glass material (Apple vibrancy) */
+  --glass-bg: rgba(29, 29, 31, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.05);
+
+  /* Typography scale */
+  --text-5xl: 48px;
+  --text-3xl: 32px;
+  --text-2xl: 24px;
+  --text-xl: 18px;
+  --text-base: 15px;
+  --text-sm: 13px;
+  --text-xs: 11px;
+
+  /* Font weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+}
+
+/* ============================================================
+   Tailwind v4 @theme inline: register design tokens as utilities
+   ============================================================ */
+
+@theme inline {
+  --color-bg-primary: #000000;
+  --color-bg-surface: rgba(10, 10, 10, 0.8);
+  --color-bg-surface-raised: rgba(255, 255, 255, 0.06);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-hover: var(--border-hover);
+  --color-text-primary: #ffffff;
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-muted: var(--text-muted);
+  --color-accent-gold: #c9a830;
+  --color-accent-gold-dim: #8a7420;
+  --color-accent-gold-hover: var(--accent-gold-hover);
+  --color-white: #ffffff;
+  --color-status-online: var(--status-online);
+  --color-status-offline: var(--status-offline);
+  --color-status-error: var(--status-error);
+  --color-glass: rgb(29, 29, 31);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ============================================================
+   @layer base: Typography & Global Styles
+   ============================================================ */
+
+@layer base {
+  * {
+    @apply outline-accent-gold/50;
+  }
+
+  html {
+    font-size: 16px;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1 {
+    font-size: var(--text-5xl);
+    font-weight: var(--font-weight-bold);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-size: var(--text-3xl);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  h3 {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  h4 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.4;
+  }
+
+  label {
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  button {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  input {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+}
+
+/* ============================================================
+   Basecoat Component Overrides — Apple glass treatment
+   ============================================================ */
+
+@layer components {
+  /* Glass material on basecoat cards */
+  .card {
+    @apply backdrop-blur-[32px] backdrop-saturate-150;
+    box-shadow: inset 0 1px 0 0 var(--glass-highlight);
+  }
+
+  /* Glass material — in components layer so bg-* utilities can override.
+     e.g. `glass` (default), `glass bg-black/40` (lighter), `glass bg-glass/50` */
+  .glass {
+    background-color: var(--glass-bg);
+    @apply backdrop-blur-[32px] backdrop-saturate-150;
+    border: 1px solid var(--glass-border);
+    box-shadow: inset 0 1px 0 0 var(--glass-highlight);
+  }
+
+  /* Glass navigation bar */
+  .glass-nav {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: saturate(150%) blur(32px);
+    -webkit-backdrop-filter: saturate(150%) blur(32px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* Button: primary (gold accent) */
+  .btn-primary {
+    @apply h-10 px-4 bg-accent-gold text-black font-medium rounded-lg hover:brightness-110 transition-all;
+  }
+
+  /* Button: outline (ghost border) */
+  .btn-outline {
+    @apply h-10 px-4 bg-bg-surface-raised border border-border-subtle text-text-primary rounded-full hover:border-border-hover transition-all;
+  }
+
+  /* Input field */
+  .input {
+    @apply h-10 px-4 bg-bg-surface-raised border border-border-subtle rounded-lg text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-gold focus:border-accent-gold;
+  }
+
+  /* Select dropdown */
+  .select {
+    @apply h-10 px-4 bg-bg-surface-raised border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold;
+  }
+}
+
+/* ============================================================
+   Utilities
+   ============================================================ */
+
+@layer utilities {
+  .text-eyebrow {
+    color: #c9a830;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+}
+
+/* ============================================================
+   Custom Scrollbar
+   ============================================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}

@@ -1,4 +1,4 @@
-package mode
+package plugin
 
 import (
 	"fmt"
@@ -19,14 +19,14 @@ const (
 
 // ConfigField describes a single configurable parameter for a mode.
 type ConfigField struct {
-	Key     string
-	Label   string
-	Type    FieldType
-	Default string
-	Group   string   // UI section grouping
-	Min     string   // for number
-	Max     string   // for number
-	Options []string // for select
+	Key     string    `json:"key"`
+	Label   string    `json:"label"`
+	Type    FieldType `json:"type"`
+	Default string    `json:"default"`
+	Group   string    `json:"group,omitempty"`
+	Min     string    `json:"min,omitempty"`
+	Max     string    `json:"max,omitempty"`
+	Options []string  `json:"options,omitempty"`
 }
 
 // RenderContext provides everything a mode needs to produce a pixel frame.
@@ -34,7 +34,7 @@ type RenderContext struct {
 	Aggregator *mta.Aggregator
 	StationIDs []string          // flat LED index -> station ID
 	Device     *model.Device
-	Config     map[string]string // resolved config (field defaults -> theme -> device overrides)
+	Config     map[string]string // resolved config (field defaults -> preset -> device overrides)
 	TotalLEDs  int
 }
 

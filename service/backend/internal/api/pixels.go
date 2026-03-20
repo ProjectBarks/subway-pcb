@@ -9,9 +9,9 @@ import (
 	"time"
 
 	pb "github.com/ProjectBarks/subway-pcb/server/gen/subwaypb"
-	"github.com/ProjectBarks/subway-pcb/server/internal/mode"
 	"github.com/ProjectBarks/subway-pcb/server/internal/model"
 	"github.com/ProjectBarks/subway-pcb/server/internal/mta"
+	"github.com/ProjectBarks/subway-pcb/server/internal/plugin"
 	"github.com/ProjectBarks/subway-pcb/server/internal/store"
 	"google.golang.org/protobuf/proto"
 )
@@ -25,7 +25,7 @@ type LEDMap struct {
 	stationIDs []string
 }
 
-// StationIDs returns the flat station ID mapping for use by the mode system.
+// StationIDs returns the flat station ID mapping for use by the plugin system.
 func (m *LEDMap) StationIDs() []string {
 	return m.stationIDs
 }
@@ -60,10 +60,10 @@ func LoadLEDMap(path string) (*LEDMap, error) {
 
 // PixelRenderer generates PixelFrame protobuf from aggregator state.
 type PixelRenderer struct {
-	ledMap *LEDMap
-	store  store.Store
-	modes  *mode.Registry
-	seq    uint32
+	ledMap  *LEDMap
+	store   store.Store
+	plugins *plugin.Registry
+	seq     uint32
 }
 
 // NewPixelRenderer creates a renderer with the given LED map.
@@ -71,10 +71,10 @@ func NewPixelRenderer(ledMap *LEDMap) *PixelRenderer {
 	return &PixelRenderer{ledMap: ledMap}
 }
 
-// SetDeps sets the store and mode registry.
-func (pr *PixelRenderer) SetDeps(s store.Store, m *mode.Registry) {
+// SetDeps sets the store and plugin registry.
+func (pr *PixelRenderer) SetDeps(s store.Store, p *plugin.Registry) {
 	pr.store = s
-	pr.modes = m
+	pr.plugins = p
 }
 
 // RenderFrame renders a pixel frame for the given device.
@@ -84,34 +84,34 @@ func (pr *PixelRenderer) RenderFrame(agg *mta.Aggregator, mac string) ([]byte, e
 		return nil, fmt.Errorf("device not found: %s", mac)
 	}
 
-	modeName := device.Mode
-	if modeName == "" {
-		modeName = "track"
+	pluginName := device.PluginName
+	if pluginName == "" {
+		pluginName = "track"
 	}
 
-	m, ok := pr.modes.Get(modeName)
+	p, ok := pr.plugins.Get(pluginName)
 	if !ok {
-		return nil, fmt.Errorf("unknown mode: %s", modeName)
+		return nil, fmt.Errorf("unknown plugin: %s", pluginName)
 	}
 
-	// Build config: field defaults -> theme values -> device overrides
+	// Build config: field defaults -> preset values -> device overrides
 	config := make(map[string]string)
-	for _, f := range m.ConfigFields() {
+	for _, f := range p.ConfigFields() {
 		config[f.Key] = f.Default
 	}
-	if device.ThemeID != "" {
-		theme, _ := pr.store.GetTheme(device.ThemeID)
-		if theme != nil {
-			for k, v := range theme.Values {
+	if device.PresetID != "" {
+		preset, _ := pr.store.GetPreset(device.PresetID)
+		if preset != nil {
+			for k, v := range preset.Values {
 				config[k] = v
 			}
 		}
 	}
-	for k, v := range device.ModeConfig {
+	for k, v := range device.PluginConfig {
 		config[k] = v
 	}
 
-	pixels, err := m.Render(mode.RenderContext{
+	pixels, err := p.Render(plugin.RenderContext{
 		Aggregator: agg,
 		StationIDs: pr.ledMap.stationIDs,
 		Device:     device,
@@ -173,11 +173,11 @@ func (s *Server) autoRegisterDevice(mac string, r *http.Request) {
 	}
 
 	device := &model.Device{
-		MAC:       mac,
-		Mode:      "track",
-		ThemeID:   "track-classic-mta",
-		LastSeen:  time.Now(),
-		CreatedAt: time.Now(),
+		MAC:        mac,
+		PluginName: "track",
+		PresetID:   "track-classic-mta",
+		LastSeen:   time.Now(),
+		CreatedAt:  time.Now(),
 	}
 	if fwVer := r.Header.Get("X-Firmware-Version"); fwVer != "" {
 		device.FirmwareVer = fwVer

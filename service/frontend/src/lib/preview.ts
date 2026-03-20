@@ -1,7 +1,7 @@
 import type { LedPosition } from "../types";
 import type { Board } from "./board";
+import { STRIP_SIZES, TOTAL_LEDS } from "./board";
 import { hexToRgb } from "./color";
-import { STRIP_SIZES, TOTAL_LEDS } from "./constants";
 
 interface StationTrain {
 	route: string;

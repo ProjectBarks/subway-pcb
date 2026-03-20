@@ -11,16 +11,37 @@ interface ShowToastEvent extends Event {
 	};
 }
 
+const TOAST_DURATION = 3500;
+const EXIT_ANIMATION_DURATION = 300;
+
+function dismissToast(toast: HTMLElement): void {
+	toast.classList.remove("animate-toast-in");
+	toast.classList.add("animate-toast-out");
+	setTimeout(() => toast.remove(), EXIT_ANIMATION_DURATION);
+}
+
+function createToastElement(message: string, type: string): HTMLDivElement {
+	const div = document.createElement("div");
+	div.className =
+		"alert shadow-lg animate-toast-in" +
+		(type === "error" ? " alert-destructive" : "");
+	div.textContent = message;
+	return div;
+}
+
 export function initToastHandler(): void {
 	document.body.addEventListener("htmx:afterSwap", ((
 		evt: HtmxAfterSwapEvent,
 	) => {
-		const toast = evt.detail.target.querySelector("[data-toast]");
+		const toast = evt.detail.target.querySelector(
+			"[data-toast]",
+		) as HTMLElement | null;
 		if (toast) {
 			const container = document.getElementById("toast-container");
 			if (container) {
+				toast.classList.add("animate-toast-in");
 				container.appendChild(toast);
-				setTimeout(() => toast.remove(), 3500);
+				setTimeout(() => dismissToast(toast), TOAST_DURATION);
 			}
 		}
 	}) as EventListener);
@@ -30,15 +51,8 @@ export function initToastHandler(): void {
 		if (!container) return;
 		const msg = evt.detail.message || "";
 		const type = evt.detail.type || "success";
-		const div = document.createElement("div");
-		div.className =
-			"glass border rounded-lg px-4 py-3 text-sm shadow-lg " +
-			(type === "error"
-				? "border-red-500/50 text-red-400"
-				: "border-green-500/50 text-green-400");
-		div.style.animation = "toast-fade 3.5s ease forwards";
-		div.textContent = msg;
+		const div = createToastElement(msg, type);
 		container.appendChild(div);
-		setTimeout(() => div.remove(), 3500);
+		setTimeout(() => dismissToast(div), TOAST_DURATION);
 	}) as EventListener);
 }

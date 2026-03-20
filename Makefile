@@ -116,6 +116,16 @@ hooks:                                 ## Install git pre-commit hook
 	@chmod +x .git/hooks/pre-commit
 	@echo "Installed .git/hooks/pre-commit"
 
+# ─── Dev ────────────────────────────────────────────────
+
+.PHONY: dev
+
+dev: frontend/build                    ## Start frontend watch + backend with auto-reload
+	@trap 'kill 0' EXIT; \
+	(cd service/frontend && npm run dev) & \
+	(cd service/backend && air) & \
+	wait
+
 # ─── Shortcuts ───────────────────────────────────────────
 
 .PHONY: all clean help

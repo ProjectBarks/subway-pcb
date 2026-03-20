@@ -3,6 +3,7 @@ package bolt
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -13,8 +14,10 @@ import (
 var (
 	bucketDevices      = []byte("devices")
 	bucketDeviceAccess = []byte("device_access")
-	bucketThemes       = []byte("themes")
+	bucketPresets      = []byte("themes")
 	bucketUsers        = []byte("users")
+	bucketPlugins      = []byte("plugins")
+	bucketUserPlugins  = []byte("user_plugins")
 )
 
 // BoltStore implements store.Store using an embedded bbolt database.
@@ -31,7 +34,7 @@ func New(path string) (*BoltStore, error) {
 	}
 
 	err = db.Update(func(tx *bbolt.Tx) error {
-		for _, b := range [][]byte{bucketDevices, bucketDeviceAccess, bucketThemes, bucketUsers} {
+		for _, b := range [][]byte{bucketDevices, bucketDeviceAccess, bucketPresets, bucketUsers, bucketPlugins, bucketUserPlugins} {
 			if _, err := tx.CreateBucketIfNotExists(b); err != nil {
 				return fmt.Errorf("bolt: create bucket %s: %w", b, err)
 			}
@@ -191,63 +194,63 @@ func (s *BoltStore) HasAccess(mac, email string) (bool, error) {
 }
 
 // ---------------------------------------------------------------------------
-// Themes
+// Presets
 // ---------------------------------------------------------------------------
 
-func (s *BoltStore) GetTheme(id string) (*model.Theme, error) {
-	var t model.Theme
-	found, err := s.get(bucketThemes, id, &t)
+func (s *BoltStore) GetPreset(id string) (*model.Preset, error) {
+	var t model.Preset
+	found, err := s.get(bucketPresets, id, &t)
 	if err != nil || !found {
 		return nil, err
 	}
 	return &t, nil
 }
 
-func (s *BoltStore) ListThemes() ([]model.Theme, error) {
-	var themes []model.Theme
+func (s *BoltStore) ListPresets() ([]model.Preset, error) {
+	var presets []model.Preset
 	err := s.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(bucketThemes)
+		b := tx.Bucket(bucketPresets)
 		return b.ForEach(func(_, v []byte) error {
-			var t model.Theme
+			var t model.Preset
 			if err := json.Unmarshal(v, &t); err != nil {
 				return err
 			}
-			themes = append(themes, t)
+			presets = append(presets, t)
 			return nil
 		})
 	})
-	return themes, err
+	return presets, err
 }
 
-func (s *BoltStore) ListThemesByOwner(email string) ([]model.Theme, error) {
-	var themes []model.Theme
+func (s *BoltStore) ListPresetsByOwner(email string) ([]model.Preset, error) {
+	var presets []model.Preset
 	err := s.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(bucketThemes)
+		b := tx.Bucket(bucketPresets)
 		return b.ForEach(func(_, v []byte) error {
-			var t model.Theme
+			var t model.Preset
 			if err := json.Unmarshal(v, &t); err != nil {
 				return err
 			}
 			if t.OwnerEmail == email {
-				themes = append(themes, t)
+				presets = append(presets, t)
 			}
 			return nil
 		})
 	})
-	return themes, err
+	return presets, err
 }
 
-func (s *BoltStore) CreateTheme(t *model.Theme) error {
-	return s.put(bucketThemes, t.ID, t)
+func (s *BoltStore) CreatePreset(t *model.Preset) error {
+	return s.put(bucketPresets, t.ID, t)
 }
 
-func (s *BoltStore) UpdateTheme(t *model.Theme) error {
-	return s.put(bucketThemes, t.ID, t)
+func (s *BoltStore) UpdatePreset(t *model.Preset) error {
+	return s.put(bucketPresets, t.ID, t)
 }
 
-func (s *BoltStore) DeleteTheme(id string) error {
+func (s *BoltStore) DeletePreset(id string) error {
 	return s.db.Update(func(tx *bbolt.Tx) error {
-		return tx.Bucket(bucketThemes).Delete([]byte(id))
+		return tx.Bucket(bucketPresets).Delete([]byte(id))
 	})
 }
 
@@ -282,6 +285,203 @@ func (s *BoltStore) ListUsers() ([]model.User, error) {
 		})
 	})
 	return users, err
+}
+
+// ---------------------------------------------------------------------------
+// Plugins
+// ---------------------------------------------------------------------------
+
+func (s *BoltStore) GetPlugin(id string) (*model.Plugin, error) {
+	var p model.Plugin
+	found, err := s.get(bucketPlugins, id, &p)
+	if err != nil || !found {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (s *BoltStore) ListPlugins() ([]model.Plugin, error) {
+	var plugins []model.Plugin
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(bucketPlugins)
+		return b.ForEach(func(_, v []byte) error {
+			var p model.Plugin
+			if err := json.Unmarshal(v, &p); err != nil {
+				return err
+			}
+			plugins = append(plugins, p)
+			return nil
+		})
+	})
+	return plugins, err
+}
+
+func (s *BoltStore) ListPublishedPlugins() ([]model.Plugin, error) {
+	var plugins []model.Plugin
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(bucketPlugins)
+		return b.ForEach(func(_, v []byte) error {
+			var p model.Plugin
+			if err := json.Unmarshal(v, &p); err != nil {
+				return err
+			}
+			if p.IsPublished {
+				plugins = append(plugins, p)
+			}
+			return nil
+		})
+	})
+	return plugins, err
+}
+
+func (s *BoltStore) ListPluginsByAuthor(email string) ([]model.Plugin, error) {
+	var plugins []model.Plugin
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(bucketPlugins)
+		return b.ForEach(func(_, v []byte) error {
+			var p model.Plugin
+			if err := json.Unmarshal(v, &p); err != nil {
+				return err
+			}
+			if p.AuthorEmail == email {
+				plugins = append(plugins, p)
+			}
+			return nil
+		})
+	})
+	return plugins, err
+}
+
+func (s *BoltStore) SearchPlugins(query, sortBy string) ([]model.Plugin, error) {
+	published, err := s.ListPublishedPlugins()
+	if err != nil {
+		return nil, err
+	}
+
+	q := strings.ToLower(query)
+	var filtered []model.Plugin
+	for _, p := range published {
+		if q == "" ||
+			strings.Contains(strings.ToLower(p.Name), q) ||
+			strings.Contains(strings.ToLower(p.Description), q) ||
+			strings.Contains(strings.ToLower(p.AuthorEmail), q) {
+			filtered = append(filtered, p)
+		}
+	}
+
+	switch sortBy {
+	case "Recently Updated":
+		sort.Slice(filtered, func(i, j int) bool {
+			return filtered[i].UpdatedAt.After(filtered[j].UpdatedAt)
+		})
+	default: // "Most Popular", "Most Installed"
+		sort.Slice(filtered, func(i, j int) bool {
+			return filtered[i].Installs > filtered[j].Installs
+		})
+	}
+
+	return filtered, nil
+}
+
+func (s *BoltStore) CreatePlugin(p *model.Plugin) error {
+	return s.put(bucketPlugins, p.ID, p)
+}
+
+func (s *BoltStore) UpdatePlugin(p *model.Plugin) error {
+	return s.put(bucketPlugins, p.ID, p)
+}
+
+func (s *BoltStore) DeletePlugin(id string) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
+		return tx.Bucket(bucketPlugins).Delete([]byte(id))
+	})
+}
+
+func (s *BoltStore) IncrementPluginInstalls(id string) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(bucketPlugins)
+		v := b.Get([]byte(id))
+		if v == nil {
+			return fmt.Errorf("bolt: plugin %q not found", id)
+		}
+		var p model.Plugin
+		if err := json.Unmarshal(v, &p); err != nil {
+			return err
+		}
+		p.Installs++
+		data, err := json.Marshal(&p)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(id), data)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// User Plugins (installed)
+// ---------------------------------------------------------------------------
+
+func userPluginKey(email, pluginID string) string {
+	return email + ":" + pluginID
+}
+
+func (s *BoltStore) InstallPlugin(userEmail, pluginID string) error {
+	up := model.UserPlugin{
+		UserEmail:   userEmail,
+		PluginID:    pluginID,
+		InstalledAt: time.Now(),
+	}
+	return s.put(bucketUserPlugins, userPluginKey(userEmail, pluginID), &up)
+}
+
+func (s *BoltStore) UninstallPlugin(userEmail, pluginID string) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
+		return tx.Bucket(bucketUserPlugins).Delete([]byte(userPluginKey(userEmail, pluginID)))
+	})
+}
+
+func (s *BoltStore) ListInstalledPlugins(userEmail string) ([]model.Plugin, error) {
+	prefix := userEmail + ":"
+	var pluginIDs []string
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(bucketUserPlugins)
+		return b.ForEach(func(k, v []byte) error {
+			key := string(k)
+			if strings.HasPrefix(key, prefix) {
+				var up model.UserPlugin
+				if err := json.Unmarshal(v, &up); err != nil {
+					return err
+				}
+				pluginIDs = append(pluginIDs, up.PluginID)
+			}
+			return nil
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var plugins []model.Plugin
+	for _, id := range pluginIDs {
+		p, err := s.GetPlugin(id)
+		if err != nil {
+			return nil, err
+		}
+		if p != nil {
+			plugins = append(plugins, *p)
+		}
+	}
+	return plugins, nil
+}
+
+func (s *BoltStore) IsPluginInstalled(userEmail, pluginID string) (bool, error) {
+	var found bool
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		v := tx.Bucket(bucketUserPlugins).Get([]byte(userPluginKey(userEmail, pluginID)))
+		found = v != nil
+		return nil
+	})
+	return found, err
 }
 
 // ---------------------------------------------------------------------------

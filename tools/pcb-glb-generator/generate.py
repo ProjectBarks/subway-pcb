@@ -354,14 +354,27 @@ def create_board(board_poly, board_bounds, thickness, top_tex, bot_tex, top_mr, 
     scene = trimesh.Scene()
 
     board_mesh = trimesh.creation.extrude_polygon(board_poly, t)
+
+    # Strip top/bottom cap faces — we add our own textured caps below.
+    # Keep only side faces (normals that aren't purely +Z or -Z).
+    normals = board_mesh.face_normals
+    side_mask = np.abs(normals[:, 2]) < 0.99
+    board_mesh.update_faces(side_mask)
+    board_mesh.remove_unreferenced_vertices()
+
     edge_color = [50, 55, 35, 255]
     board_mesh.visual = trimesh.visual.ColorVisuals(
         mesh=board_mesh, face_colors=np.tile(edge_color, (len(board_mesh.faces), 1)),
     )
     scene.add_geometry(board_mesh, node_name="board_body")
 
+    # Offset textured caps slightly so they sit above/below any coplanar
+    # component geometry (imported parts have faces at exactly Z=0 and Z≈t).
+    # 0.09mm is invisible but survives even aggressive Draco quantization.
+    cap_eps = 0.09
+
     top_verts_2d, top_faces_2d = trimesh.creation.triangulate_polygon(board_poly)
-    top_verts_3d = np.column_stack([top_verts_2d, np.full(len(top_verts_2d), t)])
+    top_verts_3d = np.column_stack([top_verts_2d, np.full(len(top_verts_2d), t + cap_eps)])
     top_mesh = trimesh.Trimesh(vertices=top_verts_3d, faces=top_faces_2d, process=False)
     top_uv = np.column_stack([
         (top_verts_2d[:, 0] + hw) / (2 * hw),
@@ -376,7 +389,7 @@ def create_board(board_poly, board_bounds, thickness, top_tex, bot_tex, top_mr, 
     )
     scene.add_geometry(top_mesh, node_name="top_face")
 
-    bot_verts_3d = np.column_stack([top_verts_2d, np.full(len(top_verts_2d), 0.0)])
+    bot_verts_3d = np.column_stack([top_verts_2d, np.full(len(top_verts_2d), -cap_eps)])
     bot_mesh = trimesh.Trimesh(vertices=bot_verts_3d, faces=top_faces_2d[:, ::-1], process=False)
     bot_uv = np.column_stack([
         1.0 - (top_verts_2d[:, 0] + hw) / (2 * hw),

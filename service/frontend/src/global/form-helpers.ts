@@ -28,14 +28,14 @@ export function collectRouteColorsToForm(form: HTMLFormElement): void {
 		});
 }
 
-export function collectConfigToThemeForm(form: HTMLFormElement): void {
+export function collectConfigToPresetForm(form: HTMLFormElement): void {
 	// Remove old val_ inputs
 	form
 		.querySelectorAll<HTMLInputElement>('input[name^="val_"]')
 		.forEach((e) => e.remove());
 	// Copy current config values from the config form
 	const configForm = document.getElementById(
-		"mode-config-form",
+		"plugin-config-form",
 	) as HTMLFormElement | null;
 	if (!configForm) return;
 	const inputs = configForm.querySelectorAll<

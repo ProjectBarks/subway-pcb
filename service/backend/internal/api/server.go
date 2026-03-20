@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	chimw "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/ProjectBarks/subway-pcb/server/internal/middleware"
-	"github.com/ProjectBarks/subway-pcb/server/internal/mode"
 	"github.com/ProjectBarks/subway-pcb/server/internal/model"
 	"github.com/ProjectBarks/subway-pcb/server/internal/mta"
+	"github.com/ProjectBarks/subway-pcb/server/internal/plugin"
 	"github.com/ProjectBarks/subway-pcb/server/internal/store"
 	"github.com/ProjectBarks/subway-pcb/server/internal/ui"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -21,12 +22,13 @@ import (
 
 // ServerConfig holds all dependencies for the HTTP server.
 type ServerConfig struct {
-	Aggregator    *mta.Aggregator
-	PixelRenderer *PixelRenderer
-	Store         store.Store
-	ModeRegistry  *mode.Registry
-	AuthConfig    middleware.AuthConfig
-	StaticDir     string // optional: directory to serve at /static/
+	Aggregator     *mta.Aggregator
+	PixelRenderer  *PixelRenderer
+	Store          store.Store
+	PluginRegistry *plugin.Registry
+	AuthConfig     middleware.AuthConfig
+	StaticDir      string // optional: directory to serve at /static/
+	DevMode        bool   // enable dev-only routes (e.g. /landing)
 }
 
 // Server is the HTTP API server.
@@ -34,9 +36,10 @@ type Server struct {
 	aggregator    *mta.Aggregator
 	pixelRenderer *PixelRenderer
 	store         store.Store
-	modes         *mode.Registry
+	plugins       *plugin.Registry
 	authConfig    middleware.AuthConfig
 	staticDir     string
+	devMode       bool
 	startTime     time.Time
 	router        chi.Router
 }
@@ -47,9 +50,10 @@ func NewServer(cfg ServerConfig) *Server {
 		aggregator:    cfg.Aggregator,
 		pixelRenderer: cfg.PixelRenderer,
 		store:         cfg.Store,
-		modes:         cfg.ModeRegistry,
+		plugins:       cfg.PluginRegistry,
 		authConfig:    cfg.AuthConfig,
 		staticDir:     cfg.StaticDir,
+		devMode:       cfg.DevMode,
 		startTime:     time.Now(),
 	}
 	s.buildRouter()
@@ -59,6 +63,11 @@ func NewServer(cfg ServerConfig) *Server {
 func (s *Server) buildRouter() {
 	r := chi.NewRouter()
 	r.Use(chimw.Logger, chimw.Recoverer)
+
+	// Dev-only routes
+	if s.devMode {
+		r.Get("/landing", s.handleLanding)
+	}
 
 	// Device routes — accessible on all hosts including RESTRICTED_HOST
 	r.Get("/api/v1/pixels", s.handlePixels)
@@ -91,28 +100,42 @@ func (s *Server) buildRouter() {
 		r.Group(func(r chi.Router) {
 			r.Use(authMW)
 
-			r.Get("/", s.handleDashboard)
+			r.Get("/", s.handleRootRedirect)
+			r.Get("/boards", s.handleDashboard)
+			r.Get("/community", s.handleCommunity)
+			r.Get("/community/search", s.handleCommunitySearch)
+			r.Get("/editor", s.handleEditor)
 			r.Get("/partials/board-list", s.handleBoardListPartial)
 
 			// Board view (per-user access check — admins bypass)
 			r.Route("/boards/{mac}", func(r chi.Router) {
 				r.Use(requireBoardAccess)
 				r.Get("/", s.handleBoardView)
-				r.Put("/mode", s.handleSetMode)
-				r.Put("/theme", s.handleSetTheme)
+				r.Put("/plugin", s.handleSetPlugin)
+				r.Put("/preset", s.handleSetPreset)
 				r.Put("/name", s.handleSetName)
-				r.Put("/config", s.handleSetModeConfig)
+				r.Put("/config", s.handleSetPluginConfig)
 				r.Get("/preview", s.handleBoardPreview)
 				// Access management
 				r.Post("/access", s.handleGrantAccess)
 				r.Delete("/access/{email}", s.handleRevokeAccess)
 			})
 
-			// Theme API
-			r.Get("/api/v1/themes", s.handleListThemes)
-			r.Post("/api/v1/themes", s.handleCreateTheme)
-			r.Put("/api/v1/themes/{id}", s.handleUpdateTheme)
-			r.Delete("/api/v1/themes/{id}", s.handleDeleteTheme)
+			// Preset API
+			r.Get("/api/v1/presets", s.handleListPresets)
+			r.Post("/api/v1/presets", s.handleCreatePreset)
+			r.Put("/api/v1/presets/{id}", s.handleUpdatePreset)
+			r.Delete("/api/v1/presets/{id}", s.handleDeletePreset)
+
+			// Plugin API
+			r.Get("/api/v1/plugins", s.handleListPlugins)
+			r.Post("/api/v1/plugins", s.handleCreatePlugin)
+			r.Get("/api/v1/plugins/{id}", s.handleGetPlugin)
+			r.Put("/api/v1/plugins/{id}", s.handleUpdatePlugin)
+			r.Delete("/api/v1/plugins/{id}", s.handleDeletePlugin)
+			r.Post("/api/v1/plugins/{id}/publish", s.handlePublishPlugin)
+			r.Post("/api/v1/plugins/{id}/install", s.handleInstallPlugin)
+			r.Delete("/api/v1/plugins/{id}/install", s.handleUninstallPlugin)
 
 			// Admin-only
 			r.Group(func(r chi.Router) {
@@ -128,6 +151,18 @@ func (s *Server) buildRouter() {
 // Handler returns the http.Handler for this server.
 func (s *Server) Handler() http.Handler {
 	return s.router
+}
+
+// --- Landing (dev only) ---
+
+func (s *Server) handleLanding(w http.ResponseWriter, r *http.Request) {
+	ui.Landing().Render(r.Context(), w)
+}
+
+// --- Root Redirect ---
+
+func (s *Server) handleRootRedirect(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/boards", http.StatusFound)
 }
 
 // --- Dashboard ---
@@ -165,6 +200,53 @@ func (s *Server) handleBoardListPartial(w http.ResponseWriter, r *http.Request) 
 	ui.BoardGrid(cards).Render(r.Context(), w)
 }
 
+// --- Community ---
+
+func (s *Server) handleCommunity(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+
+	plugins, err := s.store.ListPublishedPlugins()
+	if err != nil {
+		log.Printf("api: community error: %v", err)
+		plugins = nil
+	}
+
+	installed, _ := s.store.ListInstalledPlugins(user.Email)
+	installedSet := make(map[string]bool)
+	for _, p := range installed {
+		installedSet[p.ID] = true
+	}
+
+	ui.CommunityPage(user, plugins, installedSet).Render(r.Context(), w)
+}
+
+func (s *Server) handleCommunitySearch(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	q := r.URL.Query().Get("q")
+	sort := r.URL.Query().Get("sort")
+
+	plugins, err := s.store.SearchPlugins(q, sort)
+	if err != nil {
+		log.Printf("api: community search error: %v", err)
+		plugins = nil
+	}
+
+	installed, _ := s.store.ListInstalledPlugins(user.Email)
+	installedSet := make(map[string]bool)
+	for _, p := range installed {
+		installedSet[p.ID] = true
+	}
+
+	ui.CommunityPluginGrid(plugins, installedSet).Render(r.Context(), w)
+}
+
+// --- Editor ---
+
+func (s *Server) handleEditor(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	ui.EditorPage(user).Render(r.Context(), w)
+}
+
 // --- Board View ---
 
 func (s *Server) handleBoardView(w http.ResponseWriter, r *http.Request) {
@@ -179,15 +261,7 @@ func (s *Server) handleBoardView(w http.ResponseWriter, r *http.Request) {
 
 	access, _ := s.store.ListAccessByDevice(mac)
 
-	// Get all boards for nav
-	var boards []model.Device
-	if user.IsAdmin() {
-		boards, _ = s.store.ListDevices()
-	} else {
-		boards, _ = s.store.ListDevicesByUser(user.Email)
-	}
-
-	data := s.buildBoardData(user, device, mac, boards, access)
+	data := s.buildBoardData(user, device, mac, access)
 	ui.BoardPage(data).Render(r.Context(), w)
 }
 
@@ -196,76 +270,92 @@ func (s *Server) buildBoardCards(boards []model.Device) []ui.BoardCard {
 	cards := make([]ui.BoardCard, len(boards))
 	for i, d := range boards {
 		cards[i].Device = d
-		if d.ThemeID != "" {
-			t, _ := s.store.GetTheme(d.ThemeID)
-			cards[i].Theme = t
+		if d.PresetID != "" {
+			t, _ := s.store.GetPreset(d.PresetID)
+			cards[i].Preset = t
 		}
 	}
 	return cards
 }
 
 // buildBoardData builds the typed data for the board view and controls.
-func (s *Server) buildBoardData(user *model.User, device *model.Device, mac string, boards []model.Device, access []model.DeviceAccess) ui.BoardData {
-	modeName := device.Mode
-	if modeName == "" {
-		modeName = "track"
+func (s *Server) buildBoardData(user *model.User, device *model.Device, mac string, access []model.DeviceAccess) ui.BoardData {
+	pluginName := device.PluginName
+	if pluginName == "" {
+		pluginName = "track"
 	}
 
-	// Get config fields for the active mode
-	var configFields []mode.ConfigField
-	var configGroups []mode.FieldGroup
-	if m, ok := s.modes.Get(modeName); ok {
-		configFields = m.ConfigFields()
-		configGroups = mode.GroupedFields(configFields)
-	}
+	// Get config fields for the active plugin (built-in or DB)
+	configFields := s.getConfigFields(pluginName)
+	configGroups := plugin.GroupedFields(configFields)
 
-	// Build config values: defaults -> theme -> device overrides
+	// Build config values: defaults -> preset -> device overrides
 	configValues := make(map[string]string)
 	for _, f := range configFields {
 		configValues[f.Key] = f.Default
 	}
-	if device.ThemeID != "" {
-		theme, _ := s.store.GetTheme(device.ThemeID)
-		if theme != nil {
-			for k, v := range theme.Values {
+	if device.PresetID != "" {
+		preset, _ := s.store.GetPreset(device.PresetID)
+		if preset != nil {
+			for k, v := range preset.Values {
 				configValues[k] = v
 			}
 		}
 	}
-	for k, v := range device.ModeConfig {
+	for k, v := range device.PluginConfig {
 		configValues[k] = v
 	}
 
-	// Get themes for this mode: built-in + user's own
-	allThemes, _ := s.store.ListThemes()
-	var modeThemes []model.Theme
-	for _, t := range allThemes {
-		if t.ModeName == modeName && (t.IsBuiltIn || t.OwnerEmail == user.Email) {
-			modeThemes = append(modeThemes, t)
+	// Get presets for this plugin: built-in + user's own
+	allPresets, _ := s.store.ListPresets()
+	var pluginPresets []model.Preset
+	for _, t := range allPresets {
+		if t.PluginName == pluginName && (t.IsBuiltIn || t.OwnerEmail == user.Email) {
+			pluginPresets = append(pluginPresets, t)
+		}
+	}
+
+	// Get user's own + installed plugins from DB for Browse tab
+	ownPlugins, _ := s.store.ListPluginsByAuthor(user.Email)
+	installedOnly, _ := s.store.ListInstalledPlugins(user.Email)
+	// Merge: own plugins first, then installed (skip duplicates)
+	seen := make(map[string]bool)
+	var installedPlugins []model.Plugin
+	for _, p := range ownPlugins {
+		seen[p.ID] = true
+		installedPlugins = append(installedPlugins, p)
+	}
+	for _, p := range installedOnly {
+		if !seen[p.ID] {
+			installedPlugins = append(installedPlugins, p)
 		}
 	}
 
 	return ui.BoardData{
-		User:         user,
-		Device:       device,
-		Themes:       modeThemes,
-		Access:       access,
-		Modes:        s.modes.List(),
-		Boards:       boards,
-		ActiveMAC:    mac,
-		ConfigGroups: configGroups,
-		ConfigValues: configValues,
+		User:             user,
+		Device:           device,
+		Presets:          pluginPresets,
+		Access:           access,
+		Plugins:          s.plugins.List(),
+		InstalledPlugins: installedPlugins,
+		ActiveMAC:        mac,
+		ConfigGroups:     configGroups,
+		ConfigValues:     configValues,
 	}
 }
 
-func (s *Server) handleSetMode(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleSetPlugin(w http.ResponseWriter, r *http.Request) {
 	mac := chi.URLParam(r, "mac")
 	r.ParseForm()
-	modeName := r.FormValue("mode")
+	pluginName := r.FormValue("plugin")
 
-	if _, ok := s.modes.Get(modeName); !ok {
-		http.Error(w, "unknown mode", http.StatusBadRequest)
-		return
+	// Accept built-in plugins by name or DB plugins by ID
+	if _, ok := s.plugins.Get(pluginName); !ok {
+		dbPlugin, err := s.store.GetPlugin(pluginName)
+		if err != nil || dbPlugin == nil {
+			http.Error(w, "unknown plugin", http.StatusBadRequest)
+			return
+		}
 	}
 
 	device, err := s.store.GetDevice(mac)
@@ -274,7 +364,7 @@ func (s *Server) handleSetMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	device.Mode = modeName
+	device.PluginName = pluginName
 	if err := s.store.UpsertDevice(device); err != nil {
 		http.Error(w, "update failed", http.StatusInternalServerError)
 		return
@@ -283,13 +373,13 @@ func (s *Server) handleSetMode(w http.ResponseWriter, r *http.Request) {
 	s.renderControls(w, r, mac)
 }
 
-func (s *Server) handleSetTheme(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleSetPreset(w http.ResponseWriter, r *http.Request) {
 	mac := chi.URLParam(r, "mac")
 	r.ParseForm()
-	themeID := r.FormValue("theme_id")
+	presetID := r.FormValue("preset_id")
 
-	if _, err := s.store.GetTheme(themeID); err != nil {
-		http.Error(w, "theme not found", http.StatusBadRequest)
+	if _, err := s.store.GetPreset(presetID); err != nil {
+		http.Error(w, "preset not found", http.StatusBadRequest)
 		return
 	}
 
@@ -299,7 +389,7 @@ func (s *Server) handleSetTheme(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	device.ThemeID = themeID
+	device.PresetID = presetID
 	if err := s.store.UpsertDevice(device); err != nil {
 		http.Error(w, "update failed", http.StatusInternalServerError)
 		return
@@ -328,7 +418,7 @@ func (s *Server) handleSetName(w http.ResponseWriter, r *http.Request) {
 	s.renderControls(w, r, mac)
 }
 
-func (s *Server) handleSetModeConfig(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleSetPluginConfig(w http.ResponseWriter, r *http.Request) {
 	mac := chi.URLParam(r, "mac")
 	r.ParseForm()
 
@@ -346,7 +436,7 @@ func (s *Server) handleSetModeConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	device.ModeConfig = config
+	device.PluginConfig = config
 	if err := s.store.UpsertDevice(device); err != nil {
 		http.Error(w, "update failed", http.StatusInternalServerError)
 		return
@@ -356,7 +446,6 @@ func (s *Server) handleSetModeConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleBoardPreview(w http.ResponseWriter, r *http.Request) {
-	// Returns partial HTML for the board preview area
 	mac := chi.URLParam(r, "mac")
 	device, _ := s.store.GetDevice(mac)
 	if device == nil {
@@ -418,75 +507,68 @@ func (s *Server) renderControls(w http.ResponseWriter, r *http.Request, mac stri
 	device, _ := s.store.GetDevice(mac)
 	access, _ := s.store.ListAccessByDevice(mac)
 
-	var boards []model.Device
-	if user.IsAdmin() {
-		boards, _ = s.store.ListDevices()
-	} else {
-		boards, _ = s.store.ListDevicesByUser(user.Email)
-	}
-
-	data := s.buildBoardData(user, device, mac, boards, access)
+	data := s.buildBoardData(user, device, mac, access)
 	ui.BoardControls(data).Render(r.Context(), w)
 }
 
-// --- Theme API ---
+// --- Preset API ---
 
-func (s *Server) handleListThemes(w http.ResponseWriter, r *http.Request) {
-	themes, err := s.store.ListThemes()
+func (s *Server) handleListPresets(w http.ResponseWriter, r *http.Request) {
+	presets, err := s.store.ListPresets()
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	jsonResponse(w, themes)
+	jsonResponse(w, presets)
 }
 
-func (s *Server) handleCreateTheme(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleCreatePreset(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 
-	var theme model.Theme
+	var preset model.Preset
 	if isHTMX(r) {
 		r.ParseForm()
-		theme.Name = r.FormValue("name")
-		theme.ModeName = r.FormValue("mode_name")
-		theme.Values = parseValuesFromForm(r)
+		preset.Name = r.FormValue("name")
+		preset.PluginName = r.FormValue("plugin_name")
+		preset.Values = parseValuesFromForm(r)
 	} else {
-		if err := json.NewDecoder(r.Body).Decode(&theme); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&preset); err != nil {
 			jsonError(w, "invalid body", http.StatusBadRequest)
 			return
 		}
 	}
 
-	theme.ID = fmt.Sprintf("custom-%d", time.Now().UnixMilli())
-	theme.OwnerEmail = user.Email
-	theme.CreatedAt = time.Now()
-	theme.UpdatedAt = time.Now()
+	preset.ID = fmt.Sprintf("preset-%d", time.Now().UnixMilli())
+	preset.OwnerEmail = user.Email
+	preset.CreatedAt = time.Now()
+	preset.UpdatedAt = time.Now()
 
-	if err := s.store.CreateTheme(&theme); err != nil {
+	if err := s.store.CreatePreset(&preset); err != nil {
 		jsonError(w, "create failed", http.StatusInternalServerError)
 		return
 	}
 
 	if isHTMX(r) {
-		w.Header().Set("HX-Trigger", "themeCreated")
-		fmt.Fprintf(w, `<div class="text-green-400 text-sm">Theme "%s" saved</div>`, theme.Name)
+		w.Header().Set("HX-Trigger", "presetCreated")
+		fmt.Fprintf(w, `<div class="text-green-400 text-sm">Preset "%s" saved</div>`, preset.Name)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	jsonResponse(w, theme)
+	jsonResponse(w, preset)
 }
 
-func (s *Server) handleUpdateTheme(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleUpdatePreset(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	user := middleware.UserFromContext(r.Context())
 
-	existing, err := s.store.GetTheme(id)
+	existing, err := s.store.GetPreset(id)
 	if err != nil || existing == nil {
-		jsonError(w, "theme not found", http.StatusNotFound)
+		jsonError(w, "preset not found", http.StatusNotFound)
 		return
 	}
 
 	if existing.IsBuiltIn {
-		jsonError(w, "cannot modify built-in theme", http.StatusForbidden)
+		jsonError(w, "cannot modify built-in preset", http.StatusForbidden)
 		return
 	}
 
@@ -502,7 +584,7 @@ func (s *Server) handleUpdateTheme(w http.ResponseWriter, r *http.Request) {
 		}
 		existing.Values = parseValuesFromForm(r)
 	} else {
-		var update model.Theme
+		var update model.Preset
 		if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
 			jsonError(w, "invalid body", http.StatusBadRequest)
 			return
@@ -516,31 +598,31 @@ func (s *Server) handleUpdateTheme(w http.ResponseWriter, r *http.Request) {
 	}
 
 	existing.UpdatedAt = time.Now()
-	if err := s.store.UpdateTheme(existing); err != nil {
+	if err := s.store.UpdatePreset(existing); err != nil {
 		jsonError(w, "update failed", http.StatusInternalServerError)
 		return
 	}
 
 	if isHTMX(r) {
-		w.Header().Set("HX-Trigger", "themeUpdated")
-		fmt.Fprintf(w, `<div class="text-green-400 text-sm">Theme updated</div>`)
+		w.Header().Set("HX-Trigger", "presetUpdated")
+		fmt.Fprintf(w, `<div class="text-green-400 text-sm">Preset updated</div>`)
 		return
 	}
 	jsonResponse(w, existing)
 }
 
-func (s *Server) handleDeleteTheme(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleDeletePreset(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	user := middleware.UserFromContext(r.Context())
 
-	existing, err := s.store.GetTheme(id)
+	existing, err := s.store.GetPreset(id)
 	if err != nil || existing == nil {
-		jsonError(w, "theme not found", http.StatusNotFound)
+		jsonError(w, "preset not found", http.StatusNotFound)
 		return
 	}
 
 	if existing.IsBuiltIn {
-		jsonError(w, "cannot delete built-in theme", http.StatusForbidden)
+		jsonError(w, "cannot delete built-in preset", http.StatusForbidden)
 		return
 	}
 
@@ -549,14 +631,219 @@ func (s *Server) handleDeleteTheme(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.store.DeleteTheme(id); err != nil {
+	if err := s.store.DeletePreset(id); err != nil {
 		jsonError(w, "delete failed", http.StatusInternalServerError)
 		return
 	}
 
 	if isHTMX(r) {
-		w.Header().Set("HX-Trigger", "themeDeleted")
+		w.Header().Set("HX-Trigger", "presetDeleted")
 		w.WriteHeader(http.StatusOK)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// getConfigFields returns config fields for a plugin, whether built-in or DB-stored.
+func (s *Server) getConfigFields(pluginName string) []plugin.ConfigField {
+	if p, ok := s.plugins.Get(pluginName); ok {
+		return p.ConfigFields()
+	}
+	dbPlugin, _ := s.store.GetPlugin(pluginName)
+	if dbPlugin == nil || len(dbPlugin.ConfigFields) == 0 {
+		return nil
+	}
+	var fields []plugin.ConfigField
+	json.Unmarshal(dbPlugin.ConfigFields, &fields)
+	return fields
+}
+
+// --- Plugin API ---
+
+func (s *Server) handleListPlugins(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	author := r.URL.Query().Get("author")
+
+	var plugins []model.Plugin
+	var err error
+	if author == "me" {
+		plugins, err = s.store.ListPluginsByAuthor(user.Email)
+	} else {
+		plugins, err = s.store.ListPublishedPlugins()
+	}
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonResponse(w, plugins)
+}
+
+func (s *Server) handleCreatePlugin(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+
+	var p model.Plugin
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		jsonError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+
+	p.ID = uuid.New().String()
+	p.AuthorEmail = user.Email
+	p.Type = "lua"
+	p.CreatedAt = time.Now()
+	p.UpdatedAt = time.Now()
+
+	if err := s.store.CreatePlugin(&p); err != nil {
+		jsonError(w, "create failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	jsonResponse(w, p)
+}
+
+func (s *Server) handleGetPlugin(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	user := middleware.UserFromContext(r.Context())
+
+	p, err := s.store.GetPlugin(id)
+	if err != nil || p == nil {
+		jsonError(w, "plugin not found", http.StatusNotFound)
+		return
+	}
+
+	// Access check: published, or owner, or admin
+	if !p.IsPublished && p.AuthorEmail != user.Email && !user.IsAdmin() {
+		jsonError(w, "access denied", http.StatusForbidden)
+		return
+	}
+
+	jsonResponse(w, p)
+}
+
+func (s *Server) handleUpdatePlugin(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	user := middleware.UserFromContext(r.Context())
+
+	existing, err := s.store.GetPlugin(id)
+	if err != nil || existing == nil {
+		jsonError(w, "plugin not found", http.StatusNotFound)
+		return
+	}
+
+	if existing.AuthorEmail != user.Email && !user.IsAdmin() {
+		jsonError(w, "access denied", http.StatusForbidden)
+		return
+	}
+
+	var update model.Plugin
+	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
+		jsonError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+
+	if update.Name != "" {
+		existing.Name = update.Name
+	}
+	if update.LuaSource != "" {
+		existing.LuaSource = update.LuaSource
+	}
+	if update.Description != "" {
+		existing.Description = update.Description
+	}
+	if update.Category != "" {
+		existing.Category = update.Category
+	}
+	if update.ConfigFields != nil {
+		existing.ConfigFields = update.ConfigFields
+	}
+	existing.UpdatedAt = time.Now()
+
+	if err := s.store.UpdatePlugin(existing); err != nil {
+		jsonError(w, "update failed", http.StatusInternalServerError)
+		return
+	}
+
+	jsonResponse(w, existing)
+}
+
+func (s *Server) handleDeletePlugin(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	user := middleware.UserFromContext(r.Context())
+
+	existing, err := s.store.GetPlugin(id)
+	if err != nil || existing == nil {
+		jsonError(w, "plugin not found", http.StatusNotFound)
+		return
+	}
+
+	if existing.AuthorEmail != user.Email && !user.IsAdmin() {
+		jsonError(w, "access denied", http.StatusForbidden)
+		return
+	}
+
+	if err := s.store.DeletePlugin(id); err != nil {
+		jsonError(w, "delete failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handlePublishPlugin(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	user := middleware.UserFromContext(r.Context())
+
+	existing, err := s.store.GetPlugin(id)
+	if err != nil || existing == nil {
+		jsonError(w, "plugin not found", http.StatusNotFound)
+		return
+	}
+
+	if existing.AuthorEmail != user.Email && !user.IsAdmin() {
+		jsonError(w, "access denied", http.StatusForbidden)
+		return
+	}
+
+	existing.IsPublished = !existing.IsPublished
+	existing.UpdatedAt = time.Now()
+
+	if err := s.store.UpdatePlugin(existing); err != nil {
+		jsonError(w, "update failed", http.StatusInternalServerError)
+		return
+	}
+
+	jsonResponse(w, existing)
+}
+
+func (s *Server) handleInstallPlugin(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	user := middleware.UserFromContext(r.Context())
+
+	if err := s.store.InstallPlugin(user.Email, id); err != nil {
+		jsonError(w, "install failed", http.StatusInternalServerError)
+		return
+	}
+	s.store.IncrementPluginInstalls(id)
+
+	if isHTMX(r) {
+		fmt.Fprintf(w, `<button hx-delete="/api/v1/plugins/%s/install" hx-swap="outerHTML" class="flex-1 h-10 border border-border-subtle text-text-secondary rounded-full transition-all font-medium hover:border-status-error hover:text-status-error">Uninstall</button>`, id)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleUninstallPlugin(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	user := middleware.UserFromContext(r.Context())
+
+	if err := s.store.UninstallPlugin(user.Email, id); err != nil {
+		jsonError(w, "uninstall failed", http.StatusInternalServerError)
+		return
+	}
+
+	if isHTMX(r) {
+		fmt.Fprintf(w, `<button hx-post="/api/v1/plugins/%s/install" hx-swap="outerHTML" class="flex-1 h-10 bg-white text-black rounded-full transition-all font-medium">Install</button>`, id)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -683,4 +970,3 @@ func parseValuesFromForm(r *http.Request) map[string]string {
 	}
 	return values
 }
-

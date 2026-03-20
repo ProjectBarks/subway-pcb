@@ -26,30 +26,34 @@ Thumbs.db
 service/backend/subway-server
 service/backend/tmp/
 service/backend/data/
+service/backend/static/
 
 # Frontend
 service/frontend/node_modules/
-service/static/dist/
+service/static/
+
+# Generated assets (regenerate with tools/pcb-glb-generator)
+pcb/top_texture.png
+pcb/bottom_texture.png
+pcb/top_metallic_roughness.png
+pcb/bottom_metallic_roughness.png
+service/frontend/public/subway-pcb.glb
+service/frontend/public/led_positions.json
 
 # Managed components (downloaded at build time)
 **/managed_components/
 **/dependencies.lock
 
-# Local config (WiFi credentials, overrides)
+# Local config
 wifi.txt
 **/platformio_local.ini
+.env
+.env.*
 
 # Database files
 *.db
 
-# Generated textures (regenerate with tools/pcb-glb-generator)
-pcb/top_texture.png
-pcb/bottom_texture.png
-pcb/top_metallic_roughness.png
-pcb/bottom_metallic_roughness.png
-
 # Claude
-CLAUDE.md
 plan.md
 .claude
 .investigations/

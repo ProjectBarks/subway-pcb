@@ -11,7 +11,9 @@
     "skipLibCheck": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "outDir": "dist",
-    "sourceMap": true
+    "sourceMap": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
   },
   "include": ["src"]
 }

@@ -4,12 +4,15 @@ templ Toast(toastType string, message string) {
 	<div
 		data-toast
 		class={
-			"glass border rounded-lg px-4 py-3 text-sm shadow-lg",
-			templ.KV("border-red-500/50 text-red-400", toastType == "error"),
-			templ.KV("border-green-500/50 text-green-400", toastType != "error"),
+			"alert shadow-lg animate-toast-fade-in",
+			templ.KV("alert-destructive", toastType == "error"),
 		}
-		style="animation: toast-fade 3.5s ease forwards;"
 	>
-		{ message }
+		if toastType == "error" {
+			@Icon("alert-circle", "size-5")
+		} else {
+			@Icon("check-circle2", "size-5")
+		}
+		<span>{ message }</span>
 	</div>
 }

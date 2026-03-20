@@ -6,6 +6,7 @@ require (
 	github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs v1.0.0
 	github.com/a-h/templ v0.3.1001
 	github.com/go-chi/chi/v5 v5.2.5
+	github.com/kaugesaar/lucide-go v0.11.0
 	go.etcd.io/bbolt v1.4.3
 	google.golang.org/protobuf v1.36.11
 	gorm.io/datatypes v1.2.7

@@ -1,14 +1,30 @@
-export function initNavBackdrop(): void {
-	const sidebar = document.getElementById("sidebar");
-	const backdrop = document.getElementById("nav-backdrop");
-	if (sidebar && backdrop) {
-		const observer = new MutationObserver(() => {
-			const hidden = sidebar.classList.contains("-translate-x-full");
-			backdrop.classList.toggle("hidden", hidden);
+export function initNav(): void {
+	const menuToggle = document.getElementById("mobile-menu-toggle");
+	const mobileMenu = document.getElementById("mobile-menu");
+	const menuIconOpen = document.getElementById("menu-icon-open");
+	const menuIconClose = document.getElementById("menu-icon-close");
+
+	if (!menuToggle || !mobileMenu) return;
+
+	menuToggle.addEventListener("click", () => {
+		const isOpen = !mobileMenu.classList.contains("hidden");
+		mobileMenu.classList.toggle("hidden", isOpen);
+
+		// Toggle icons
+		if (menuIconOpen && menuIconClose) {
+			menuIconOpen.classList.toggle("hidden", !isOpen);
+			menuIconClose.classList.toggle("hidden", isOpen);
+		}
+	});
+
+	// Close mobile menu when clicking a nav link
+	mobileMenu.querySelectorAll("a").forEach((link) => {
+		link.addEventListener("click", () => {
+			mobileMenu.classList.add("hidden");
+			if (menuIconOpen && menuIconClose) {
+				menuIconOpen.classList.remove("hidden");
+				menuIconClose.classList.add("hidden");
+			}
 		});
-		observer.observe(sidebar, {
-			attributes: true,
-			attributeFilter: ["class"],
-		});
-	}
+	});
 }

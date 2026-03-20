@@ -4,7 +4,7 @@ tmp_dir = "tmp"
 [build]
   bin = "./tmp/subway-server"
   cmd = "templ generate && go build -o ./tmp/subway-server ./cmd/subway-server/"
-  full_bin = "./tmp/subway-server --port 8080 --led-map led_map.json --data-dir data --static-dir ../static"
+  full_bin = "./tmp/subway-server --port 8080 --led-map led_map.json --data-dir data --static-dir ../static --dev"
   delay = 1000
   exclude_dir = ["tmp", "vendor", "node_modules"]
   exclude_regex = [".*_templ\\.go"]

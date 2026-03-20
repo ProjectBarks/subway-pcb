@@ -2,161 +2,269 @@ package ui
 
 import (
 	"fmt"
-	"github.com/ProjectBarks/subway-pcb/server/internal/mode"
+	"github.com/ProjectBarks/subway-pcb/server/internal/plugin"
 )
 
-templ BoardControls(data BoardData) {
-	<div id="controls" class="space-y-6">
-		<!-- Card 1: Mode -->
-		<details class="bg-dark-card border border-dark-border rounded-lg" open>
-			<summary class="px-6 py-4 cursor-pointer select-none flex items-center justify-between text-gray-200 font-medium hover:bg-dark-hover transition-colors rounded-lg">
-				<span>Mode</span>
-				<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-				</svg>
-			</summary>
-			<div class="px-6 pb-6 space-y-2">
-				for _, m := range data.Modes {
-					<button
-						hx-put={ "/boards/" + data.Device.MAC + "/mode" }
-						hx-vals={ fmt.Sprintf(`{"mode":"%s"}`, m.Name()) }
-						hx-target="#controls"
-						hx-swap="outerHTML"
-						class={
-							"w-full text-left px-4 py-3 rounded-md border transition-all",
-							templ.KV("border-gold ring-2 ring-gold/30 bg-gold/5", data.Device.Mode == m.Name()),
-							templ.KV("border-dark-border hover:bg-dark-hover hover:border-dark-border/80", data.Device.Mode != m.Name()),
-						}
-					>
-						<div class="flex items-center gap-3">
-							<span
-								class={
-									"w-3 h-3 rounded-full border-2 flex items-center justify-center",
-									templ.KV("border-gold", data.Device.Mode == m.Name()),
-									templ.KV("border-gray-600", data.Device.Mode != m.Name()),
-								}
-							>
-								if data.Device.Mode == m.Name() {
-									<span class="w-1.5 h-1.5 rounded-full bg-gold"></span>
-								}
-							</span>
-							<div>
-								<p class="text-sm text-gray-200 font-medium">{ m.Name() }</p>
-								if m.Description() != "" {
-									<p class="text-xs text-gray-500 mt-0.5">{ m.Description() }</p>
-								}
-							</div>
-						</div>
-					</button>
+templ PluginPanel(data BoardData) {
+	<div id="controls" class="glass p-6 rounded-2xl">
+		<!-- Tab bar -->
+		<div class="flex gap-1 p-1 bg-bg-surface rounded-lg mb-6">
+			<button
+				onclick="switchTab('active', this)"
+				class="tab-btn flex-1 h-9 px-4 rounded-md text-sm font-medium transition-colors bg-bg-surface-raised text-text-primary"
+			>Active Plugin</button>
+			<button
+				onclick="switchTab('browse', this)"
+				class="tab-btn flex-1 h-9 px-4 rounded-md text-sm font-medium transition-colors text-text-secondary hover:text-text-primary"
+			>Browse Plugins</button>
+			<button
+				onclick="switchTab('settings', this)"
+				class="tab-btn flex-1 h-9 px-4 rounded-md text-sm font-medium transition-colors text-text-secondary hover:text-text-primary"
+			>Board Settings</button>
+		</div>
+		<!-- Tab Content: Active Plugin -->
+		<div id="tab-active" class="panel-tab" style="transition: opacity 150ms ease">
+			@ActivePluginContent(data)
+		</div>
+		<!-- Tab Content: Browse Plugins -->
+		<div id="tab-browse" class="panel-tab hidden" style="transition: opacity 150ms ease">
+			@BrowsePluginsContent(data)
+		</div>
+		<!-- Tab Content: Board Settings -->
+		<div id="tab-settings" class="panel-tab hidden" style="transition: opacity 150ms ease">
+			@BoardSettingsContent(data)
+		</div>
+		<script>
+			function switchTab(tabId, btn) {
+				var panels = document.querySelectorAll('.panel-tab');
+				panels.forEach(function(el) {
+					el.style.opacity = '0';
+					setTimeout(function() { el.classList.add('hidden'); el.style.opacity = ''; }, 150);
+				});
+				setTimeout(function() {
+					var target = document.getElementById('tab-' + tabId);
+					target.classList.remove('hidden');
+					target.style.opacity = '0';
+					requestAnimationFrame(function() { target.style.opacity = '1'; });
+				}, 150);
+				document.querySelectorAll('.tab-btn').forEach(function(el) {
+					el.classList.remove('bg-bg-surface-raised', 'text-text-primary');
+					el.classList.add('text-text-secondary');
+				});
+				btn.classList.add('bg-bg-surface-raised', 'text-text-primary');
+				btn.classList.remove('text-text-secondary');
+			}
+		</script>
+	</div>
+}
+
+templ ActivePluginContent(data BoardData) {
+	<div class="space-y-6">
+		<!-- Current plugin info -->
+		<div>
+			<h3 class="text-text-primary mb-1">
+				if data.Device.PluginName != "" {
+					{ data.ActivePluginName() }
+				} else {
+					No Plugin Selected
 				}
-			</div>
-		</details>
-		<!-- Card 2: Configuration -->
+			</h3>
+			for _, p := range data.Plugins {
+				if p.Name() == data.Device.PluginName && p.Description() != "" {
+					<p class="text-text-secondary text-sm">{ p.Description() }</p>
+				}
+			}
+			for _, ip := range data.InstalledPlugins {
+				if ip.ID == data.Device.PluginName && ip.Description != "" {
+					<p class="text-text-secondary text-sm">{ ip.Description }</p>
+				}
+			}
+		</div>
+		<!-- Configuration -->
 		if len(data.ConfigGroups) > 0 {
-			<details class="bg-dark-card border border-dark-border rounded-lg" open>
-				<summary class="px-6 py-4 cursor-pointer select-none flex items-center justify-between text-gray-200 font-medium hover:bg-dark-hover transition-colors rounded-lg">
-					<span>Configuration</span>
-					<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-					</svg>
-				</summary>
-				<div class="px-6 pb-6">
-					<!-- Theme preset selector -->
-					if len(data.Themes) > 0 {
-						<div class="mb-5">
-							<label class="text-xs uppercase tracking-wider text-gray-500 mb-2 block">Load Preset</label>
-							<form
-								hx-put={ "/boards/" + data.Device.MAC + "/theme" }
-								hx-target="#controls"
-								hx-swap="outerHTML"
-								class="flex gap-2"
-							>
-								<select
-									name="theme_id"
-									class="flex-1 bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm"
-								>
-									<option value="">— select preset —</option>
-									for _, theme := range data.Themes {
-										<option
-											value={ theme.ID }
-											selected?={ data.Device.ThemeID == theme.ID }
-										>
-											if theme.IsBuiltIn {
-												{ theme.Name }
-											} else {
-												{ theme.Name } (yours)
-											}
-										</option>
-									}
-								</select>
-								<button
-									type="submit"
-									class="bg-gold text-dark font-bold px-3 py-2 rounded hover:bg-yellow-600 transition text-sm shrink-0"
-								>
-									Load
-								</button>
-							</form>
-						</div>
-					}
-					<!-- Dynamic config fields -->
+			<!-- Preset selector -->
+			if len(data.Presets) > 0 {
+				<div>
+					<label class="text-text-muted block mb-2">Load Preset</label>
 					<form
-						id="mode-config-form"
-						hx-put={ "/boards/" + data.Device.MAC + "/config" }
+						hx-put={ "/boards/" + data.Device.MAC + "/preset" }
 						hx-target="#controls"
 						hx-swap="outerHTML"
+						class="flex gap-2"
 					>
-						for _, group := range data.ConfigGroups {
-							<div class="mb-4">
-								<h4 class="text-xs uppercase tracking-wider text-gray-500 mb-3">{ group.Name }</h4>
-								<div class="space-y-2">
-									for _, field := range group.Fields {
-										@configField(field, data.ConfigValues)
+						<select
+							name="preset_id"
+							class="select flex-1"
+						>
+							<option value="">-- select preset --</option>
+							for _, preset := range data.Presets {
+								<option
+									value={ preset.ID }
+									selected?={ data.Device.PresetID == preset.ID }
+								>
+									if preset.IsBuiltIn {
+										{ preset.Name }
+									} else {
+										{ preset.Name } (yours)
 									}
-								</div>
-							</div>
-						}
+								</option>
+							}
+						</select>
 						<button
 							type="submit"
-							class="w-full bg-gold text-dark font-bold px-4 py-2 rounded hover:bg-yellow-600 transition text-sm mt-2"
+							class="btn-primary h-10"
 						>
-							Apply
+							Load
 						</button>
 					</form>
-					<!-- Save as theme -->
-					<div class="border-t border-dark-border mt-4 pt-4">
-						<h4 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Save as Preset</h4>
-						<form
-							hx-post="/api/v1/themes"
-							hx-target="#controls"
-							hx-swap="outerHTML"
-							class="flex gap-2"
-							onsubmit="collectConfigToThemeForm(this)"
-						>
-							<input type="hidden" name="mode_name" value={ data.Device.Mode }/>
-							<input
-								type="text"
-								name="name"
-								placeholder="Preset name"
-								required
-								class="flex-1 bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm"
-							/>
-							<button
-								type="submit"
-								class="bg-gold text-dark font-bold px-3 py-2 rounded hover:bg-yellow-600 transition text-sm shrink-0"
-							>
-								Save
-							</button>
-						</form>
+				</div>
+			}
+			<!-- Dynamic config fields -->
+			<form
+				id="plugin-config-form"
+				hx-put={ "/boards/" + data.Device.MAC + "/config" }
+				hx-target="#controls"
+				hx-swap="outerHTML"
+				class="space-y-4"
+			>
+				for _, group := range data.ConfigGroups {
+					<div>
+						<label class="text-text-muted block mb-3">{ group.Name }</label>
+						<div class="space-y-2">
+							for _, field := range group.Fields {
+								@configField(field, data.ConfigValues)
+							}
+						</div>
+					</div>
+				}
+				<button
+					type="submit"
+					class="btn-primary w-full h-10"
+				>
+					Apply
+				</button>
+			</form>
+		}
+		<!-- Save as preset -->
+		<div class="border-t border-border-subtle pt-4">
+			<form
+				hx-post="/api/v1/presets"
+				hx-target="#controls"
+				hx-swap="outerHTML"
+				class="space-y-2"
+				onsubmit="collectConfigToPresetForm(this)"
+			>
+				<input type="hidden" name="plugin_name" value={ data.Device.PluginName }/>
+				<input
+					type="text"
+					name="name"
+					placeholder="Preset name"
+					required
+					class="input w-full"
+				/>
+				<button
+					type="submit"
+					class="btn-outline w-full h-10 rounded-full"
+				>
+					Save as Preset
+				</button>
+			</form>
+		</div>
+	</div>
+}
+
+templ BrowsePluginsContent(data BoardData) {
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+		<!-- Built-in plugins -->
+		for _, p := range data.Plugins {
+			<button
+				hx-put={ "/boards/" + data.Device.MAC + "/plugin" }
+				hx-vals={ fmt.Sprintf(`{"plugin":"%s"}`, p.Name()) }
+				hx-target="#controls"
+				hx-swap="outerHTML"
+				class={
+					"rounded-xl border transition-all text-left flex flex-col overflow-hidden",
+					templ.KV("border-accent-gold bg-accent-gold/5", data.Device.PluginName == p.Name()),
+					templ.KV("border-border-subtle bg-bg-surface hover:border-border-hover", data.Device.PluginName != p.Name()),
+				}
+			>
+				<!-- Preview placeholder -->
+				<div class="h-32 bg-bg-surface-raised relative overflow-hidden flex items-center justify-center">
+					<span class="text-text-muted text-sm">Plugin Preview</span>
+				</div>
+				<!-- Plugin Info -->
+				<div class="p-4 flex flex-col">
+					<div class="flex items-start justify-between mb-1">
+						<div class="text-text-primary text-sm font-medium">{ p.Name() }</div>
+						if data.Device.PluginName == p.Name() {
+							<div class="size-3 rounded-full bg-accent-gold animate-pulse"></div>
+						}
+					</div>
+					if p.Description() != "" {
+						<p class="text-text-secondary text-xs leading-relaxed line-clamp-2">{ p.Description() }</p>
+					}
+					<span class="text-text-muted text-xs mt-1">Built-in</span>
+				</div>
+			</button>
+		}
+		<!-- User-installed plugins from DB -->
+		for _, ip := range data.InstalledPlugins {
+			<button
+				hx-put={ "/boards/" + data.Device.MAC + "/plugin" }
+				hx-vals={ fmt.Sprintf(`{"plugin":"%s"}`, ip.ID) }
+				hx-target="#controls"
+				hx-swap="outerHTML"
+				class={
+					"rounded-xl border transition-all text-left flex flex-col overflow-hidden",
+					templ.KV("border-accent-gold bg-accent-gold/5", data.Device.PluginName == ip.ID),
+					templ.KV("border-border-subtle bg-bg-surface hover:border-border-hover", data.Device.PluginName != ip.ID),
+				}
+			>
+				<!-- Preview placeholder -->
+				<div class="h-32 bg-bg-surface-raised relative overflow-hidden flex items-center justify-center">
+					<span class="text-text-muted text-sm">Plugin Preview</span>
+				</div>
+				<!-- Plugin Info -->
+				<div class="p-4 flex flex-col">
+					<div class="flex items-start justify-between mb-1">
+						<div class="text-text-primary text-sm font-medium">{ ip.Name }</div>
+						if data.Device.PluginName == ip.ID {
+							<div class="size-3 rounded-full bg-accent-gold animate-pulse"></div>
+						}
+					</div>
+					if ip.Description != "" {
+						<p class="text-text-secondary text-xs leading-relaxed line-clamp-2">{ ip.Description }</p>
+					}
+					<span class="text-text-muted text-xs mt-1">{ ip.AuthorEmail }</span>
+				</div>
+			</button>
+		}
+		if len(data.Plugins) == 0 && len(data.InstalledPlugins) == 0 {
+			<div class="col-span-full text-center py-10">
+				<p class="text-text-secondary text-sm">No plugins available. Install some from the <a href="/community" class="text-accent-gold hover:underline">Community</a> page.</p>
+			</div>
+		}
+	</div>
+}
+
+templ BoardSettingsContent(data BoardData) {
+	<div class="space-y-6">
+		<!-- Board Name -->
+		<div class="glass rounded-2xl overflow-hidden">
+			<div class="p-6 border-b border-border-subtle">
+				<div class="flex items-center gap-3">
+					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center">
+						@Icon("settings", "size-5 text-accent-gold")
+					</div>
+					<div>
+						<h3 class="text-base font-semibold text-text-primary">Board Info</h3>
+						<p class="text-xs text-text-muted">Configure your board</p>
 					</div>
 				</div>
-			</details>
-		}
-		<!-- Card 3: Device Info -->
-		<div class="bg-dark-card border border-dark-border rounded-lg p-6">
-			<h3 class="text-gray-200 font-medium mb-4">Device Info</h3>
-			<div class="space-y-4">
+			</div>
+			<div class="p-6 space-y-4">
 				<div>
-					<label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Board Name</label>
+					<label class="block text-xs font-medium text-text-secondary mb-2">Board Name</label>
 					<input
 						type="text"
 						value={ data.Device.Name }
@@ -166,68 +274,161 @@ templ BoardControls(data BoardData) {
 						hx-vals="js:{&quot;name&quot;: event.target.value}"
 						hx-target="#controls"
 						hx-swap="outerHTML"
-						class="w-full bg-dark border border-dark-border rounded px-3 py-2 text-gray-300 focus:border-gold focus:outline-none text-sm"
+						class="input w-full"
 					/>
 				</div>
-				<div>
-					<label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">MAC Address</label>
-					<p class="text-sm text-gray-300 font-mono">{ data.Device.MAC }</p>
-				</div>
-				<div>
-					<label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Firmware</label>
-					<p class="text-sm text-gray-300">
-						if data.Device.FirmwareVer != "" {
-							v{ data.Device.FirmwareVer }
-						} else {
-							Unknown
-						}
-					</p>
-				</div>
-				<div class="grid grid-cols-2 gap-4">
-					<div>
-						<label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Created</label>
-						<p class="text-xs text-gray-500">{ TimeAgo(data.Device.CreatedAt) }</p>
+				<div class="bg-bg-surface-raised/50 rounded-xl p-4 border border-border-subtle">
+					<div class="flex items-center justify-between mb-2">
+						<span class="text-xs text-text-muted">MAC Address</span>
+						<span class="text-sm font-mono text-text-secondary">{ data.Device.MAC }</span>
 					</div>
-					<div>
-						<label class="text-xs uppercase tracking-wider text-gray-500 mb-1 block">Last Seen</label>
-						<p
-							class={
-								"text-xs",
-								templ.KV("text-green-500", IsOnline(data.Device.LastSeen)),
-								templ.KV("text-gray-500", !IsOnline(data.Device.LastSeen)),
-							}
-						>
-							if IsOnline(data.Device.LastSeen) {
-								Online now
-							} else {
-								{ TimeAgo(data.Device.LastSeen) }
-							}
-						</p>
+					<div class="flex items-center justify-between">
+						<span class="text-xs text-text-muted">Active Plugin</span>
+						<span class="text-sm text-text-secondary">{ data.ActivePluginName() }</span>
 					</div>
 				</div>
 			</div>
 		</div>
-		<!-- Card 4: Access -->
-		@DeviceAccess(data.Device, data.Access)
+		<!-- WiFi Settings -->
+		<div class="glass rounded-2xl overflow-hidden">
+			<div class="p-6 border-b border-border-subtle">
+				<div class="flex items-center gap-3">
+					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center">
+						@Icon("wifi", "size-5 text-accent-gold")
+					</div>
+					<div>
+						<h3 class="text-base font-semibold text-text-primary">WiFi Settings</h3>
+						<p class="text-xs text-text-muted">Manage wireless connection</p>
+					</div>
+				</div>
+			</div>
+			<div class="p-6">
+				<div id="serial-wifi-panel" class="glass rounded-2xl p-8 text-center">
+					@Icon("wifi-off", "size-12 text-text-muted mx-auto mb-4")
+					<h3 class="text-lg font-semibold text-text-primary mb-2">Board Not Connected</h3>
+					<p class="text-sm text-text-secondary mb-4">Connect your board via USB to access settings</p>
+					<button onclick="window.boardSerial && window.boardSerial.connect()" class="btn-primary mx-auto flex items-center justify-center gap-2">
+						@Icon("usb", "size-4")
+						Connect via USB
+					</button>
+				</div>
+			</div>
+		</div>
+		<!-- Firmware Update -->
+		<div class="glass rounded-2xl overflow-hidden">
+			<div class="p-6 border-b border-border-subtle">
+				<div class="flex items-center gap-3">
+					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center">
+						@Icon("upload", "size-5 text-accent-gold")
+					</div>
+					<div>
+						<h3 class="text-base font-semibold text-text-primary">Firmware Update</h3>
+						<p class="text-xs text-text-muted">Upload new firmware to your board</p>
+					</div>
+				</div>
+			</div>
+			<div class="p-6 space-y-4">
+				<div class="bg-bg-surface-raised/50 rounded-xl p-4 border border-border-subtle">
+					<div class="flex items-center justify-between mb-2">
+						<span class="text-xs text-text-muted">Current Version</span>
+						<span class="text-sm font-mono text-text-secondary">
+							if data.Device.FirmwareVer != "" {
+								v{ data.Device.FirmwareVer }
+							} else {
+								Unknown
+							}
+						</span>
+					</div>
+				</div>
+				<p class="text-xs text-text-secondary">Connect via USB to update firmware</p>
+			</div>
+		</div>
 	</div>
 }
 
-templ configField(field mode.ConfigField, configValues map[string]string) {
+templ ConnectionCard(data BoardData) {
+	<div class="glass p-5 rounded-2xl">
+		<div class="flex items-center gap-2 mb-4">
+			if IsOnline(data.Device.LastSeen) {
+				@Icon("wifi", "size-4 text-status-online")
+			} else {
+				@Icon("wifi-off", "size-4 text-text-muted")
+			}
+			<h3 class="text-text-primary">Connection</h3>
+		</div>
+		<div class="space-y-3 text-sm">
+			<div class="flex justify-between">
+				<span class="text-text-secondary">Status</span>
+				if IsOnline(data.Device.LastSeen) {
+					<span class="text-status-online">Online</span>
+				} else {
+					<span class="text-text-muted">Offline</span>
+				}
+			</div>
+			<div class="flex justify-between">
+				<span class="text-text-secondary">Board</span>
+				<span class="text-text-primary">
+					if data.Device.Name != "" {
+						{ data.Device.Name }
+					} else {
+						{ data.Device.MAC }
+					}
+				</span>
+			</div>
+			<div class="flex justify-between">
+				<span class="text-text-secondary">MAC</span>
+				<span class="text-text-primary font-mono text-xs">{ data.Device.MAC }</span>
+			</div>
+			<div class="flex justify-between">
+				<span class="text-text-secondary">Last Seen</span>
+				<span
+					class={
+						"text-text-primary",
+						templ.KV("text-status-online", IsOnline(data.Device.LastSeen)),
+					}
+				>
+					if IsOnline(data.Device.LastSeen) {
+						Online now
+					} else {
+						{ TimeAgo(data.Device.LastSeen) }
+					}
+				</span>
+			</div>
+			<div class="flex justify-between">
+				<span class="text-text-secondary">Firmware</span>
+				<span class="text-text-primary">
+					if data.Device.FirmwareVer != "" {
+						v{ data.Device.FirmwareVer }
+					} else {
+						Unknown
+					}
+				</span>
+			</div>
+		</div>
+	</div>
+}
+
+// BoardControls is the legacy component name. Kept for backward compat with server.go partials.
+templ BoardControls(data BoardData) {
+	@PluginPanel(data)
+}
+
+templ configField(field plugin.ConfigField, configValues map[string]string) {
 	switch field.Type {
-		case mode.FieldColor:
-			<div class="flex items-center gap-3 bg-dark rounded px-3 py-2">
-				<span class="text-xs text-gray-400 w-16 shrink-0">{ field.Label }</span>
+		case plugin.FieldColor:
+			<div class="flex items-center gap-3 bg-bg-surface-raised/50 rounded-lg px-3 py-2">
+				<span class="text-text-muted text-xs uppercase tracking-wide w-20 shrink-0">{ field.Label }</span>
 				<input
 					type="color"
 					name={ field.Key }
 					value={ configValues[field.Key] }
-					class="w-8 h-8 rounded cursor-pointer border border-dark-border bg-transparent shrink-0"
+					class="h-10 w-10 rounded-lg border border-border-subtle bg-transparent cursor-pointer shrink-0"
 				/>
-				<span class="text-xs text-gray-500 font-mono">{ configValues[field.Key] }</span>
+				<span class="text-text-secondary text-xs font-mono">{ configValues[field.Key] }</span>
 			</div>
-		case mode.FieldNumber:
-			<div class="flex items-center gap-3 bg-dark rounded px-3 py-2">
-				<label class="text-xs text-gray-400 w-32 shrink-0">{ field.Label }</label>
+		case plugin.FieldNumber:
+			<div class="flex items-center gap-3 bg-bg-surface-raised/50 rounded-lg px-3 py-2">
+				<label class="text-text-muted text-xs uppercase tracking-wide w-32 shrink-0">{ field.Label }</label>
 				<input
 					type="number"
 					name={ field.Key }
@@ -238,15 +439,15 @@ templ configField(field mode.ConfigField, configValues map[string]string) {
 					if field.Max != "" {
 						max={ field.Max }
 					}
-					class="flex-1 bg-dark-card border border-dark-border rounded px-3 py-1.5 text-gray-300 focus:border-gold focus:outline-none text-sm w-20"
+					class="input w-24"
 				/>
 			</div>
-		case mode.FieldSelect:
-			<div class="flex items-center gap-3 bg-dark rounded px-3 py-2">
-				<label class="text-xs text-gray-400 w-32 shrink-0">{ field.Label }</label>
+		case plugin.FieldSelect:
+			<div class="flex items-center gap-3 bg-bg-surface-raised/50 rounded-lg px-3 py-2">
+				<label class="text-text-muted text-xs uppercase tracking-wide w-32 shrink-0">{ field.Label }</label>
 				<select
 					name={ field.Key }
-					class="flex-1 bg-dark-card border border-dark-border rounded px-3 py-1.5 text-gray-300 focus:border-gold focus:outline-none text-sm"
+					class="select"
 				>
 					for _, opt := range field.Options {
 						<option value={ opt } selected?={ configValues[field.Key] == opt }>

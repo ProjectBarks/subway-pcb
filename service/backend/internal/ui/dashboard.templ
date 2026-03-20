@@ -1,29 +1,33 @@
 package ui
 
-import "github.com/ProjectBarks/subway-pcb/server/internal/model"
+import (
+	"fmt"
+
+	"github.com/ProjectBarks/subway-pcb/server/internal/model"
+)
 
 templ DashboardPage(user *model.User, boards []model.Device, cards []BoardCard) {
-	@Base("Dashboard", user, boards, "") {
-		<div class="space-y-6">
-			<div class="flex items-center justify-between">
-				<div>
-					<h1 class="text-2xl text-gray-200 font-bold">Dashboard</h1>
-					if user.IsAdmin() {
-						<p class="text-sm text-gray-500 mt-1">
-							{ lenStr(boards) } board{ plural(boards) } registered
-						</p>
-					}
+	@Base("My Boards", user, "/boards") {
+		<div class="min-h-screen pt-8 pb-16 px-5 lg:px-10">
+			<div class="max-w-7xl mx-auto">
+				<!-- Header -->
+				<div class="mb-10">
+					<h1 class="text-text-primary mb-2">My Boards</h1>
+					<p class="text-text-secondary">
+						Manage and control your LED PCB boards
+					</p>
 				</div>
-			</div>
-			<div
-				id="board-grid"
-				hx-get="/partials/board-list"
-				hx-trigger="every 5s"
-				hx-target="#board-grid"
-				hx-swap="innerHTML"
-				class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-			>
-				@BoardGrid(cards)
+				<!-- Board Grid (htmx polling target) -->
+				<div
+					id="board-grid"
+					hx-get="/partials/board-list"
+					hx-trigger="every 5s"
+					hx-target="#board-grid"
+					hx-swap="innerHTML"
+					class="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+				>
+					@BoardGrid(cards)
+				</div>
 			</div>
 		</div>
 	}
@@ -31,56 +35,71 @@ templ DashboardPage(user *model.User, boards []model.Device, cards []BoardCard) 
 
 templ BoardGrid(cards []BoardCard) {
 	if len(cards) > 0 {
-		for _, card := range cards {
-			@boardCard(card)
-		}
-	} else {
-		<div class="col-span-full flex flex-col items-center justify-center py-24">
-			<div class="w-16 h-16 mb-6 rounded-full border-2 border-dark-border flex items-center justify-center" style="animation: pulse-subtle 3s ease-in-out infinite;">
-				<svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-				</svg>
+		for i, card := range cards {
+			<div class="animate-fade-up" style={ fmt.Sprintf("--delay: %dms", i*100) }>
+				@boardCard(card)
 			</div>
-			<p class="text-gray-500 text-lg mb-2">No boards connected yet</p>
-			<p class="text-gray-600 text-sm">Boards will appear here once they connect to the server</p>
+		}
+		<div class="animate-fade-up" style={ fmt.Sprintf("--delay: %dms", len(cards)*100) }>
+			@addBoardCard()
+		</div>
+	} else {
+		<!-- Empty State -->
+		<div class="col-span-full text-center py-20">
+			<div class="size-20 rounded-full bg-bg-surface border border-border-subtle flex items-center justify-center mx-auto mb-6">
+				@Icon("plus", "size-10 text-text-muted")
+			</div>
+			<h3 class="text-text-primary mb-2">No boards yet</h3>
+			<p class="text-text-secondary mb-6">Plug in your board to get started</p>
 		</div>
 	}
 }
 
 templ boardCard(card BoardCard) {
-	<a href={ templ.URL("/boards/" + card.Device.MAC) } class="block group">
-		<div class="bg-dark-card border border-dark-border rounded-lg p-6 hover:bg-dark-hover hover:border-dark-border/80 transition-all duration-200">
-			<div class="flex items-start justify-between mb-4">
-				<h3 class="text-gray-200 font-medium truncate mr-2">
-					if card.Device.Name != "" {
-						{ card.Device.Name }
-					} else {
-						{ card.Device.MAC }
-					}
-				</h3>
-				<span class="relative flex h-2.5 w-2.5 mt-1.5 shrink-0">
-					if IsOnline(card.Device.LastSeen) {
-						<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500 shadow-lg shadow-green-500/50"></span>
-					} else {
-						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-600"></span>
-					}
-				</span>
+	<a href={ templ.URL("/boards/" + card.Device.MAC) } class="block">
+		<div class="p-5 bg-bg-surface border border-border-subtle rounded-2xl hover:border-border-hover hover:scale-[1.005] cursor-pointer transition-all">
+			<!-- Preview area -->
+			<div class="h-40 bg-bg-surface-raised rounded-xl mb-4 overflow-hidden relative flex items-center justify-center">
+				<span class="text-text-muted text-sm">Board Preview</span>
 			</div>
-			if card.Device.Mode != "" {
-				<div class="mb-4">
-					<span class="inline-block text-xs px-2.5 py-0.5 rounded-full bg-gold/15 text-gold font-medium">
-						{ card.Device.Mode }
-					</span>
+			<!-- Board Info -->
+			<div class="space-y-2">
+				<div>
+					<h3 class="text-text-primary mb-0.5">
+						if card.Device.Name != "" {
+							{ card.Device.Name }
+						} else {
+							{ card.Device.MAC }
+						}
+					</h3>
+					<p class="text-text-muted text-xs uppercase tracking-wide">NYC Subway</p>
 				</div>
-			}
-			<div class="text-xs text-gray-600">
-				if IsOnline(card.Device.LastSeen) {
-					<span class="text-green-500/70">online</span>
-				} else {
-					seen { TimeAgo(card.Device.LastSeen) }
+				<div class="flex items-center gap-2">
+					if IsOnline(card.Device.LastSeen) {
+						<div class="size-2 rounded-full bg-status-online animate-pulse"></div>
+					} else {
+						<div class="size-2 rounded-full bg-gray-600"></div>
+					}
+				</div>
+				if card.Device.PluginName != "" {
+					<div class="flex items-center justify-between pt-2 border-t border-border-subtle">
+						<span class="text-text-secondary text-sm">Active Plugin</span>
+						<span class="text-text-primary text-sm font-medium">{ card.Device.PluginName }</span>
+					</div>
 				}
 			</div>
 		</div>
 	</a>
+}
+
+templ addBoardCard() {
+	<div class="p-5 bg-bg-surface border border-border-subtle rounded-2xl hover:border-border-hover transition-all min-h-[280px] flex flex-col items-center justify-center gap-4 text-text-secondary hover:text-text-primary cursor-pointer">
+		<div class="size-16 rounded-full bg-bg-surface-raised border border-border-subtle flex items-center justify-center">
+			@Icon("plus", "size-8")
+		</div>
+		<div class="text-center">
+			<div class="font-medium mb-1">Add Board</div>
+			<div class="text-sm text-text-muted">Plug in to get started</div>
+		</div>
+	</div>
 }

@@ -18,7 +18,9 @@ declare global {
 		_previewRenderer?: import("./lib/preview").PreviewRenderer;
 		updatePreviewColor: (input: HTMLInputElement) => void;
 		collectRouteColorsToForm: (form: HTMLFormElement) => void;
-		collectConfigToThemeForm: (form: HTMLFormElement) => void;
+		collectConfigToPresetForm: (form: HTMLFormElement) => void;
 		Board: typeof import("./lib/board").Board;
+		boardSerial: import("./lib/serial").BoardSerial;
+		encodeCommand: typeof import("./lib/serial").encodeCommand;
 	}
 }
