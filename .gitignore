@@ -37,8 +37,6 @@ pcb/top_texture.png
 pcb/bottom_texture.png
 pcb/top_metallic_roughness.png
 pcb/bottom_metallic_roughness.png
-service/frontend/public/subway-pcb.glb
-service/frontend/public/led_positions.json
 
 # Managed components (downloaded at build time)
 **/managed_components/
