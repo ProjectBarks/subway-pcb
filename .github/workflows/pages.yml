@@ -6,7 +6,7 @@ on:
     paths:
       - 'service/backend/internal/ui/landing.templ'
       - 'service/backend/cmd/generate-site/**'
-      - 'service/frontend/public/**'
+      - 'service/frontend/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -29,6 +29,12 @@ jobs:
         with:
           go-version-file: service/backend/go.mod
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: service/frontend/package-lock.json
+
       - name: Install templ
         run: go install github.com/a-h/templ/cmd/templ@latest
 
@@ -40,8 +46,14 @@ jobs:
         working-directory: service/backend
         run: go run ./cmd/generate-site/ ../../_site
 
-      - name: Copy frontend public assets
-        run: cp -r service/frontend/public/* _site/ 2>/dev/null || true
+      - name: Build frontend
+        working-directory: service/frontend
+        run: npm ci && npm run build
+
+      - name: Copy built assets
+        run: |
+          mkdir -p _site/static/dist
+          cp -r service/static/dist/* _site/static/dist/
 
       - uses: actions/upload-pages-artifact@v3
         with:
