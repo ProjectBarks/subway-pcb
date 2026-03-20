@@ -40,6 +40,7 @@ export default defineConfig({
         "app-shell": resolve(__dirname, "ui/components/layout/app-shell.ts"),
         "board-page": resolve(__dirname, "ui/board/board-page.ts"),
         "landing": resolve(__dirname, "ui/landing/landing.ts"),
+        "community": resolve(__dirname, "ui/community/community.ts"),
         "editor": resolve(__dirname, "ui/editor/editor.tsx"),
         main: resolve(__dirname, "ui/components/layout/global.css"),
       },

@@ -50,6 +50,7 @@ templ CommunityPage(user *model.User, plugins []model.Plugin, installed map[stri
 			</div>
 		</div>
 		@communityCodeModal()
+		<script type="module" src="/static/dist/community.js"></script>
 		<script>
 		function showCodeModal(pluginId, name, author) {
 			document.getElementById('modal-plugin-name').textContent = name;
@@ -60,7 +61,13 @@ templ CommunityPage(user *model.User, plugins []model.Plugin, installed map[stri
 				.then(function(r) { return r.json(); })
 				.then(function(data) {
 					var p = data.data;
-					document.getElementById('modal-code-content').textContent = p.lua_source || '-- No source available';
+					var src = p.lua_source || '-- No source available';
+					var el = document.getElementById('modal-code-content');
+					if (window.highlightLua) {
+						el.innerHTML = window.highlightLua(src);
+					} else {
+						el.textContent = src;
+					}
 				})
 				.catch(function() {
 					document.getElementById('modal-code-content').textContent = '-- Failed to load source';

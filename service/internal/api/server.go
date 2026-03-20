@@ -183,7 +183,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cards := s.buildBoardCards(boards)
+	cards := s.buildBoardCards(user, boards)
 	ui.DashboardPage(user, boards, cards).Render(r.Context(), w)
 }
 
@@ -196,7 +196,7 @@ func (s *Server) handleBoardListPartial(w http.ResponseWriter, r *http.Request) 
 		boards, _ = s.store.ListDevicesByUser(user.Email)
 	}
 
-	cards := s.buildBoardCards(boards)
+	cards := s.buildBoardCards(user, boards)
 	ui.BoardGrid(cards).Render(r.Context(), w)
 }
 
@@ -266,7 +266,24 @@ func (s *Server) handleBoardView(w http.ResponseWriter, r *http.Request) {
 }
 
 // buildBoardCards creates board card data for dashboard display.
-func (s *Server) buildBoardCards(boards []model.Device) []ui.BoardCard {
+func (s *Server) buildBoardCards(user *model.User, boards []model.Device) []ui.BoardCard {
+	// Prefetch installed plugins once for name resolution.
+	var installedPlugins []model.Plugin
+	if user != nil {
+		own, _ := s.store.ListPluginsByAuthor(user.Email)
+		inst, _ := s.store.ListInstalledPlugins(user.Email)
+		seen := make(map[string]bool)
+		for _, p := range own {
+			seen[p.ID] = true
+			installedPlugins = append(installedPlugins, p)
+		}
+		for _, p := range inst {
+			if !seen[p.ID] {
+				installedPlugins = append(installedPlugins, p)
+			}
+		}
+	}
+
 	cards := make([]ui.BoardCard, len(boards))
 	for i, d := range boards {
 		cards[i].Device = d
@@ -274,8 +291,27 @@ func (s *Server) buildBoardCards(boards []model.Device) []ui.BoardCard {
 			t, _ := s.store.GetPreset(d.PresetID)
 			cards[i].Preset = t
 		}
+		cards[i].ActivePluginName = s.resolvePluginName(d.PluginName, installedPlugins)
 	}
 	return cards
+}
+
+// resolvePluginName returns the human-readable name for a plugin ID.
+func (s *Server) resolvePluginName(id string, installedPlugins []model.Plugin) string {
+	if id == "" {
+		return ""
+	}
+	for _, p := range s.plugins.List() {
+		if p.Name() == id {
+			return p.Name()
+		}
+	}
+	for _, p := range installedPlugins {
+		if p.ID == id {
+			return p.Name
+		}
+	}
+	return id
 }
 
 // buildBoardData builds the typed data for the board view and controls.

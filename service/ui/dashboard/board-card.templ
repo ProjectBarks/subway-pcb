@@ -28,10 +28,10 @@ templ boardCard(card BoardCard) {
 						<div class="size-2 rounded-full bg-gray-600"></div>
 					}
 				</div>
-				if card.Device.PluginName != "" {
+				if card.ActivePluginName != "" {
 					<div class="flex items-center justify-between pt-2 border-t border-border-subtle">
 						<span class="text-text-secondary text-sm">Active Plugin</span>
-						<span class="text-text-primary text-sm font-medium">{ card.Device.PluginName }</span>
+						<span class="text-text-primary text-sm font-medium">{ card.ActivePluginName }</span>
 					</div>
 				}
 			</div>
