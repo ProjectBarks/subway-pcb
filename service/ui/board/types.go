@@ -17,6 +17,7 @@ type BoardData struct {
 	ActiveMAC        string
 	ConfigGroups     []plugin.FieldGroup
 	ConfigValues     map[string]string
+	BoardURL         string                // URL path to board.json for 3D viewer
 }
 
 // ActivePluginName returns the human-readable name for the active plugin.

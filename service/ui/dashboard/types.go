@@ -7,4 +7,5 @@ type BoardCard struct {
 	Device           model.Device
 	Preset           *model.Preset
 	ActivePluginName string // resolved human-readable plugin name
+	BoardModelName   string // e.g. "NYC Subway", from board manifest
 }

@@ -6,9 +6,9 @@ templ BoardPage(data BoardData) {
 	@components.Base(deviceTitle(data.Device), data.User, "/boards/"+data.Device.MAC) {
 		<!-- Board Viewer Section -->
 		<div class="relative h-[65vh] min-h-[600px] bg-gradient-to-b from-black to-bg-primary">
-			<!-- Canvas -->
-			<div id="canvas-wrap" data-device-mac={ data.Device.MAC } class="absolute inset-0">
-				<canvas id="c" class="w-full h-full"></canvas>
+			<!-- 3D Board Viewer -->
+			<div id="canvas-wrap" data-device-mac={ data.Device.MAC } data-board-url={ data.BoardURL } class="absolute inset-0">
+				<div id="board-viewer" class="w-full h-full"></div>
 			</div>
 			<!-- Floating Info Bar (glass pill) -->
 			<div class="absolute top-8 left-1/2 -translate-x-1/2 glass px-6 py-3 rounded-full flex items-center gap-4 animate-info-entrance">

@@ -1,7 +1,4 @@
-import type { Board } from "./board";
-import { STRIP_SIZES, TOTAL_LEDS } from "./board";
 import { hexToRgb } from "./color";
-import type { LedPosition } from "./types";
 
 interface StationTrain {
 	route: string;
@@ -16,44 +13,41 @@ interface StateData {
 	stations?: StationState[];
 }
 
+interface BoardJson {
+	ledCount: number;
+	strips: number[];
+	ledPositions: Array<{
+		index: number;
+		stationId: string;
+	}>;
+}
+
 export class PreviewRenderer {
-	board: Board;
+	private setPixelsFn: (data: Uint8Array) => void;
 	stateData: StateData | null = null;
-	ledMap: LedPosition[] | null = null;
 	ledMapFlat: string[] | null = null;
 	routeColors: Record<string, string> | null = null;
+	private totalLEDs = 0;
 	private _refreshInterval: ReturnType<typeof setInterval> | null = null;
 
-	constructor(board: Board) {
-		this.board = board;
+	constructor(handle: { setPixels(data: Uint8Array): void }) {
+		this.setPixelsFn = (data) => handle.setPixels(data);
 	}
 
 	async init(): Promise<void> {
-		// Load LED map (station assignments)
+		// Load LED map from board.json, deriving flat station IDs from ledPositions
 		try {
-			const resp = await fetch("/static/leds.json");
-			this.ledMap = await resp.json();
-		} catch (e) {
-			console.warn("preview: failed to load leds.json", e);
-		}
-
-		// Load flat LED map for station-to-LED mapping
-		try {
-			const resp = await fetch("/static/led_map.json");
-			const raw: Record<string, string> = await resp.json();
-			this.ledMapFlat = new Array<string>(TOTAL_LEDS).fill("");
-			let offset = 0;
-			for (let strip = 0; strip < 9; strip++) {
-				for (let pixel = 0; pixel < STRIP_SIZES[strip]; pixel++) {
-					const key = `${strip},${pixel}`;
-					if (raw[key]) {
-						this.ledMapFlat[offset] = raw[key];
-					}
-					offset++;
+			const resp = await fetch("/static/dist/boards/nyc-subway/v1/board.json");
+			const board: BoardJson = await resp.json();
+			this.totalLEDs = board.ledCount;
+			this.ledMapFlat = new Array<string>(this.totalLEDs).fill("");
+			for (const pos of board.ledPositions) {
+				if (pos.index >= 0 && pos.index < this.totalLEDs && pos.stationId) {
+					this.ledMapFlat[pos.index] = pos.stationId;
 				}
 			}
 		} catch (e) {
-			console.warn("preview: failed to load led_map.json", e);
+			console.warn("preview: failed to load board.json", e);
 		}
 
 		// Fetch initial state
@@ -82,7 +76,7 @@ export class PreviewRenderer {
 	render(): void {
 		if (!this.stateData || !this.ledMapFlat || !this.routeColors) return;
 
-		const pixels = new Uint8Array(TOTAL_LEDS * 3);
+		const pixels = new Uint8Array(this.totalLEDs * 3);
 
 		// Build station -> best route map from state
 		const stationRoutes: Record<string, string> = {};
@@ -96,7 +90,7 @@ export class PreviewRenderer {
 		}
 
 		// Map station routes to LED pixels using custom colors
-		for (let i = 0; i < TOTAL_LEDS; i++) {
+		for (let i = 0; i < this.totalLEDs; i++) {
 			const sid = this.ledMapFlat[i];
 			if (!sid) continue;
 
@@ -114,7 +108,7 @@ export class PreviewRenderer {
 			}
 		}
 
-		this.board.setPixels(pixels);
+		this.setPixelsFn(pixels);
 	}
 
 	destroy(): void {

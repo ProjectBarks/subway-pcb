@@ -36,6 +36,7 @@ type RenderContext struct {
 	Device     *model.Device
 	Config     map[string]string // resolved config (field defaults -> preset -> device overrides)
 	TotalLEDs  int
+	Strips     []int // per-strip LED counts from board manifest
 }
 
 // ConfigColor reads a hex color from config, falling back to the field default.

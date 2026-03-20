@@ -8,13 +8,12 @@ import (
 	"github.com/ProjectBarks/subway-pcb/service/internal/plugin"
 )
 
-var stripSizes = [9]int{97, 102, 55, 81, 70, 21, 22, 19, 11}
-
 // Plugin renders per-strip snakes with independent colors.
 type Plugin struct{}
 
-func (p *Plugin) Name() string        { return "snake" }
-func (p *Plugin) Description() string { return "Animated snakes running across each LED strip" }
+func (p *Plugin) Name() string             { return "snake" }
+func (p *Plugin) Description() string      { return "Animated snakes running across each LED strip" }
+func (p *Plugin) RequiredFeatures() []string { return nil }
 
 func (p *Plugin) ConfigFields() []plugin.ConfigField {
 	defaults := rainbow()
@@ -68,8 +67,7 @@ func (p *Plugin) Render(ctx plugin.RenderContext) ([]byte, error) {
 	step := int(time.Now().UnixMilli()) / speedMs
 
 	offset := 0
-	for strip := range 9 {
-		sz := stripSizes[strip]
+	for strip, sz := range ctx.Strips {
 		r, g, b := ctx.ConfigColor(fmt.Sprintf("strip_%d_color", strip+1), fields)
 
 		for sn := range snakeCount {

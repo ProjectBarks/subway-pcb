@@ -16,6 +16,7 @@ import (
 type Device struct {
 	MAC          string         `gorm:"column:mac;primaryKey;size:17"`
 	Name         string         `gorm:"column:name;size:255"`
+	BoardModelID string         `gorm:"column:board_model_id;size:50;default:'nyc-subway/v1'"`
 	PluginName   string         `gorm:"column:plugin_name;size:50;default:'track'"`
 	PresetID     string         `gorm:"column:theme_id;size:36"`
 	FirmwareVer  string         `gorm:"column:firmware_ver;size:32"`
@@ -379,6 +380,7 @@ func toModelDevice(d *Device) model.Device {
 	return model.Device{
 		MAC:          d.MAC,
 		Name:         d.Name,
+		BoardModelID: d.BoardModelID,
 		PluginName:   d.PluginName,
 		PresetID:     d.PresetID,
 		FirmwareVer:  d.FirmwareVer,
@@ -404,6 +406,7 @@ func fromModelDevice(d *model.Device) Device {
 	return Device{
 		MAC:          d.MAC,
 		Name:         d.Name,
+		BoardModelID: d.BoardModelID,
 		PluginName:   d.PluginName,
 		PresetID:     d.PresetID,
 		FirmwareVer:  d.FirmwareVer,

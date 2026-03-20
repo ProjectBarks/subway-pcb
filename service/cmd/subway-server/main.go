@@ -23,10 +23,11 @@ import (
 func main() {
 	port := flag.Int("port", 8080, "HTTP server port")
 	pollInterval := flag.Duration("poll-interval", 15*time.Second, "Feed poll interval")
-	ledMapPath := flag.String("led-map", "led_map.json", "Path to led_map.json")
+	boardsDir := flag.String("boards-dir", "public/boards", "Directory containing versioned board definitions")
 	dataDir := flag.String("data-dir", "data", "Data directory for bbolt database")
 	staticDir := flag.String("static-dir", "", "Path to static assets directory (serves /static/)")
 	devMode := flag.Bool("dev", false, "Enable dev-only routes (e.g. /landing)")
+	_ = flag.String("led-map", "", "deprecated, use --boards-dir")
 	_ = flag.String("visualizer", "", "deprecated")
 	flag.Parse()
 
@@ -56,6 +57,12 @@ func main() {
 		log.Fatalf("Failed to seed presets: %v", err)
 	}
 
+	// Load all versioned board definitions
+	boards, err := api.LoadAllBoards(*boardsDir)
+	if err != nil {
+		log.Fatalf("Failed to load boards: %v", err)
+	}
+
 	// Create aggregator with 10-second train persistence.
 	aggregator := mta.NewAggregator(10 * time.Second)
 
@@ -66,12 +73,8 @@ func main() {
 	// Start all feed pollers.
 	mta.StartAllPollers(ctx, aggregator, *pollInterval)
 
-	// Load LED map for pixel rendering.
-	ledMap, err := api.LoadLEDMap(*ledMapPath)
-	if err != nil {
-		log.Fatalf("Failed to load LED map: %v", err)
-	}
-	pixelRenderer := api.NewPixelRenderer(ledMap)
+	// Create pixel renderer with loaded boards.
+	pixelRenderer := api.NewPixelRenderer(boards)
 	pixelRenderer.SetDeps(db, pluginRegistry)
 
 	// Set up HTTP server.
@@ -80,6 +83,7 @@ func main() {
 		PixelRenderer:  pixelRenderer,
 		Store:          db,
 		PluginRegistry: pluginRegistry,
+		Boards:         boards,
 		AuthConfig:     authCfg,
 		StaticDir:      *staticDir,
 		DevMode:        *devMode,

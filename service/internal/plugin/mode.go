@@ -6,9 +6,27 @@ import "github.com/ProjectBarks/subway-pcb/service/internal/model"
 type Plugin interface {
 	Name() string
 	Description() string
+	RequiredFeatures() []string
 	ConfigFields() []ConfigField
 	DefaultPresets() []model.Preset
 	Render(ctx RenderContext) ([]byte, error)
+}
+
+// IsPluginCompatible returns true if the board has all features required by the plugin.
+func IsPluginCompatible(requiredFeatures, boardFeatures []string) bool {
+	if len(requiredFeatures) == 0 {
+		return true
+	}
+	featureSet := make(map[string]bool, len(boardFeatures))
+	for _, f := range boardFeatures {
+		featureSet[f] = true
+	}
+	for _, f := range requiredFeatures {
+		if !featureSet[f] {
+			return false
+		}
+	}
+	return true
 }
 
 // Registry holds all registered plugins in insertion order.

@@ -1,11 +1,9 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	pb "github.com/ProjectBarks/subway-pcb/service/gen/subwaypb"
@@ -16,59 +14,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var stripSizes = [9]int{97, 102, 55, 81, 70, 21, 22, 19, 11}
-
-const totalLEDs = 478
-
-// LEDMap maps flat LED index -> station ID.
-type LEDMap struct {
-	stationIDs []string
-}
-
-// StationIDs returns the flat station ID mapping for use by the plugin system.
-func (m *LEDMap) StationIDs() []string {
-	return m.stationIDs
-}
-
-// LoadLEDMap loads the led_map.json file.
-func LoadLEDMap(path string) (*LEDMap, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read led_map.json: %w", err)
-	}
-
-	var raw map[string]string
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("parse led_map.json: %w", err)
-	}
-
-	ids := make([]string, totalLEDs)
-	offset := 0
-	for strip := 0; strip < 9; strip++ {
-		for pixel := 0; pixel < stripSizes[strip]; pixel++ {
-			key := fmt.Sprintf("%d,%d", strip, pixel)
-			if sid, ok := raw[key]; ok {
-				ids[offset] = sid
-			}
-			offset++
-		}
-	}
-
-	log.Printf("ledmap: loaded %d entries from %s", len(raw), path)
-	return &LEDMap{stationIDs: ids}, nil
-}
-
 // PixelRenderer generates PixelFrame protobuf from aggregator state.
 type PixelRenderer struct {
-	ledMap  *LEDMap
+	boards  map[string]*BoardData
 	store   store.Store
 	plugins *plugin.Registry
 	seq     uint32
 }
 
-// NewPixelRenderer creates a renderer with the given LED map.
-func NewPixelRenderer(ledMap *LEDMap) *PixelRenderer {
-	return &PixelRenderer{ledMap: ledMap}
+// NewPixelRenderer creates a renderer with the loaded board data.
+func NewPixelRenderer(boards map[string]*BoardData) *PixelRenderer {
+	return &PixelRenderer{boards: boards}
 }
 
 // SetDeps sets the store and plugin registry.
@@ -84,9 +40,17 @@ func (pr *PixelRenderer) RenderFrame(agg *mta.Aggregator, mac string) ([]byte, e
 		return nil, fmt.Errorf("device not found: %s", mac)
 	}
 
+	board := pr.boards[BoardModelKey(device.BoardModelID)]
+	if board == nil {
+		return nil, fmt.Errorf("unknown board model: %s", device.BoardModelID)
+	}
+
 	pluginName := device.PluginName
 	if pluginName == "" {
-		pluginName = "track"
+		pluginName = board.Manifest.DefaultPlugin
+		if pluginName == "" {
+			pluginName = "track"
+		}
 	}
 
 	p, ok := pr.plugins.Get(pluginName)
@@ -113,10 +77,11 @@ func (pr *PixelRenderer) RenderFrame(agg *mta.Aggregator, mac string) ([]byte, e
 
 	pixels, err := p.Render(plugin.RenderContext{
 		Aggregator: agg,
-		StationIDs: pr.ledMap.stationIDs,
+		StationIDs: board.StationIDs,
 		Device:     device,
 		Config:     config,
-		TotalLEDs:  totalLEDs,
+		TotalLEDs:  board.Manifest.LEDCount,
+		Strips:     board.Manifest.Strips,
 	})
 	if err != nil {
 		return nil, err
@@ -126,7 +91,7 @@ func (pr *PixelRenderer) RenderFrame(agg *mta.Aggregator, mac string) ([]byte, e
 	frame := &pb.PixelFrame{
 		Timestamp: uint64(time.Now().Unix()),
 		Sequence:  pr.seq,
-		LedCount:  totalLEDs,
+		LedCount:  uint32(board.Manifest.LEDCount),
 		Pixels:    pixels,
 	}
 	return proto.Marshal(frame)
@@ -172,12 +137,30 @@ func (s *Server) autoRegisterDevice(mac string, r *http.Request) {
 		return
 	}
 
+	boardModelID := r.Header.Get("X-Board-Model")
+	if boardModelID == "" {
+		boardModelID = "nyc-subway/v1"
+	}
+
+	// Look up board manifest for default plugin/preset
+	defaultPlugin := "track"
+	defaultPreset := "track-classic-mta"
+	if board, ok := s.boards[boardModelID]; ok {
+		if board.Manifest.DefaultPlugin != "" {
+			defaultPlugin = board.Manifest.DefaultPlugin
+		}
+		if board.Manifest.DefaultPreset != "" {
+			defaultPreset = board.Manifest.DefaultPreset
+		}
+	}
+
 	device := &model.Device{
-		MAC:        mac,
-		PluginName: "track",
-		PresetID:   "track-classic-mta",
-		LastSeen:   time.Now(),
-		CreatedAt:  time.Now(),
+		MAC:          mac,
+		BoardModelID: boardModelID,
+		PluginName:   defaultPlugin,
+		PresetID:     defaultPreset,
+		LastSeen:     time.Now(),
+		CreatedAt:    time.Now(),
 	}
 	if fwVer := r.Header.Get("X-Firmware-Version"); fwVer != "" {
 		device.FirmwareVer = fwVer
@@ -186,6 +169,6 @@ func (s *Server) autoRegisterDevice(mac string, r *http.Request) {
 	if err := s.store.UpsertDevice(device); err != nil {
 		log.Printf("api: failed to auto-register device %s: %v", mac, err)
 	} else {
-		log.Printf("api: auto-registered new device %s", mac)
+		log.Printf("api: auto-registered new device %s (board=%s)", mac, boardModelID)
 	}
 }

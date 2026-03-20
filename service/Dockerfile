@@ -30,6 +30,7 @@ WORKDIR /app
 COPY service/package.json service/package-lock.json ./
 RUN npm ci
 COPY service/ui/ ./ui/
+COPY service/public/ ./public/
 COPY service/vite.config.ts service/tsconfig.json service/biome.json ./
 RUN npm run build -- --outDir /frontend-dist
 
@@ -41,12 +42,10 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 
 COPY --from=builder /subway-server /app/subway-server
-COPY service/led_map.json /app/led_map.json
-COPY service/leds.json /app/leds.json
 COPY --from=frontend /frontend-dist/ /app/static/dist/
 
 RUN mkdir -p /app/data
 
 EXPOSE 8080
 
-CMD ["/app/subway-server", "--port", "8080", "--led-map", "led_map.json", "--data-dir", "data", "--static-dir", "static"]
+CMD ["/app/subway-server", "--port", "8080", "--boards-dir", "static/dist/boards", "--data-dir", "data", "--static-dir", "static"]

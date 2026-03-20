@@ -9,6 +9,7 @@ import (
 type Device struct {
 	MAC          string            `json:"mac"`
 	Name         string            `json:"name"`
+	BoardModelID string            `json:"board_model_id"` // e.g. "nyc-subway/v1"
 	PluginName   string            `json:"plugin_name"`
 	PresetID     string            `json:"theme_id"`
 	FirmwareVer  string            `json:"firmware_ver"`

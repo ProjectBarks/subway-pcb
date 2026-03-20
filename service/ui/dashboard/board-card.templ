@@ -19,14 +19,20 @@ templ boardCard(card BoardCard) {
 							{ card.Device.MAC }
 						}
 					</h3>
-					<p class="text-text-muted text-xs uppercase tracking-wide">NYC Subway</p>
-				</div>
-				<div class="flex items-center gap-2">
-					if components.IsOnline(card.Device.LastSeen) {
-						<div class="size-2 rounded-full bg-status-online animate-pulse"></div>
-					} else {
-						<div class="size-2 rounded-full bg-gray-600"></div>
-					}
+					<div class="flex items-center gap-1.5">
+						if components.IsOnline(card.Device.LastSeen) {
+							<div class="size-2 rounded-full bg-status-online animate-pulse"></div>
+						} else {
+							<div class="size-2 rounded-full bg-gray-600"></div>
+						}
+						<p class="text-text-muted text-xs uppercase tracking-wide">
+							if card.BoardModelName != "" {
+								{ card.BoardModelName }
+							} else {
+								Board
+							}
+						</p>
+					</div>
 				</div>
 				if card.ActivePluginName != "" {
 					<div class="flex items-center justify-between pt-2 border-t border-border-subtle">

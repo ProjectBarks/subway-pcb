@@ -25,8 +25,9 @@ var routeKeys = []string{
 // Plugin renders the standard subway map view.
 type Plugin struct{}
 
-func (p *Plugin) Name() string        { return "track" }
-func (p *Plugin) Description() string { return "Live subway map — trains at their current stations" }
+func (p *Plugin) Name() string             { return "track" }
+func (p *Plugin) Description() string      { return "Live subway map — trains at their current stations" }
+func (p *Plugin) RequiredFeatures() []string { return []string{"mta-stations"} }
 
 func (p *Plugin) ConfigFields() []plugin.ConfigField {
 	fields := make([]plugin.ConfigField, 0, len(routeKeys))

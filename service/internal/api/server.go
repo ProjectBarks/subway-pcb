@@ -26,6 +26,7 @@ type ServerConfig struct {
 	PixelRenderer  *PixelRenderer
 	Store          store.Store
 	PluginRegistry *plugin.Registry
+	Boards         map[string]*BoardData
 	AuthConfig     middleware.AuthConfig
 	StaticDir      string // optional: directory to serve at /static/
 	DevMode        bool   // enable dev-only routes (e.g. /landing)
@@ -37,6 +38,7 @@ type Server struct {
 	pixelRenderer *PixelRenderer
 	store         store.Store
 	plugins       *plugin.Registry
+	boards        map[string]*BoardData
 	authConfig    middleware.AuthConfig
 	staticDir     string
 	devMode       bool
@@ -51,6 +53,7 @@ func NewServer(cfg ServerConfig) *Server {
 		pixelRenderer: cfg.PixelRenderer,
 		store:         cfg.Store,
 		plugins:       cfg.PluginRegistry,
+		boards:        cfg.Boards,
 		authConfig:    cfg.AuthConfig,
 		staticDir:     cfg.StaticDir,
 		devMode:       cfg.DevMode,
@@ -78,14 +81,6 @@ func (s *Server) buildRouter() {
 
 		r.Get("/api/v1/state", s.handleState)
 		r.Get("/health", s.handleHealth)
-
-		// Keep led_map.json accessible (used by firmware and preview)
-		r.Get("/static/led_map.json", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "led_map.json")
-		})
-		r.Get("/static/leds.json", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "leds.json")
-		})
 
 		// Serve frontend static assets (JS/CSS bundles) when static-dir is set
 		if s.staticDir != "" {
@@ -292,6 +287,9 @@ func (s *Server) buildBoardCards(user *model.User, boards []model.Device) []ui.B
 			cards[i].Preset = t
 		}
 		cards[i].ActivePluginName = s.resolvePluginName(d.PluginName, installedPlugins)
+		if board, ok := s.boards[BoardModelKey(d.BoardModelID)]; ok {
+			cards[i].BoardModelName = board.Manifest.Name
+		}
 	}
 	return cards
 }
@@ -367,16 +365,30 @@ func (s *Server) buildBoardData(user *model.User, device *model.Device, mac stri
 		}
 	}
 
+	// Filter built-in plugins by board compatibility
+	var compatiblePlugins []plugin.Plugin
+	boardData := s.boards[BoardModelKey(device.BoardModelID)]
+	var boardFeatures []string
+	if boardData != nil {
+		boardFeatures = boardData.Manifest.Features
+	}
+	for _, p := range s.plugins.List() {
+		if plugin.IsPluginCompatible(p.RequiredFeatures(), boardFeatures) {
+			compatiblePlugins = append(compatiblePlugins, p)
+		}
+	}
+
 	return ui.BoardData{
 		User:             user,
 		Device:           device,
 		Presets:          pluginPresets,
 		Access:           access,
-		Plugins:          s.plugins.List(),
+		Plugins:          compatiblePlugins,
 		InstalledPlugins: installedPlugins,
 		ActiveMAC:        mac,
 		ConfigGroups:     configGroups,
 		ConfigValues:     configValues,
+		BoardURL:         BoardURLPath(device.BoardModelID),
 	}
 }
 
@@ -386,7 +398,10 @@ func (s *Server) handleSetPlugin(w http.ResponseWriter, r *http.Request) {
 	pluginName := r.FormValue("plugin")
 
 	// Accept built-in plugins by name or DB plugins by ID
-	if _, ok := s.plugins.Get(pluginName); !ok {
+	var requiredFeatures []string
+	if builtIn, ok := s.plugins.Get(pluginName); ok {
+		requiredFeatures = builtIn.RequiredFeatures()
+	} else {
 		dbPlugin, err := s.store.GetPlugin(pluginName)
 		if err != nil || dbPlugin == nil {
 			http.Error(w, "unknown plugin", http.StatusBadRequest)
@@ -398,6 +413,16 @@ func (s *Server) handleSetPlugin(w http.ResponseWriter, r *http.Request) {
 	if err != nil || device == nil {
 		http.Error(w, "device not found", http.StatusNotFound)
 		return
+	}
+
+	// Check board compatibility
+	if len(requiredFeatures) > 0 {
+		if board, ok := s.boards[BoardModelKey(device.BoardModelID)]; ok {
+			if !plugin.IsPluginCompatible(requiredFeatures, board.Manifest.Features) {
+				http.Error(w, "plugin incompatible with this board", http.StatusBadRequest)
+				return
+			}
+		}
 	}
 
 	device.PluginName = pluginName

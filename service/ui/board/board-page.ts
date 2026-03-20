@@ -1,6 +1,10 @@
 import "../lib/types";
 import "./board.css";
-import { Board, TOTAL_LEDS } from "../lib/board";
+import {
+	type BoardViewerHandle,
+	initBoardViewer,
+	type LedInfo,
+} from "../lib/board-viewer";
 import { PreviewRenderer } from "../lib/preview";
 import { decodePixelFrame } from "../lib/protobuf";
 import { BoardSerial, encodeCommand } from "../lib/serial";
@@ -22,12 +26,16 @@ window.encodeCommand = encodeCommand;
 
 const canvasWrap = document.getElementById("canvas-wrap");
 const mac = canvasWrap?.dataset.deviceMac ?? "";
+const boardUrl =
+	canvasWrap?.dataset.boardUrl ??
+	"/static/dist/boards/nyc-subway/v1/board.json";
+const tooltip = document.getElementById("tooltip")!;
 
-const board = new Board("c", "tooltip");
-board.brightnessBoost = 1.0;
-board.boardSvgOpacity = 0.07;
-
+let handle: BoardViewerHandle | null = null;
+let ledCount = 0;
 let lastFetchOk = false;
+let mouseX = 0;
+let mouseY = 0;
 
 function updateStatus(trains: number, seq: number): void {
 	const dot = document.getElementById("dot");
@@ -49,6 +57,17 @@ function updateStatus(trains: number, seq: number): void {
 	if (frameSeq) frameSeq.textContent = String(seq);
 }
 
+function onLedHover(info: LedInfo | null): void {
+	if (info) {
+		tooltip.innerHTML = `<span class="sid">${info.stationId || "--"}</span> rgb(${info.r},${info.g},${info.b}) | strip ${info.strip} px ${info.pixel}`;
+		tooltip.style.display = "block";
+		tooltip.style.left = `${mouseX + 14}px`;
+		tooltip.style.top = `${mouseY - 10}px`;
+	} else {
+		tooltip.style.display = "none";
+	}
+}
+
 async function fetchPixels(): Promise<void> {
 	try {
 		const resp = await fetch(
@@ -57,23 +76,25 @@ async function fetchPixels(): Promise<void> {
 		if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 		const buf = await resp.arrayBuffer();
 		if (buf.byteLength === 0) {
-			board.clearPixels();
+			handle?.setPixels(new Uint8Array(ledCount * 3));
 			lastFetchOk = true;
 			updateStatus(0, 0);
 			return;
 		}
 		const frame = decodePixelFrame(buf);
-		if (frame.pixels && frame.pixels.length >= TOTAL_LEDS * 3) {
-			board.setPixels(frame.pixels);
+		if (frame.pixels && frame.pixels.length >= ledCount * 3) {
+			handle?.setPixels(frame.pixels);
 		}
 		let activeCount = 0;
-		for (let i = 0; i < TOTAL_LEDS; i++) {
-			if (
-				board.pixelColors[i * 3] ||
-				board.pixelColors[i * 3 + 1] ||
-				board.pixelColors[i * 3 + 2]
-			)
-				activeCount++;
+		if (frame.pixels) {
+			for (let i = 0; i < ledCount; i++) {
+				if (
+					frame.pixels[i * 3] ||
+					frame.pixels[i * 3 + 1] ||
+					frame.pixels[i * 3 + 2]
+				)
+					activeCount++;
+			}
 		}
 		lastFetchOk = true;
 		updateStatus(activeCount, frame.sequence);
@@ -84,11 +105,35 @@ async function fetchPixels(): Promise<void> {
 }
 
 async function init(): Promise<void> {
-	await board.init("/static/leds.json", "/static/dist/board.svg");
-	board.startDrawLoop();
+	const viewerContainer = document.getElementById("board-viewer");
+	if (!viewerContainer) return;
+
+	// Track mouse for tooltip positioning
+	viewerContainer.addEventListener("mousemove", (e) => {
+		mouseX = e.clientX;
+		mouseY = e.clientY;
+	});
+	viewerContainer.addEventListener("mouseleave", () => {
+		tooltip.style.display = "none";
+	});
+
+	// Fetch board manifest to get ledCount
+	try {
+		const resp = await fetch(boardUrl);
+		const board = await resp.json();
+		ledCount = board.ledCount ?? 478;
+	} catch {
+		ledCount = 478;
+	}
+
+	handle = await initBoardViewer(viewerContainer, {
+		boardUrl,
+		mode: "inspect",
+		onLedHover,
+	});
 
 	// Initialize preview renderer for theme editing
-	window._previewRenderer = new PreviewRenderer(board);
+	window._previewRenderer = new PreviewRenderer(handle);
 	await window._previewRenderer.init();
 
 	await fetchPixels();

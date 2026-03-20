@@ -1,5 +1,6 @@
 import { render } from "preact";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { type BoardViewerHandle, initBoardViewer } from "../lib/board-viewer";
 import { pluginsApi } from "./api";
 import { CodeEditor } from "./code-editor";
 import { ConfigFieldEditor } from "./config-editor";
@@ -28,6 +29,54 @@ function hsv_to_rgb(h, s, v)
   elseif i == 4 then return t, p, v
   else return v, p, q end
 end`;
+
+function EditorPreview({ isRunning }: { isRunning: boolean }) {
+	const containerRef = useRef<HTMLDivElement>(null);
+	const viewerRef = useRef<BoardViewerHandle | null>(null);
+
+	useEffect(() => {
+		if (!containerRef.current) return;
+		initBoardViewer(containerRef.current, {
+			boardUrl: "/static/dist/boards/nyc-subway/v1/board.json",
+			mode: "preview",
+		}).then((handle) => {
+			viewerRef.current = handle;
+		});
+		return () => {
+			viewerRef.current?.dispose();
+			viewerRef.current = null;
+		};
+	}, []);
+
+	return (
+		<div class="hidden lg:flex flex-col bg-bg-primary">
+			<div class="px-5 py-3 border-b border-border-subtle bg-bg-surface flex items-center justify-between">
+				<div class="flex items-center gap-2">
+					<svg
+						class="size-4 text-text-secondary"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+						<circle cx="12" cy="12" r="3" />
+					</svg>
+					<span class="text-text-primary text-sm font-medium">
+						Live Preview
+					</span>
+				</div>
+				{isRunning && (
+					<div class="flex items-center gap-2 text-xs text-text-muted">
+						<div class="size-2 rounded-full bg-status-online animate-pulse" />
+						<span>Rendering</span>
+					</div>
+				)}
+			</div>
+			<div ref={containerRef} class="flex-1" />
+		</div>
+	);
+}
 
 function EditorApp() {
 	const [plugins, setPlugins] = useState<Plugin[]>([]);
@@ -654,34 +703,7 @@ function EditorApp() {
 							</div>
 
 							{/* Preview side (desktop) */}
-							<div class="hidden lg:flex flex-col bg-bg-primary">
-								<div class="px-5 py-3 border-b border-border-subtle bg-bg-surface flex items-center justify-between">
-									<div class="flex items-center gap-2">
-										<svg
-											class="size-4 text-text-secondary"
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="2"
-										>
-											<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
-											<circle cx="12" cy="12" r="3" />
-										</svg>
-										<span class="text-text-primary text-sm font-medium">
-											Live Preview
-										</span>
-									</div>
-									{isRunning && (
-										<div class="flex items-center gap-2 text-xs text-text-muted">
-											<div class="size-2 rounded-full bg-status-online animate-pulse" />
-											<span>Rendering</span>
-										</div>
-									)}
-								</div>
-								<div class="flex-1 flex items-center justify-center text-text-muted text-sm">
-									{isRunning ? "Preview running..." : "Click Run to preview"}
-								</div>
-							</div>
+							<EditorPreview isRunning={isRunning} />
 						</div>
 					</>
 				) : (
