@@ -19,7 +19,6 @@ declare global {
 		updatePreviewColor: (input: HTMLInputElement) => void;
 		collectRouteColorsToForm: (form: HTMLFormElement) => void;
 		collectConfigToPresetForm: (form: HTMLFormElement) => void;
-		Board: typeof import("./board").Board;
 		boardSerial: import("./serial").BoardSerial;
 		encodeCommand: typeof import("./serial").encodeCommand;
 	}

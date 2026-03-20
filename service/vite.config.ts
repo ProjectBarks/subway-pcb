@@ -22,8 +22,6 @@ export default defineConfig({
       "/partials": "http://localhost:8080",
       "/health": "http://localhost:8080",
       "/landing": "http://localhost:8080",
-      "/static/leds.json": "http://localhost:8080",
-      "/static/led_map.json": "http://localhost:8080",
     },
   },
   build: {
