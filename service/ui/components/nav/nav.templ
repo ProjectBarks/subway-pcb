@@ -51,13 +51,12 @@ templ Nav(user *model.User, activePath string) {
 					<!-- Mobile Menu Button -->
 					<button
 						id="mobile-menu-toggle"
-						onclick="document.getElementById('mobile-menu').classList.toggle('hidden'); this.querySelector('.icon-menu').classList.toggle('hidden'); this.querySelector('.icon-x').classList.toggle('hidden');"
 						class="md:hidden size-8 rounded-md bg-bg-surface-raised border border-border-subtle flex items-center justify-center hover:border-border-hover transition-colors"
 					>
-						<span class="icon-menu">
+						<span id="menu-icon-open">
 							@icon.Icon("menu", "size-4 text-text-secondary")
 						</span>
-						<span class="icon-x hidden">
+						<span id="menu-icon-close" class="hidden">
 							@icon.Icon("x", "size-4 text-text-secondary")
 						</span>
 					</button>
@@ -70,7 +69,6 @@ templ Nav(user *model.User, activePath string) {
 				for _, link := range navLinks {
 					<a
 						href={ templ.URL(link.Path) }
-						onclick="document.getElementById('mobile-menu').classList.add('hidden'); document.querySelector('#mobile-menu-toggle .icon-menu').classList.remove('hidden'); document.querySelector('#mobile-menu-toggle .icon-x').classList.add('hidden');"
 						class={
 							"block px-4 py-3 rounded-lg text-sm transition-colors",
 							templ.KV("bg-accent-gold/10 text-text-primary border border-accent-gold/30", strings.HasPrefix(activePath, link.Path)),

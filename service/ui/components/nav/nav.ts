@@ -8,9 +8,9 @@ export function initNav(): void {
 
 	menuToggle.addEventListener("click", () => {
 		const isOpen = !mobileMenu.classList.contains("hidden");
+
 		mobileMenu.classList.toggle("hidden", isOpen);
 
-		// Toggle icons
 		if (menuIconOpen && menuIconClose) {
 			menuIconOpen.classList.toggle("hidden", !isOpen);
 			menuIconClose.classList.toggle("hidden", isOpen);
