@@ -8,17 +8,6 @@ import (
 	"github.com/ProjectBarks/subway-pcb/service/internal/store"
 )
 
-// RequireAuth rejects requests with no user in context.
-func RequireAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if UserFromContext(r.Context()) == nil {
-			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 // RequireAdmin rejects requests from non-admin users.
 func RequireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,5 @@
-export function updatePreviewColor(_input: HTMLInputElement): void {
-	if (!window._luaRunner) return;
-
+/** Collect all named config inputs (color, number, select) into a key-value map */
+export function collectConfig(): Record<string, string> {
 	const config: Record<string, string> = {};
 	document
 		.querySelectorAll<HTMLInputElement>(
@@ -9,8 +8,12 @@ export function updatePreviewColor(_input: HTMLInputElement): void {
 		.forEach((el) => {
 			if (el.name) config[el.name] = el.value;
 		});
+	return config;
+}
 
-	window._luaRunner.setConfig(config);
+export function updatePreviewColor(_input: HTMLInputElement): void {
+	if (!window._luaRunner) return;
+	window._luaRunner.setConfig(collectConfig());
 }
 
 export function collectRouteColorsToForm(form: HTMLFormElement): void {

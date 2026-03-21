@@ -11,14 +11,6 @@ enum TrainStatus {
     IN_TRANSIT_TO = 3;
 }
 
-// ConfigFieldType controls how the frontend renders a config input.
-enum ConfigFieldType {
-    FIELD_TYPE_UNKNOWN = 0;
-    FIELD_COLOR        = 1;
-    FIELD_NUMBER       = 2;
-    FIELD_SELECT       = 3;
-}
-
 message Train {
     string      route  = 1;   // unstructured route ID (e.g. "1", "A", "FS", "SI")
     TrainStatus status = 2;

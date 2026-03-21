@@ -63,8 +63,8 @@ func main() {
 		log.Fatalf("Failed to load boards: %v", err)
 	}
 
-	// Create aggregator with 10-second train persistence.
-	aggregator := mta.NewAggregator(10 * time.Second)
+	// Create aggregator.
+	aggregator := mta.NewAggregator()
 
 	// Create cancellable context for feed pollers.
 	ctx, cancel := context.WithCancel(context.Background())

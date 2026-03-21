@@ -1,14 +1,17 @@
 import "../lib/types";
 import "./board.css";
+import { loadBoardData } from "../lib/board-data";
 import {
 	type BoardViewerHandle,
 	initBoardViewer,
 	type LedInfo,
 } from "../lib/board-viewer";
 import { LuaRunner } from "../lib/lua-runner";
+import { pollMtaState } from "../lib/mta-polling";
 import { initPreviews, type PreviewCleanup } from "../lib/preview-controller";
 import { BoardSerial, encodeCommand } from "../lib/serial";
 import {
+	collectConfig,
 	collectConfigToPresetForm,
 	collectRouteColorsToForm,
 	updatePreviewColor,
@@ -32,7 +35,6 @@ const tooltip = document.getElementById("tooltip")!;
 
 let handle: BoardViewerHandle | null = null;
 let luaRunner: LuaRunner | null = null;
-let ledCount = 0;
 let lastFetchOk = false;
 let mouseX = 0;
 let mouseY = 0;
@@ -69,18 +71,6 @@ function onLedHover(info: LedInfo | null): void {
 	}
 }
 
-function collectConfig(): Record<string, string> {
-	const config: Record<string, string> = {};
-	document
-		.querySelectorAll<HTMLInputElement>(
-			"input[type='color'][name], input[type='number'][name], select[name]",
-		)
-		.forEach((el) => {
-			if (el.name) config[el.name] = el.value;
-		});
-	return config;
-}
-
 /** Read the active Lua source from the controls panel data attribute */
 function getActiveLuaSource(): string {
 	const controls = document.getElementById("controls");
@@ -97,22 +87,14 @@ async function loadActivePlugin(): Promise<void> {
 	}
 }
 
-async function fetchState(): Promise<void> {
-	try {
-		const resp = await fetch("/api/v1/state?format=json");
-		if (resp.ok) {
-			const data = await resp.json();
-			if (data.stations && luaRunner) {
-				luaRunner.setMtaState(data.stations);
-			}
-			lastFetchOk = true;
-			const activeCount = data.stations?.length ?? 0;
-			updateStatus(activeCount, 0);
-		}
-	} catch {
-		lastFetchOk = false;
-		updateStatus(0, 0);
-	}
+function onMtaSuccess(stations: { stop_id: string }[]): void {
+	lastFetchOk = true;
+	updateStatus(stations.length, 0);
+}
+
+function onMtaError(): void {
+	lastFetchOk = false;
+	updateStatus(0, 0);
 }
 
 function startRenderLoop(): void {
@@ -160,19 +142,9 @@ async function init(): Promise<void> {
 
 	// Load board data for LED map and viewer
 	try {
-		const resp = await fetch(boardUrl);
-		const board = await resp.json();
-		ledCount = board.ledCount ?? 478;
-		const ledMap = new Array<string>(ledCount).fill("");
-		for (const pos of board.ledPositions) {
-			if (pos.index >= 0 && pos.index < ledCount && pos.stationId) {
-				ledMap[pos.index] = pos.stationId;
-			}
-		}
-		luaRunner.setLedMap(ledMap);
-		if (board.strips) luaRunner.setStripSizes(board.strips);
+		await loadBoardData(luaRunner, boardUrl);
 	} catch {
-		ledCount = 478;
+		// Board data load failed; viewer will use default LED count
 	}
 
 	handle = await initBoardViewer(viewerContainer, {
@@ -188,8 +160,10 @@ async function init(): Promise<void> {
 	window._luaRunner = luaRunner;
 
 	// Fetch state and start rendering
-	await fetchState();
-	setInterval(fetchState, 5000);
+	pollMtaState(luaRunner, 5000, {
+		onSuccess: onMtaSuccess,
+		onError: onMtaError,
+	});
 	startRenderLoop();
 
 	// Listen for HTMX swaps on the controls panel — reload Lua source when plugin changes

@@ -34,7 +34,7 @@ type Aggregator struct {
 }
 
 // NewAggregator creates a new Aggregator.
-func NewAggregator(_ time.Duration) *Aggregator {
+func NewAggregator() *Aggregator {
 	return &Aggregator{
 		feeds: make(map[string]*feedSnapshot),
 	}
@@ -47,11 +47,6 @@ func (a *Aggregator) IngestFeed(feedName string, updates []trainUpdate) {
 
 	a.feeds[feedName] = &feedSnapshot{updates: updates, timestamp: time.Now()}
 	a.rebuildLocked()
-}
-
-// Ingest is a compatibility shim.
-func (a *Aggregator) Ingest(updates []trainUpdate) {
-	a.IngestFeed("default", updates)
 }
 
 // rebuildLocked merges all feed snapshots into a clean state.

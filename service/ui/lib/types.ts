@@ -7,12 +7,6 @@ export interface PixelFrame {
 	pixels: Uint8Array | null;
 }
 
-export interface RGB {
-	r: number;
-	g: number;
-	b: number;
-}
-
 declare global {
 	interface Window {
 		_luaRunner?: import("./lua-runner").LuaRunner;

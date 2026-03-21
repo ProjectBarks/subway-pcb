@@ -15,15 +15,15 @@ const TOAST_DURATION = 3500;
 const EXIT_ANIMATION_DURATION = 300;
 
 function dismissToast(toast: HTMLElement): void {
-	toast.classList.remove("animate-toast-in");
-	toast.classList.add("animate-toast-out");
+	toast.classList.remove("xyz-in");
+	toast.classList.add("xyz-out");
 	setTimeout(() => toast.remove(), EXIT_ANIMATION_DURATION);
 }
 
 function createToastElement(message: string, type: string): HTMLDivElement {
 	const div = document.createElement("div");
 	div.className =
-		"alert shadow-lg animate-toast-in" +
+		"alert shadow-lg xyz-toast xyz-in" +
 		(type === "error" ? " alert-destructive" : "");
 	div.textContent = message;
 	return div;
@@ -39,7 +39,7 @@ export function initToastHandler(): void {
 		if (toast) {
 			const container = document.getElementById("toast-container");
 			if (container) {
-				toast.classList.add("animate-toast-in");
+				toast.classList.add("xyz-toast", "xyz-in");
 				container.appendChild(toast);
 				setTimeout(() => dismissToast(toast), TOAST_DURATION);
 			}

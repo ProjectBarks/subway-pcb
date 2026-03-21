@@ -3,15 +3,13 @@ import "./landing.css";
 
 // --- Scroll-triggered fade-up animations ---
 function initScrollAnimations(): void {
-	const elements = document.querySelectorAll<HTMLElement>(
-		'[data-animate="fade-up"]',
-	);
+	const elements = document.querySelectorAll<HTMLElement>("[xyz]");
 
 	const observer = new IntersectionObserver(
 		(entries) => {
 			for (const entry of entries) {
 				if (entry.isIntersecting) {
-					(entry.target as HTMLElement).classList.add("animate-visible");
+					(entry.target as HTMLElement).classList.add("xyz-in");
 					observer.unobserve(entry.target);
 				}
 			}
@@ -20,7 +18,6 @@ function initScrollAnimations(): void {
 	);
 
 	for (const el of elements) {
-		el.classList.add("animate-on-scroll");
 		observer.observe(el);
 	}
 }

@@ -9,11 +9,11 @@ import (
 templ BoardGrid(cards []BoardCard) {
 	if len(cards) > 0 {
 		for i, card := range cards {
-			<div class="animate-fade-up" style={ fmt.Sprintf("--delay: %dms", i*100) }>
+			<div xyz="fade up" xyz-appear style={ fmt.Sprintf("--xyz-appear-delay: %dms", i*100) }>
 				@boardCard(card)
 			</div>
 		}
-		<div class="animate-fade-up" style={ fmt.Sprintf("--delay: %dms", len(cards)*100) }>
+		<div xyz="fade up" xyz-appear style={ fmt.Sprintf("--xyz-appear-delay: %dms", len(cards)*100) }>
 			@addBoardCard()
 		</div>
 	} else {

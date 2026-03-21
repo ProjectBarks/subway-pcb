@@ -1,7 +1,9 @@
 import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
+import { loadBoardData } from "../lib/board-data";
 import { type BoardViewerHandle, initBoardViewer } from "../lib/board-viewer";
 import { LuaRunner } from "../lib/lua-runner";
+import { pollMtaState } from "../lib/mta-polling";
 import { pluginsApi } from "./api";
 import { CodeEditor } from "./code-editor";
 import { ConfigFieldEditor } from "./config-editor";
@@ -118,67 +120,25 @@ function EditorApp() {
 
 	const selectedPlugin = plugins.find((p) => p.id === selectedPluginId);
 
-	// Init LuaRunner on mount
+	// Init LuaRunner on mount, load board data, and start MTA polling
 	useEffect(() => {
+		let stopPolling: (() => void) | undefined;
 		const runner = new LuaRunner();
 		runner
 			.init()
 			.then(() => {
 				luaRunnerRef.current = runner;
-				// Load board data for LED map
-				fetch("/static/dist/boards/nyc-subway/v1/board.json")
-					.then((r) => r.json())
-					.then(
-						(board: {
-							ledCount: number;
-							strips?: number[];
-							ledPositions: Array<{
-								index: number;
-								stationId: string;
-							}>;
-						}) => {
-							const ledMap = new Array<string>(board.ledCount).fill("");
-							for (const pos of board.ledPositions) {
-								if (
-									pos.index >= 0 &&
-									pos.index < board.ledCount &&
-									pos.stationId
-								) {
-									ledMap[pos.index] = pos.stationId;
-								}
-							}
-							runner.setLedMap(ledMap);
-							if (board.strips) runner.setStripSizes(board.strips);
-						},
-					);
+				loadBoardData(runner, "/static/dist/boards/nyc-subway/v1/board.json");
+				stopPolling = pollMtaState(runner, 5000);
 			})
 			.catch(() => {
 				// LuaRunner init failed; preview will be unavailable
 			});
 		return () => {
+			stopPolling?.();
 			cancelAnimationFrame(animFrameRef.current);
 			runner.dispose();
 		};
-	}, []);
-
-	// Fetch MTA state periodically
-	useEffect(() => {
-		const fetchState = async () => {
-			try {
-				const resp = await fetch("/api/v1/state?format=json");
-				if (resp.ok) {
-					const data = await resp.json();
-					if (data.stations && luaRunnerRef.current) {
-						luaRunnerRef.current.setMtaState(data.stations);
-					}
-				}
-			} catch {
-				// MTA state fetch failed; preview will use stale data
-			}
-		};
-		fetchState();
-		const interval = setInterval(fetchState, 5000);
-		return () => clearInterval(interval);
 	}, []);
 
 	// Load plugins on mount

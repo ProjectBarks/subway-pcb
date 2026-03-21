@@ -6,7 +6,7 @@ templ Toast(toastType string, message string) {
 	<div
 		data-toast
 		class={
-			"alert shadow-lg animate-toast-fade-in",
+			"alert shadow-lg xyz-toast xyz-in",
 			templ.KV("alert-destructive", toastType == "error"),
 		}
 	>
