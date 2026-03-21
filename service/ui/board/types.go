@@ -18,6 +18,7 @@ type BoardData struct {
 	ConfigGroups     []plugin.FieldGroup
 	ConfigValues     map[string]string
 	BoardURL         string                // URL path to board.json for 3D viewer
+	ActiveLuaSource  string                // Lua source for the active plugin
 }
 
 // ActivePluginName returns the human-readable name for the active plugin.

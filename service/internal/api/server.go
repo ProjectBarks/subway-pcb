@@ -384,6 +384,17 @@ func (s *Server) buildBoardData(user *model.User, device *model.Device, mac stri
 		}
 	}
 
+	// Resolve active plugin Lua source
+	var activeLuaSource string
+	if p, ok := s.plugins.Get(pluginName); ok {
+		activeLuaSource = p.LuaSource()
+	} else {
+		dbPlugin, _ := s.store.GetPlugin(pluginName)
+		if dbPlugin != nil {
+			activeLuaSource = dbPlugin.LuaSource
+		}
+	}
+
 	return ui.BoardData{
 		User:             user,
 		Device:           device,
@@ -395,6 +406,7 @@ func (s *Server) buildBoardData(user *model.User, device *model.Device, mac stri
 		ConfigGroups:     configGroups,
 		ConfigValues:     configValues,
 		BoardURL:         BoardURLPath(device.BoardModelID),
+		ActiveLuaSource:  activeLuaSource,
 	}
 }
 

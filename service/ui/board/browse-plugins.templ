@@ -17,9 +17,15 @@ templ BrowsePluginsContent(data BoardData) {
 					templ.KV("border-border-subtle bg-bg-surface hover:border-border-hover", data.Device.PluginName != p.Name()),
 				}
 			>
-				<!-- Preview placeholder -->
-				<div class="h-32 bg-bg-surface-raised relative overflow-hidden flex items-center justify-center">
-					<span class="text-text-muted text-sm">Plugin Preview</span>
+				<!-- Preview -->
+				<div
+					class="h-32 bg-bg-surface-raised relative overflow-hidden"
+					data-preview-card
+					data-board-url={ data.BoardURL }
+					data-lua-source={ p.LuaSource() }
+					data-config={ pluginDefaultConfigJSON(p) }
+				>
+					<canvas class="w-full h-full block"></canvas>
 				</div>
 				<!-- Plugin Info -->
 				<div class="p-4 flex flex-col">
@@ -49,9 +55,15 @@ templ BrowsePluginsContent(data BoardData) {
 					templ.KV("border-border-subtle bg-bg-surface hover:border-border-hover", data.Device.PluginName != ip.ID),
 				}
 			>
-				<!-- Preview placeholder -->
-				<div class="h-32 bg-bg-surface-raised relative overflow-hidden flex items-center justify-center">
-					<span class="text-text-muted text-sm">Plugin Preview</span>
+				<!-- Preview -->
+				<div
+					class="h-32 bg-bg-surface-raised relative overflow-hidden"
+					data-preview-card
+					data-board-url={ data.BoardURL }
+					data-lua-source={ ip.LuaSource }
+					data-config={ dbPluginDefaultConfigJSON(ip) }
+				>
+					<canvas class="w-full h-full block"></canvas>
 				</div>
 				<!-- Plugin Info -->
 				<div class="p-4 flex flex-col">

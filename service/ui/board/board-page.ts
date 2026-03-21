@@ -6,6 +6,7 @@ import {
 	type LedInfo,
 } from "../lib/board-viewer";
 import { LuaRunner } from "../lib/lua-runner";
+import { initPreviews, type PreviewCleanup } from "../lib/preview-controller";
 import { BoardSerial, encodeCommand } from "../lib/serial";
 import {
 	collectConfigToPresetForm,
@@ -35,21 +36,7 @@ let ledCount = 0;
 let lastFetchOk = false;
 let mouseX = 0;
 let mouseY = 0;
-
-// Default track.lua for board page preview
-const DEFAULT_TRACK_LUA = `function render()
-    for i = 0, led_count() - 1 do
-        if has_status(i, STOPPED_AT) then
-            local route = get_route(i)
-            if route then
-                local r, g, b = get_rgb_config(route)
-                if r then
-                    set_led(i, r, g, b)
-                end
-            end
-        end
-    end
-end`;
+let previewCleanup: PreviewCleanup | null = null;
 
 function updateStatus(trains: number, _seq: number): void {
 	const dot = document.getElementById("dot");
@@ -82,7 +69,7 @@ function onLedHover(info: LedInfo | null): void {
 	}
 }
 
-function collectInitialConfig(): Record<string, string> {
+function collectConfig(): Record<string, string> {
 	const config: Record<string, string> = {};
 	document
 		.querySelectorAll<HTMLInputElement>(
@@ -92,6 +79,22 @@ function collectInitialConfig(): Record<string, string> {
 			if (el.name) config[el.name] = el.value;
 		});
 	return config;
+}
+
+/** Read the active Lua source from the controls panel data attribute */
+function getActiveLuaSource(): string {
+	const controls = document.getElementById("controls");
+	return controls?.dataset.luaSource ?? "";
+}
+
+/** Load the current plugin's Lua source and config into the runner */
+async function loadActivePlugin(): Promise<void> {
+	if (!luaRunner) return;
+	const source = getActiveLuaSource();
+	if (source) {
+		luaRunner.setConfig(collectConfig());
+		await luaRunner.loadScript(source);
+	}
 }
 
 async function fetchState(): Promise<void> {
@@ -124,6 +127,18 @@ function startRenderLoop(): void {
 		requestAnimationFrame(renderFrame);
 	};
 	renderFrame();
+}
+
+/** Init browse plugin previews using the shared preview-controller */
+async function initBrowsePreviews(): Promise<void> {
+	previewCleanup?.destroy();
+	previewCleanup = null;
+
+	const browseTab = document.getElementById("tab-browse");
+	const cards = browseTab?.querySelectorAll("[data-preview-card]");
+	if (!cards || cards.length === 0) return;
+
+	previewCleanup = await initPreviews("#tab-browse [data-preview-card]");
 }
 
 async function init(): Promise<void> {
@@ -166,12 +181,8 @@ async function init(): Promise<void> {
 		onLedHover,
 	});
 
-	// Load initial config from the page's color inputs
-	const initialConfig = collectInitialConfig();
-	luaRunner.setConfig(initialConfig);
-
-	// Load the Lua script
-	await luaRunner.loadScript(DEFAULT_TRACK_LUA);
+	// Load the active plugin's Lua source
+	await loadActivePlugin();
 
 	// Expose for theme editing
 	window._luaRunner = luaRunner;
@@ -180,6 +191,30 @@ async function init(): Promise<void> {
 	await fetchState();
 	setInterval(fetchState, 5000);
 	startRenderLoop();
+
+	// Listen for HTMX swaps on the controls panel — reload Lua source when plugin changes
+	document.body.addEventListener("htmx:afterSwap", async (evt) => {
+		const target = (evt as CustomEvent).detail?.target;
+		if (target?.id === "controls" || target?.closest?.("#controls")) {
+			await loadActivePlugin();
+			initBrowsePreviews();
+		}
+	});
+
+	// Init browse previews when the browse tab becomes visible
+	const browseTab = document.getElementById("tab-browse");
+	if (browseTab) {
+		const observer = new MutationObserver(() => {
+			if (!browseTab.classList.contains("hidden")) {
+				initBrowsePreviews();
+				observer.disconnect();
+			}
+		});
+		observer.observe(browseTab, {
+			attributes: true,
+			attributeFilter: ["class"],
+		});
+	}
 }
 
 init();

@@ -1,7 +1,7 @@
 package board
 
 templ PluginPanel(data BoardData) {
-	<div id="controls" class="glass p-6 rounded-2xl">
+	<div id="controls" class="glass p-6 rounded-2xl" data-lua-source={ data.ActiveLuaSource }>
 		<!-- Tab bar -->
 		<div class="flex gap-1 p-1 bg-bg-surface rounded-lg mb-6">
 			<button

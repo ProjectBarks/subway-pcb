@@ -21,6 +21,15 @@ type ConfigField struct {
 	Options []string  `json:"options,omitempty"`
 }
 
+// DefaultConfigMap returns a map of field key -> default value from config fields.
+func DefaultConfigMap(fields []ConfigField) map[string]string {
+	config := make(map[string]string, len(fields))
+	for _, f := range fields {
+		config[f.Key] = f.Default
+	}
+	return config
+}
+
 // FieldGroup is a named group of config fields for UI rendering.
 type FieldGroup struct {
 	Name   string

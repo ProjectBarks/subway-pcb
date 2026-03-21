@@ -256,6 +256,22 @@ export class LuaRunner {
 		this.stripSizes = sizes;
 	}
 
+	getLedMap(): string[] {
+		return this.ledMap;
+	}
+
+	getStripSizes(): number[] {
+		return this.stripSizes;
+	}
+
+	getMtaState(): StationState[] {
+		const stations: StationState[] = [];
+		for (const [stopId, trains] of this.stationTrains) {
+			stations.push({ stop_id: stopId, trains });
+		}
+		return stations;
+	}
+
 	async render(): Promise<Uint8Array> {
 		if (!this.engine) return this.pixelBuffer;
 		this.pixelBuffer.fill(0);
