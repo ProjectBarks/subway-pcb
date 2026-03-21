@@ -11,3 +11,5 @@
 @source "../../board/**/*.ts";
 @source "../../editor/**/*.tsx";
 @source "../../landing/**/*.ts";
+@source "../../dashboard/**/*.ts";
+@source "../../community/**/*.ts";

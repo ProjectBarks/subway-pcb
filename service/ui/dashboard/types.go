@@ -8,4 +8,7 @@ type BoardCard struct {
 	Preset           *model.Preset
 	ActivePluginName string // resolved human-readable plugin name
 	BoardModelName   string // e.g. "NYC Subway", from board manifest
+	LuaSource        string // resolved Lua source for active plugin
+	ConfigJSON       string // JSON-encoded merged config map[string]string
+	BoardURL         string // e.g. "/static/dist/boards/nyc-subway/v1/board.json"
 }

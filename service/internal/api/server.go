@@ -288,6 +288,14 @@ func (s *Server) buildBoardCards(user *model.User, boards []model.Device) []ui.B
 		if board, ok := s.boards[BoardModelKey(d.BoardModelID)]; ok {
 			cards[i].BoardModelName = board.Manifest.Name
 		}
+
+		// LED preview data
+		luaSource, _ := s.resolveDeviceLua(d.MAC)
+		cards[i].LuaSource = luaSource
+		cards[i].BoardURL = BoardURLPath(d.BoardModelID)
+		config := s.buildDeviceConfig(d.MAC, d.PluginName)
+		configBytes, _ := json.Marshal(config)
+		cards[i].ConfigJSON = string(configBytes)
 	}
 	return cards
 }

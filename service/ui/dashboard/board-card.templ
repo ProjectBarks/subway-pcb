@@ -6,8 +6,14 @@ templ boardCard(card BoardCard) {
 	<a href={ templ.URL("/boards/" + card.Device.MAC) } class="block">
 		<div class="p-5 bg-bg-surface border border-border-subtle rounded-2xl hover:border-border-hover hover:scale-[1.005] cursor-pointer transition-all">
 			<!-- Preview area -->
-			<div class="h-40 bg-bg-surface-raised rounded-xl mb-4 overflow-hidden relative flex items-center justify-center">
-				<span class="text-text-muted text-sm">Board Preview</span>
+			<div
+				class="h-40 bg-bg-surface-raised rounded-xl mb-4 overflow-hidden relative"
+				data-preview-card
+				data-board-url={ card.BoardURL }
+				data-lua-source={ card.LuaSource }
+				data-config={ card.ConfigJSON }
+			>
+				<canvas class="w-full h-full block"></canvas>
 			</div>
 			<!-- Board Info -->
 			<div class="space-y-2">
