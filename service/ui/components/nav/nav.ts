@@ -6,25 +6,34 @@ export function initNav(): void {
 
 	if (!menuToggle || !mobileMenu) return;
 
+	let isOpen = false;
+
+	function open(): void {
+		isOpen = true;
+		mobileMenu!.style.maxHeight = `${mobileMenu!.scrollHeight}px`;
+		mobileMenu!.style.opacity = "1";
+		menuIconOpen?.classList.add("hidden");
+		menuIconClose?.classList.remove("hidden");
+	}
+
+	function close(): void {
+		isOpen = false;
+		mobileMenu!.style.maxHeight = "0";
+		mobileMenu!.style.opacity = "0";
+		menuIconOpen?.classList.remove("hidden");
+		menuIconClose?.classList.add("hidden");
+	}
+
 	menuToggle.addEventListener("click", () => {
-		const isOpen = !mobileMenu.classList.contains("hidden");
-
-		mobileMenu.classList.toggle("hidden", isOpen);
-
-		if (menuIconOpen && menuIconClose) {
-			menuIconOpen.classList.toggle("hidden", !isOpen);
-			menuIconClose.classList.toggle("hidden", isOpen);
+		if (isOpen) {
+			close();
+		} else {
+			open();
 		}
 	});
 
 	// Close mobile menu when clicking a nav link
 	mobileMenu.querySelectorAll("a").forEach((link) => {
-		link.addEventListener("click", () => {
-			mobileMenu.classList.add("hidden");
-			if (menuIconOpen && menuIconClose) {
-				menuIconOpen.classList.remove("hidden");
-				menuIconClose.classList.add("hidden");
-			}
-		});
+		link.addEventListener("click", close);
 	});
 }

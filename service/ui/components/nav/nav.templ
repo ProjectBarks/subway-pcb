@@ -64,7 +64,7 @@ templ Nav(user *model.User, activePath string) {
 			</div>
 		</div>
 		<!-- Mobile Menu -->
-		<div id="mobile-menu" class="hidden md:hidden glass border-0 border-t border-border-subtle">
+		<div id="mobile-menu" class="md:hidden glass border-0 border-t border-border-subtle overflow-hidden transition-all duration-200 ease-out max-h-0 opacity-0">
 			<div class="px-5 py-4 space-y-1">
 				for _, link := range navLinks {
 					<a
