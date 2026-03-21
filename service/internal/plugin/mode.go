@@ -9,7 +9,7 @@ type Plugin interface {
 	RequiredFeatures() []string
 	ConfigFields() []ConfigField
 	DefaultPresets() []model.Preset
-	Render(ctx RenderContext) ([]byte, error)
+	LuaSource() string
 }
 
 // IsPluginCompatible returns true if the board has all features required by the plugin.

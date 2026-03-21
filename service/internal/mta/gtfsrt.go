@@ -7,50 +7,29 @@ import (
 	gtfs "github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
 )
 
-// routeMap maps MTA route_id strings to our proto Route enum values.
-var routeMap = map[string]pb.Route{
-	"1":  pb.Route_ROUTE_1,
-	"2":  pb.Route_ROUTE_2,
-	"3":  pb.Route_ROUTE_3,
-	"4":  pb.Route_ROUTE_4,
-	"5":  pb.Route_ROUTE_5,
-	"5X": pb.Route_ROUTE_5, // Express variant
-	"6":  pb.Route_ROUTE_6,
-	"6X": pb.Route_ROUTE_6, // Express variant
-	"7":  pb.Route_ROUTE_7,
-	"7X": pb.Route_ROUTE_7, // Express variant
-	"A":  pb.Route_ROUTE_A,
-	"B":  pb.Route_ROUTE_B,
-	"C":  pb.Route_ROUTE_C,
-	"D":  pb.Route_ROUTE_D,
-	"E":  pb.Route_ROUTE_E,
-	"F":  pb.Route_ROUTE_F,
-	"FX": pb.Route_ROUTE_F, // Express variant
-	"G":  pb.Route_ROUTE_G,
-	"J":  pb.Route_ROUTE_J,
-	"L":  pb.Route_ROUTE_L,
-	"M":  pb.Route_ROUTE_M,
-	"N":  pb.Route_ROUTE_N,
-	"Q":  pb.Route_ROUTE_Q,
-	"R":  pb.Route_ROUTE_R,
-	"W":  pb.Route_ROUTE_W,
-	"Z":  pb.Route_ROUTE_Z,
-	"S":  pb.Route_ROUTE_S,
-	"SF": pb.Route_ROUTE_FS, // Franklin Ave Shuttle
-	"SR": pb.Route_ROUTE_GS, // Grand Central Shuttle (Rockaway Park)
-	"FS": pb.Route_ROUTE_FS,
-	"GS": pb.Route_ROUTE_GS,
-	"H":  pb.Route_ROUTE_FS, // Alternate ID for Franklin shuttle
-	"SI": pb.Route_ROUTE_SI,
-	"SIR": pb.Route_ROUTE_SI,
+// routeNormMap normalizes express variants and shuttle alternate IDs
+// to their canonical route strings.
+var routeNormMap = map[string]string{
+	"5X":  "5",
+	"6X":  "6",
+	"7X":  "7",
+	"FX":  "F",
+	"SF":  "FS",
+	"SR":  "GS",
+	"H":   "FS",
+	"SIR": "SI",
 }
 
-// MapRoute converts an MTA route_id string to the proto Route enum.
-// Returns ROUTE_UNKNOWN for unrecognized routes.
-func MapRoute(routeID string) pb.Route {
-	r, ok := routeMap[strings.ToUpper(strings.TrimSpace(routeID))]
-	if !ok {
-		return pb.Route_ROUTE_UNKNOWN
+// NormalizeRoute normalizes an MTA route_id string to its canonical route string.
+// Express variants are collapsed (e.g. "5X" -> "5") and shuttle alternate IDs
+// are mapped (e.g. "SF" -> "FS"). Returns empty string for empty input.
+func NormalizeRoute(routeID string) string {
+	r := strings.ToUpper(strings.TrimSpace(routeID))
+	if r == "" {
+		return ""
+	}
+	if mapped, ok := routeNormMap[r]; ok {
+		return mapped
 	}
 	return r
 }

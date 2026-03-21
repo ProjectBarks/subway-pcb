@@ -1,0 +1,4 @@
+# Lua 5.4.7 source files — download per README.md
+*.c
+*.h
+!CMakeLists.txt

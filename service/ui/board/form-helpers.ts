@@ -1,14 +1,14 @@
 export function updatePreviewColor(_input: HTMLInputElement): void {
-	if (!window._previewRenderer) return;
+	if (!window._luaRunner) return;
 
-	const colors: Record<string, string> = {};
+	const config: Record<string, string> = {};
 	document
 		.querySelectorAll<HTMLInputElement>("input[data-route-key]")
 		.forEach((el) => {
-			colors[el.dataset.routeKey!] = el.value;
+			config[el.dataset.routeKey!] = el.value;
 		});
 
-	window._previewRenderer.setThemeColors(colors);
+	window._luaRunner.setConfig(config);
 }
 
 export function collectRouteColorsToForm(form: HTMLFormElement): void {

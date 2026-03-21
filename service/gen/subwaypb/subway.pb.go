@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.0
-// source: proto/subway.proto
+// source: subway.proto
 
 package subwaypb
 
@@ -21,127 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type Route int32
-
-const (
-	Route_ROUTE_UNKNOWN Route = 0
-	Route_ROUTE_1       Route = 1
-	Route_ROUTE_2       Route = 2
-	Route_ROUTE_3       Route = 3
-	Route_ROUTE_4       Route = 4
-	Route_ROUTE_5       Route = 5
-	Route_ROUTE_6       Route = 6
-	Route_ROUTE_7       Route = 7
-	Route_ROUTE_A       Route = 8
-	Route_ROUTE_B       Route = 9
-	Route_ROUTE_C       Route = 10
-	Route_ROUTE_D       Route = 11
-	Route_ROUTE_E       Route = 12
-	Route_ROUTE_F       Route = 13
-	Route_ROUTE_G       Route = 14
-	Route_ROUTE_J       Route = 15
-	Route_ROUTE_L       Route = 16
-	Route_ROUTE_M       Route = 17
-	Route_ROUTE_N       Route = 18
-	Route_ROUTE_Q       Route = 19
-	Route_ROUTE_R       Route = 20
-	Route_ROUTE_W       Route = 21
-	Route_ROUTE_Z       Route = 22
-	Route_ROUTE_S       Route = 23 // 42nd St Shuttle
-	Route_ROUTE_FS      Route = 24 // Franklin Ave Shuttle
-	Route_ROUTE_GS      Route = 25 // Grand Central Shuttle
-	Route_ROUTE_SI      Route = 26 // Staten Island Railway
-)
-
-// Enum value maps for Route.
-var (
-	Route_name = map[int32]string{
-		0:  "ROUTE_UNKNOWN",
-		1:  "ROUTE_1",
-		2:  "ROUTE_2",
-		3:  "ROUTE_3",
-		4:  "ROUTE_4",
-		5:  "ROUTE_5",
-		6:  "ROUTE_6",
-		7:  "ROUTE_7",
-		8:  "ROUTE_A",
-		9:  "ROUTE_B",
-		10: "ROUTE_C",
-		11: "ROUTE_D",
-		12: "ROUTE_E",
-		13: "ROUTE_F",
-		14: "ROUTE_G",
-		15: "ROUTE_J",
-		16: "ROUTE_L",
-		17: "ROUTE_M",
-		18: "ROUTE_N",
-		19: "ROUTE_Q",
-		20: "ROUTE_R",
-		21: "ROUTE_W",
-		22: "ROUTE_Z",
-		23: "ROUTE_S",
-		24: "ROUTE_FS",
-		25: "ROUTE_GS",
-		26: "ROUTE_SI",
-	}
-	Route_value = map[string]int32{
-		"ROUTE_UNKNOWN": 0,
-		"ROUTE_1":       1,
-		"ROUTE_2":       2,
-		"ROUTE_3":       3,
-		"ROUTE_4":       4,
-		"ROUTE_5":       5,
-		"ROUTE_6":       6,
-		"ROUTE_7":       7,
-		"ROUTE_A":       8,
-		"ROUTE_B":       9,
-		"ROUTE_C":       10,
-		"ROUTE_D":       11,
-		"ROUTE_E":       12,
-		"ROUTE_F":       13,
-		"ROUTE_G":       14,
-		"ROUTE_J":       15,
-		"ROUTE_L":       16,
-		"ROUTE_M":       17,
-		"ROUTE_N":       18,
-		"ROUTE_Q":       19,
-		"ROUTE_R":       20,
-		"ROUTE_W":       21,
-		"ROUTE_Z":       22,
-		"ROUTE_S":       23,
-		"ROUTE_FS":      24,
-		"ROUTE_GS":      25,
-		"ROUTE_SI":      26,
-	}
-)
-
-func (x Route) Enum() *Route {
-	p := new(Route)
-	*p = x
-	return p
-}
-
-func (x Route) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Route) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_subway_proto_enumTypes[0].Descriptor()
-}
-
-func (Route) Type() protoreflect.EnumType {
-	return &file_proto_subway_proto_enumTypes[0]
-}
-
-func (x Route) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Route.Descriptor instead.
-func (Route) EnumDescriptor() ([]byte, []int) {
-	return file_proto_subway_proto_rawDescGZIP(), []int{0}
-}
-
+// TrainStatus is a fixed set of states from GTFS-RT.
 type TrainStatus int32
 
 const (
@@ -178,11 +58,11 @@ func (x TrainStatus) String() string {
 }
 
 func (TrainStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_subway_proto_enumTypes[1].Descriptor()
+	return file_subway_proto_enumTypes[0].Descriptor()
 }
 
 func (TrainStatus) Type() protoreflect.EnumType {
-	return &file_proto_subway_proto_enumTypes[1]
+	return &file_subway_proto_enumTypes[0]
 }
 
 func (x TrainStatus) Number() protoreflect.EnumNumber {
@@ -191,12 +71,65 @@ func (x TrainStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TrainStatus.Descriptor instead.
 func (TrainStatus) EnumDescriptor() ([]byte, []int) {
-	return file_proto_subway_proto_rawDescGZIP(), []int{1}
+	return file_subway_proto_rawDescGZIP(), []int{0}
+}
+
+// ConfigFieldType controls how the frontend renders a config input.
+type ConfigFieldType int32
+
+const (
+	ConfigFieldType_FIELD_TYPE_UNKNOWN ConfigFieldType = 0
+	ConfigFieldType_FIELD_COLOR        ConfigFieldType = 1
+	ConfigFieldType_FIELD_NUMBER       ConfigFieldType = 2
+	ConfigFieldType_FIELD_SELECT       ConfigFieldType = 3
+)
+
+// Enum value maps for ConfigFieldType.
+var (
+	ConfigFieldType_name = map[int32]string{
+		0: "FIELD_TYPE_UNKNOWN",
+		1: "FIELD_COLOR",
+		2: "FIELD_NUMBER",
+		3: "FIELD_SELECT",
+	}
+	ConfigFieldType_value = map[string]int32{
+		"FIELD_TYPE_UNKNOWN": 0,
+		"FIELD_COLOR":        1,
+		"FIELD_NUMBER":       2,
+		"FIELD_SELECT":       3,
+	}
+)
+
+func (x ConfigFieldType) Enum() *ConfigFieldType {
+	p := new(ConfigFieldType)
+	*p = x
+	return p
+}
+
+func (x ConfigFieldType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ConfigFieldType) Descriptor() protoreflect.EnumDescriptor {
+	return file_subway_proto_enumTypes[1].Descriptor()
+}
+
+func (ConfigFieldType) Type() protoreflect.EnumType {
+	return &file_subway_proto_enumTypes[1]
+}
+
+func (x ConfigFieldType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ConfigFieldType.Descriptor instead.
+func (ConfigFieldType) EnumDescriptor() ([]byte, []int) {
+	return file_subway_proto_rawDescGZIP(), []int{1}
 }
 
 type Train struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Route         Route                  `protobuf:"varint,1,opt,name=route,proto3,enum=subway.Route" json:"route,omitempty"`
+	Route         string                 `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"` // unstructured route ID (e.g. "1", "A", "FS", "SI")
 	Status        TrainStatus            `protobuf:"varint,2,opt,name=status,proto3,enum=subway.TrainStatus" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -204,7 +137,7 @@ type Train struct {
 
 func (x *Train) Reset() {
 	*x = Train{}
-	mi := &file_proto_subway_proto_msgTypes[0]
+	mi := &file_subway_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -216,7 +149,7 @@ func (x *Train) String() string {
 func (*Train) ProtoMessage() {}
 
 func (x *Train) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_subway_proto_msgTypes[0]
+	mi := &file_subway_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -229,14 +162,14 @@ func (x *Train) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Train.ProtoReflect.Descriptor instead.
 func (*Train) Descriptor() ([]byte, []int) {
-	return file_proto_subway_proto_rawDescGZIP(), []int{0}
+	return file_subway_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Train) GetRoute() Route {
+func (x *Train) GetRoute() string {
 	if x != nil {
 		return x.Route
 	}
-	return Route_ROUTE_UNKNOWN
+	return ""
 }
 
 func (x *Train) GetStatus() TrainStatus {
@@ -248,15 +181,15 @@ func (x *Train) GetStatus() TrainStatus {
 
 type Station struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	StopId        string                 `protobuf:"bytes,1,opt,name=stop_id,json=stopId,proto3" json:"stop_id,omitempty"` // MTA parent stop ID: "101", "A02", etc.
-	Trains        []*Train               `protobuf:"bytes,2,rep,name=trains,proto3" json:"trains,omitempty"`               // active trains at this station
+	StopId        string                 `protobuf:"bytes,1,opt,name=stop_id,json=stopId,proto3" json:"stop_id,omitempty"`
+	Trains        []*Train               `protobuf:"bytes,2,rep,name=trains,proto3" json:"trains,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Station) Reset() {
 	*x = Station{}
-	mi := &file_proto_subway_proto_msgTypes[1]
+	mi := &file_subway_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -268,7 +201,7 @@ func (x *Station) String() string {
 func (*Station) ProtoMessage() {}
 
 func (x *Station) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_subway_proto_msgTypes[1]
+	mi := &file_subway_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -281,7 +214,7 @@ func (x *Station) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Station.ProtoReflect.Descriptor instead.
 func (*Station) Descriptor() ([]byte, []int) {
-	return file_proto_subway_proto_rawDescGZIP(), []int{1}
+	return file_subway_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Station) GetStopId() string {
@@ -298,30 +231,34 @@ func (x *Station) GetTrains() []*Train {
 	return nil
 }
 
-type SubwayState struct {
+// Polled every cycle (~1/sec). Contains ONLY data that changes frequently.
+// GET /api/v1/state
+type DeviceState struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Timestamp     uint64                 `protobuf:"varint,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"` // Unix timestamp
-	Sequence      uint32                 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`   // incrementing frame counter
-	Stations      []*Station             `protobuf:"bytes,3,rep,name=stations,proto3" json:"stations,omitempty"`    // only stations with active trains (sparse)
+	ScriptHash    string                 `protobuf:"bytes,1,opt,name=script_hash,json=scriptHash,proto3" json:"script_hash,omitempty"`
+	BoardHash     string                 `protobuf:"bytes,2,opt,name=board_hash,json=boardHash,proto3" json:"board_hash,omitempty"`
+	Timestamp     uint64                 `protobuf:"varint,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Stations      []*Station             `protobuf:"bytes,4,rep,name=stations,proto3" json:"stations,omitempty"`
+	Config        map[string]string      `protobuf:"bytes,5,rep,name=config,proto3" json:"config,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SubwayState) Reset() {
-	*x = SubwayState{}
-	mi := &file_proto_subway_proto_msgTypes[2]
+func (x *DeviceState) Reset() {
+	*x = DeviceState{}
+	mi := &file_subway_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SubwayState) String() string {
+func (x *DeviceState) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SubwayState) ProtoMessage() {}
+func (*DeviceState) ProtoMessage() {}
 
-func (x *SubwayState) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_subway_proto_msgTypes[2]
+func (x *DeviceState) ProtoReflect() protoreflect.Message {
+	mi := &file_subway_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -332,59 +269,74 @@ func (x *SubwayState) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SubwayState.ProtoReflect.Descriptor instead.
-func (*SubwayState) Descriptor() ([]byte, []int) {
-	return file_proto_subway_proto_rawDescGZIP(), []int{2}
+// Deprecated: Use DeviceState.ProtoReflect.Descriptor instead.
+func (*DeviceState) Descriptor() ([]byte, []int) {
+	return file_subway_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *SubwayState) GetTimestamp() uint64 {
+func (x *DeviceState) GetScriptHash() string {
+	if x != nil {
+		return x.ScriptHash
+	}
+	return ""
+}
+
+func (x *DeviceState) GetBoardHash() string {
+	if x != nil {
+		return x.BoardHash
+	}
+	return ""
+}
+
+func (x *DeviceState) GetTimestamp() uint64 {
 	if x != nil {
 		return x.Timestamp
 	}
 	return 0
 }
 
-func (x *SubwayState) GetSequence() uint32 {
-	if x != nil {
-		return x.Sequence
-	}
-	return 0
-}
-
-func (x *SubwayState) GetStations() []*Station {
+func (x *DeviceState) GetStations() []*Station {
 	if x != nil {
 		return x.Stations
 	}
 	return nil
 }
 
-// Pre-rendered pixel frame for dumb display clients.
-// Server does all mapping/coloring; client just writes bytes to LEDs.
-type PixelFrame struct {
+func (x *DeviceState) GetConfig() map[string]string {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+// Fetched on boot and when board_hash changes.
+// GET /api/v1/board
+type DeviceBoard struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Timestamp     uint64                 `protobuf:"varint,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`               // Unix timestamp
-	Sequence      uint32                 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`                 // incrementing frame counter
-	LedCount      uint32                 `protobuf:"varint,3,opt,name=led_count,json=ledCount,proto3" json:"led_count,omitempty"` // number of LEDs (476)
-	Pixels        []byte                 `protobuf:"bytes,4,opt,name=pixels,proto3" json:"pixels,omitempty"`                      // RGB data, 3 bytes per LED, in strip order
+	Hash          string                 `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
+	BoardId       string                 `protobuf:"bytes,2,opt,name=board_id,json=boardId,proto3" json:"board_id,omitempty"`
+	LedCount      uint32                 `protobuf:"varint,3,opt,name=led_count,json=ledCount,proto3" json:"led_count,omitempty"`
+	StripSizes    []uint32               `protobuf:"varint,4,rep,packed,name=strip_sizes,json=stripSizes,proto3" json:"strip_sizes,omitempty"`
+	LedMap        map[uint32]string      `protobuf:"bytes,5,rep,name=led_map,json=ledMap,proto3" json:"led_map,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PixelFrame) Reset() {
-	*x = PixelFrame{}
-	mi := &file_proto_subway_proto_msgTypes[3]
+func (x *DeviceBoard) Reset() {
+	*x = DeviceBoard{}
+	mi := &file_subway_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PixelFrame) String() string {
+func (x *DeviceBoard) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PixelFrame) ProtoMessage() {}
+func (*DeviceBoard) ProtoMessage() {}
 
-func (x *PixelFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_subway_proto_msgTypes[3]
+func (x *DeviceBoard) ProtoReflect() protoreflect.Message {
+	mi := &file_subway_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -395,151 +347,240 @@ func (x *PixelFrame) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PixelFrame.ProtoReflect.Descriptor instead.
-func (*PixelFrame) Descriptor() ([]byte, []int) {
-	return file_proto_subway_proto_rawDescGZIP(), []int{3}
+// Deprecated: Use DeviceBoard.ProtoReflect.Descriptor instead.
+func (*DeviceBoard) Descriptor() ([]byte, []int) {
+	return file_subway_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *PixelFrame) GetTimestamp() uint64 {
+func (x *DeviceBoard) GetHash() string {
 	if x != nil {
-		return x.Timestamp
+		return x.Hash
 	}
-	return 0
+	return ""
 }
 
-func (x *PixelFrame) GetSequence() uint32 {
+func (x *DeviceBoard) GetBoardId() string {
 	if x != nil {
-		return x.Sequence
+		return x.BoardId
 	}
-	return 0
+	return ""
 }
 
-func (x *PixelFrame) GetLedCount() uint32 {
+func (x *DeviceBoard) GetLedCount() uint32 {
 	if x != nil {
 		return x.LedCount
 	}
 	return 0
 }
 
-func (x *PixelFrame) GetPixels() []byte {
+func (x *DeviceBoard) GetStripSizes() []uint32 {
 	if x != nil {
-		return x.Pixels
+		return x.StripSizes
 	}
 	return nil
 }
 
-var File_proto_subway_proto protoreflect.FileDescriptor
+func (x *DeviceBoard) GetLedMap() map[uint32]string {
+	if x != nil {
+		return x.LedMap
+	}
+	return nil
+}
 
-const file_proto_subway_proto_rawDesc = "" +
+// Fetched on boot and when script_hash changes.
+// GET /api/v1/script
+type DeviceScript struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Hash              string                 `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
+	LuaSource         string                 `protobuf:"bytes,2,opt,name=lua_source,json=luaSource,proto3" json:"lua_source,omitempty"`
+	PluginName        string                 `protobuf:"bytes,3,opt,name=plugin_name,json=pluginName,proto3" json:"plugin_name,omitempty"`
+	PluginDescription string                 `protobuf:"bytes,4,opt,name=plugin_description,json=pluginDescription,proto3" json:"plugin_description,omitempty"`
+	Config            map[string]string      `protobuf:"bytes,5,rep,name=config,proto3" json:"config,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *DeviceScript) Reset() {
+	*x = DeviceScript{}
+	mi := &file_subway_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeviceScript) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeviceScript) ProtoMessage() {}
+
+func (x *DeviceScript) ProtoReflect() protoreflect.Message {
+	mi := &file_subway_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeviceScript.ProtoReflect.Descriptor instead.
+func (*DeviceScript) Descriptor() ([]byte, []int) {
+	return file_subway_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *DeviceScript) GetHash() string {
+	if x != nil {
+		return x.Hash
+	}
+	return ""
+}
+
+func (x *DeviceScript) GetLuaSource() string {
+	if x != nil {
+		return x.LuaSource
+	}
+	return ""
+}
+
+func (x *DeviceScript) GetPluginName() string {
+	if x != nil {
+		return x.PluginName
+	}
+	return ""
+}
+
+func (x *DeviceScript) GetPluginDescription() string {
+	if x != nil {
+		return x.PluginDescription
+	}
+	return ""
+}
+
+func (x *DeviceScript) GetConfig() map[string]string {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+var File_subway_proto protoreflect.FileDescriptor
+
+const file_subway_proto_rawDesc = "" +
 	"\n" +
-	"\x12proto/subway.proto\x12\x06subway\"Y\n" +
-	"\x05Train\x12#\n" +
-	"\x05route\x18\x01 \x01(\x0e2\r.subway.RouteR\x05route\x12+\n" +
+	"\fsubway.proto\x12\x06subway\"J\n" +
+	"\x05Train\x12\x14\n" +
+	"\x05route\x18\x01 \x01(\tR\x05route\x12+\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x13.subway.TrainStatusR\x06status\"I\n" +
 	"\aStation\x12\x17\n" +
 	"\astop_id\x18\x01 \x01(\tR\x06stopId\x12%\n" +
-	"\x06trains\x18\x02 \x03(\v2\r.subway.TrainR\x06trains\"t\n" +
-	"\vSubwayState\x12\x1c\n" +
-	"\ttimestamp\x18\x01 \x01(\x04R\ttimestamp\x12\x1a\n" +
-	"\bsequence\x18\x02 \x01(\rR\bsequence\x12+\n" +
-	"\bstations\x18\x03 \x03(\v2\x0f.subway.StationR\bstations\"{\n" +
+	"\x06trains\x18\x02 \x03(\v2\r.subway.TrainR\x06trains\"\x8c\x02\n" +
+	"\vDeviceState\x12\x1f\n" +
+	"\vscript_hash\x18\x01 \x01(\tR\n" +
+	"scriptHash\x12\x1d\n" +
 	"\n" +
-	"PixelFrame\x12\x1c\n" +
-	"\ttimestamp\x18\x01 \x01(\x04R\ttimestamp\x12\x1a\n" +
-	"\bsequence\x18\x02 \x01(\rR\bsequence\x12\x1b\n" +
-	"\tled_count\x18\x03 \x01(\rR\bledCount\x12\x16\n" +
-	"\x06pixels\x18\x04 \x01(\fR\x06pixels*\xef\x02\n" +
-	"\x05Route\x12\x11\n" +
-	"\rROUTE_UNKNOWN\x10\x00\x12\v\n" +
-	"\aROUTE_1\x10\x01\x12\v\n" +
-	"\aROUTE_2\x10\x02\x12\v\n" +
-	"\aROUTE_3\x10\x03\x12\v\n" +
-	"\aROUTE_4\x10\x04\x12\v\n" +
-	"\aROUTE_5\x10\x05\x12\v\n" +
-	"\aROUTE_6\x10\x06\x12\v\n" +
-	"\aROUTE_7\x10\a\x12\v\n" +
-	"\aROUTE_A\x10\b\x12\v\n" +
-	"\aROUTE_B\x10\t\x12\v\n" +
-	"\aROUTE_C\x10\n" +
-	"\x12\v\n" +
-	"\aROUTE_D\x10\v\x12\v\n" +
-	"\aROUTE_E\x10\f\x12\v\n" +
-	"\aROUTE_F\x10\r\x12\v\n" +
-	"\aROUTE_G\x10\x0e\x12\v\n" +
-	"\aROUTE_J\x10\x0f\x12\v\n" +
-	"\aROUTE_L\x10\x10\x12\v\n" +
-	"\aROUTE_M\x10\x11\x12\v\n" +
-	"\aROUTE_N\x10\x12\x12\v\n" +
-	"\aROUTE_Q\x10\x13\x12\v\n" +
-	"\aROUTE_R\x10\x14\x12\v\n" +
-	"\aROUTE_W\x10\x15\x12\v\n" +
-	"\aROUTE_Z\x10\x16\x12\v\n" +
-	"\aROUTE_S\x10\x17\x12\f\n" +
-	"\bROUTE_FS\x10\x18\x12\f\n" +
-	"\bROUTE_GS\x10\x19\x12\f\n" +
-	"\bROUTE_SI\x10\x1a*R\n" +
+	"board_hash\x18\x02 \x01(\tR\tboardHash\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\x04R\ttimestamp\x12+\n" +
+	"\bstations\x18\x04 \x03(\v2\x0f.subway.StationR\bstations\x127\n" +
+	"\x06config\x18\x05 \x03(\v2\x1f.subway.DeviceState.ConfigEntryR\x06config\x1a9\n" +
+	"\vConfigEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xef\x01\n" +
+	"\vDeviceBoard\x12\x12\n" +
+	"\x04hash\x18\x01 \x01(\tR\x04hash\x12\x19\n" +
+	"\bboard_id\x18\x02 \x01(\tR\aboardId\x12\x1b\n" +
+	"\tled_count\x18\x03 \x01(\rR\bledCount\x12\x1f\n" +
+	"\vstrip_sizes\x18\x04 \x03(\rR\n" +
+	"stripSizes\x128\n" +
+	"\aled_map\x18\x05 \x03(\v2\x1f.subway.DeviceBoard.LedMapEntryR\x06ledMap\x1a9\n" +
+	"\vLedMapEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\rR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x86\x02\n" +
+	"\fDeviceScript\x12\x12\n" +
+	"\x04hash\x18\x01 \x01(\tR\x04hash\x12\x1d\n" +
+	"\n" +
+	"lua_source\x18\x02 \x01(\tR\tluaSource\x12\x1f\n" +
+	"\vplugin_name\x18\x03 \x01(\tR\n" +
+	"pluginName\x12-\n" +
+	"\x12plugin_description\x18\x04 \x01(\tR\x11pluginDescription\x128\n" +
+	"\x06config\x18\x05 \x03(\v2 .subway.DeviceScript.ConfigEntryR\x06config\x1a9\n" +
+	"\vConfigEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*R\n" +
 	"\vTrainStatus\x12\x0f\n" +
 	"\vSTATUS_NONE\x10\x00\x12\x0e\n" +
 	"\n" +
 	"STOPPED_AT\x10\x01\x12\x0f\n" +
 	"\vINCOMING_AT\x10\x02\x12\x11\n" +
-	"\rIN_TRANSIT_TO\x10\x03B9Z7github.com/ProjectBarks/subway-pcb/service/gen/subwaypbb\x06proto3"
+	"\rIN_TRANSIT_TO\x10\x03*^\n" +
+	"\x0fConfigFieldType\x12\x16\n" +
+	"\x12FIELD_TYPE_UNKNOWN\x10\x00\x12\x0f\n" +
+	"\vFIELD_COLOR\x10\x01\x12\x10\n" +
+	"\fFIELD_NUMBER\x10\x02\x12\x10\n" +
+	"\fFIELD_SELECT\x10\x03B9Z7github.com/ProjectBarks/subway-pcb/service/gen/subwaypbb\x06proto3"
 
 var (
-	file_proto_subway_proto_rawDescOnce sync.Once
-	file_proto_subway_proto_rawDescData []byte
+	file_subway_proto_rawDescOnce sync.Once
+	file_subway_proto_rawDescData []byte
 )
 
-func file_proto_subway_proto_rawDescGZIP() []byte {
-	file_proto_subway_proto_rawDescOnce.Do(func() {
-		file_proto_subway_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_subway_proto_rawDesc), len(file_proto_subway_proto_rawDesc)))
+func file_subway_proto_rawDescGZIP() []byte {
+	file_subway_proto_rawDescOnce.Do(func() {
+		file_subway_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_subway_proto_rawDesc), len(file_subway_proto_rawDesc)))
 	})
-	return file_proto_subway_proto_rawDescData
+	return file_subway_proto_rawDescData
 }
 
-var file_proto_subway_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_subway_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_proto_subway_proto_goTypes = []any{
-	(Route)(0),          // 0: subway.Route
-	(TrainStatus)(0),    // 1: subway.TrainStatus
-	(*Train)(nil),       // 2: subway.Train
-	(*Station)(nil),     // 3: subway.Station
-	(*SubwayState)(nil), // 4: subway.SubwayState
-	(*PixelFrame)(nil),  // 5: subway.PixelFrame
+var file_subway_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_subway_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_subway_proto_goTypes = []any{
+	(TrainStatus)(0),     // 0: subway.TrainStatus
+	(ConfigFieldType)(0), // 1: subway.ConfigFieldType
+	(*Train)(nil),        // 2: subway.Train
+	(*Station)(nil),      // 3: subway.Station
+	(*DeviceState)(nil),  // 4: subway.DeviceState
+	(*DeviceBoard)(nil),  // 5: subway.DeviceBoard
+	(*DeviceScript)(nil), // 6: subway.DeviceScript
+	nil,                  // 7: subway.DeviceState.ConfigEntry
+	nil,                  // 8: subway.DeviceBoard.LedMapEntry
+	nil,                  // 9: subway.DeviceScript.ConfigEntry
 }
-var file_proto_subway_proto_depIdxs = []int32{
-	0, // 0: subway.Train.route:type_name -> subway.Route
-	1, // 1: subway.Train.status:type_name -> subway.TrainStatus
-	2, // 2: subway.Station.trains:type_name -> subway.Train
-	3, // 3: subway.SubwayState.stations:type_name -> subway.Station
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+var file_subway_proto_depIdxs = []int32{
+	0, // 0: subway.Train.status:type_name -> subway.TrainStatus
+	2, // 1: subway.Station.trains:type_name -> subway.Train
+	3, // 2: subway.DeviceState.stations:type_name -> subway.Station
+	7, // 3: subway.DeviceState.config:type_name -> subway.DeviceState.ConfigEntry
+	8, // 4: subway.DeviceBoard.led_map:type_name -> subway.DeviceBoard.LedMapEntry
+	9, // 5: subway.DeviceScript.config:type_name -> subway.DeviceScript.ConfigEntry
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
-func init() { file_proto_subway_proto_init() }
-func file_proto_subway_proto_init() {
-	if File_proto_subway_proto != nil {
+func init() { file_subway_proto_init() }
+func file_subway_proto_init() {
+	if File_subway_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_subway_proto_rawDesc), len(file_proto_subway_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_subway_proto_rawDesc), len(file_subway_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   4,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_proto_subway_proto_goTypes,
-		DependencyIndexes: file_proto_subway_proto_depIdxs,
-		EnumInfos:         file_proto_subway_proto_enumTypes,
-		MessageInfos:      file_proto_subway_proto_msgTypes,
+		GoTypes:           file_subway_proto_goTypes,
+		DependencyIndexes: file_subway_proto_depIdxs,
+		EnumInfos:         file_subway_proto_enumTypes,
+		MessageInfos:      file_subway_proto_msgTypes,
 	}.Build()
-	File_proto_subway_proto = out.File
-	file_proto_subway_proto_goTypes = nil
-	file_proto_subway_proto_depIdxs = nil
+	File_subway_proto = out.File
+	file_subway_proto_goTypes = nil
+	file_subway_proto_depIdxs = nil
 }

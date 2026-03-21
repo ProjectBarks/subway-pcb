@@ -48,6 +48,7 @@ export default defineConfig({
         assetFileNames: "[name].[ext]",
         manualChunks: {
           three: ["three"],
+          wasmoon: ["wasmoon"],
         },
       },
     },

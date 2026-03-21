@@ -5,8 +5,7 @@ import {
 	initBoardViewer,
 	type LedInfo,
 } from "../lib/board-viewer";
-import { PreviewRenderer } from "../lib/preview";
-import { decodePixelFrame } from "../lib/protobuf";
+import { LuaRunner } from "../lib/lua-runner";
 import { BoardSerial, encodeCommand } from "../lib/serial";
 import {
 	collectConfigToPresetForm,
@@ -25,19 +24,34 @@ window.boardSerial = boardSerial;
 window.encodeCommand = encodeCommand;
 
 const canvasWrap = document.getElementById("canvas-wrap");
-const mac = canvasWrap?.dataset.deviceMac ?? "";
 const boardUrl =
 	canvasWrap?.dataset.boardUrl ??
 	"/static/dist/boards/nyc-subway/v1/board.json";
 const tooltip = document.getElementById("tooltip")!;
 
 let handle: BoardViewerHandle | null = null;
+let luaRunner: LuaRunner | null = null;
 let ledCount = 0;
 let lastFetchOk = false;
 let mouseX = 0;
 let mouseY = 0;
 
-function updateStatus(trains: number, seq: number): void {
+// Default track.lua for board page preview
+const DEFAULT_TRACK_LUA = `function render()
+    for i = 0, led_count() - 1 do
+        if has_status(i, STOPPED_AT) then
+            local route = get_route(i)
+            if route then
+                local r, g, b = get_rgb_config(route)
+                if r then
+                    set_led(i, r, g, b)
+                end
+            end
+        end
+    end
+end`;
+
+function updateStatus(trains: number, _seq: number): void {
 	const dot = document.getElementById("dot");
 	const statusText = document.getElementById("status-text");
 	const trainCount = document.getElementById("train-count");
@@ -54,7 +68,7 @@ function updateStatus(trains: number, seq: number): void {
 		if (statusText) statusText.textContent = "Disconnected";
 	}
 	if (trainCount) trainCount.textContent = String(trains);
-	if (frameSeq) frameSeq.textContent = String(seq);
+	if (frameSeq) frameSeq.textContent = "0";
 }
 
 function onLedHover(info: LedInfo | null): void {
@@ -68,40 +82,46 @@ function onLedHover(info: LedInfo | null): void {
 	}
 }
 
-async function fetchPixels(): Promise<void> {
+function collectInitialConfig(): Record<string, string> {
+	const config: Record<string, string> = {};
+	document
+		.querySelectorAll<HTMLInputElement>("input[data-route-key]")
+		.forEach((el) => {
+			config[el.dataset.routeKey!] = el.value;
+		});
+	return config;
+}
+
+async function fetchState(): Promise<void> {
 	try {
-		const resp = await fetch(
-			`/api/v1/pixels?device=${encodeURIComponent(mac)}`,
-		);
-		if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-		const buf = await resp.arrayBuffer();
-		if (buf.byteLength === 0) {
-			handle?.setPixels(new Uint8Array(ledCount * 3));
-			lastFetchOk = true;
-			updateStatus(0, 0);
-			return;
-		}
-		const frame = decodePixelFrame(buf);
-		if (frame.pixels && frame.pixels.length >= ledCount * 3) {
-			handle?.setPixels(frame.pixels);
-		}
-		let activeCount = 0;
-		if (frame.pixels) {
-			for (let i = 0; i < ledCount; i++) {
-				if (
-					frame.pixels[i * 3] ||
-					frame.pixels[i * 3 + 1] ||
-					frame.pixels[i * 3 + 2]
-				)
-					activeCount++;
+		const resp = await fetch("/api/v1/state?format=json");
+		if (resp.ok) {
+			const data = await resp.json();
+			if (data.stations && luaRunner) {
+				luaRunner.setMtaState(data.stations);
 			}
+			lastFetchOk = true;
+			const activeCount = data.stations?.length ?? 0;
+			updateStatus(activeCount, 0);
 		}
-		lastFetchOk = true;
-		updateStatus(activeCount, frame.sequence);
 	} catch {
 		lastFetchOk = false;
 		updateStatus(0, 0);
 	}
+}
+
+function startRenderLoop(): void {
+	if (!luaRunner || !handle) return;
+
+	const runner = luaRunner;
+	const viewer = handle;
+
+	const renderFrame = async () => {
+		const pixels = await runner.render();
+		viewer.setPixels(pixels);
+		requestAnimationFrame(renderFrame);
+	};
+	renderFrame();
 }
 
 async function init(): Promise<void> {
@@ -117,11 +137,23 @@ async function init(): Promise<void> {
 		tooltip.style.display = "none";
 	});
 
-	// Fetch board manifest to get ledCount
+	// Init LuaRunner
+	luaRunner = new LuaRunner();
+	await luaRunner.init();
+
+	// Load board data for LED map and viewer
 	try {
 		const resp = await fetch(boardUrl);
 		const board = await resp.json();
 		ledCount = board.ledCount ?? 478;
+		const ledMap = new Array<string>(ledCount).fill("");
+		for (const pos of board.ledPositions) {
+			if (pos.index >= 0 && pos.index < ledCount && pos.stationId) {
+				ledMap[pos.index] = pos.stationId;
+			}
+		}
+		luaRunner.setLedMap(ledMap);
+		if (board.strips) luaRunner.setStripSizes(board.strips);
 	} catch {
 		ledCount = 478;
 	}
@@ -132,12 +164,20 @@ async function init(): Promise<void> {
 		onLedHover,
 	});
 
-	// Initialize preview renderer for theme editing
-	window._previewRenderer = new PreviewRenderer(handle);
-	await window._previewRenderer.init();
+	// Load initial config from the page's color inputs
+	const initialConfig = collectInitialConfig();
+	luaRunner.setConfig(initialConfig);
 
-	await fetchPixels();
-	setInterval(fetchPixels, 1000);
+	// Load the Lua script
+	await luaRunner.loadScript(DEFAULT_TRACK_LUA);
+
+	// Expose for theme editing
+	window._luaRunner = luaRunner;
+
+	// Fetch state and start rendering
+	await fetchState();
+	setInterval(fetchState, 5000);
+	startRenderLoop();
 }
 
 init();

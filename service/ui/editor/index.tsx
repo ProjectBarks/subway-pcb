@@ -1,36 +1,52 @@
 import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { type BoardViewerHandle, initBoardViewer } from "../lib/board-viewer";
+import { LuaRunner } from "../lib/lua-runner";
 import { pluginsApi } from "./api";
 import { CodeEditor } from "./code-editor";
 import { ConfigFieldEditor } from "./config-editor";
 import type { ConfigField, ConsoleMessage, Plugin } from "./types";
 
-const DEFAULT_LUA = `-- LED Plugin: Rainbow Wave
-function render(t, leds)
-  for i = 0, leds - 1 do
-    local hue = (i / leds + t * 0.1) % 1.0
-    local r, g, b = hsv_to_rgb(hue, 1.0, 1.0)
-    set_led(i, r, g, b)
-  end
-end
+const DEFAULT_LUA = `-- LED Plugin Template
+-- Required: define a render() function (no arguments)
+--
+-- LED Control:
+--   set_led(i, r, g, b)    clear_leds()    led_count()
+--
+-- MTA Queries:
+--   has_train(led)                  -- any train at this LED?
+--   has_status(led, STOPPED_AT)     -- train with status?
+--   get_route(led)                  -- route string or nil
+--   get_routes(led)                 -- table of all routes
+--   get_station(led)                -- station ID or nil
+--
+-- Config:
+--   get_string_config(key)          -- string or nil
+--   get_int_config(key)             -- int or nil
+--   get_rgb_config(key)             -- r, g, b or nil
+--
+-- Utilities:
+--   get_time()                      -- seconds since boot
+--   hsv_to_rgb(h, s, v)            -- returns r, g, b
+--   hex_to_rgb("#rrggbb")          -- returns r, g, b
+--   get_strip_info()               -- {97, 102, ...}
+--   log("message")
 
-function hsv_to_rgb(h, s, v)
-  local i = math.floor(h * 6)
-  local f = h * 6 - i
-  local p = v * (1 - s)
-  local q = v * (1 - f * s)
-  local t = v * (1 - (1 - f) * s)
-  i = i % 6
-  if i == 0 then return v, t, p
-  elseif i == 1 then return q, v, p
-  elseif i == 2 then return p, v, t
-  elseif i == 3 then return p, q, v
-  elseif i == 4 then return t, p, v
-  else return v, p, q end
+function render()
+    for i = 0, led_count() - 1 do
+        local hue = (i / led_count() + get_time() * 0.1) % 1.0
+        local r, g, b = hsv_to_rgb(hue, 1.0, 1.0)
+        set_led(i, r, g, b)
+    end
 end`;
 
-function EditorPreview({ isRunning }: { isRunning: boolean }) {
+function EditorPreview({
+	isRunning,
+	viewerHandleRef,
+}: {
+	isRunning: boolean;
+	viewerHandleRef: { current: BoardViewerHandle | null };
+}) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const viewerRef = useRef<BoardViewerHandle | null>(null);
 
@@ -41,12 +57,14 @@ function EditorPreview({ isRunning }: { isRunning: boolean }) {
 			mode: "preview",
 		}).then((handle) => {
 			viewerRef.current = handle;
+			viewerHandleRef.current = handle;
 		});
 		return () => {
 			viewerRef.current?.dispose();
 			viewerRef.current = null;
+			viewerHandleRef.current = null;
 		};
-	}, []);
+	}, [viewerHandleRef]);
 
 	return (
 		<div class="hidden lg:flex flex-col bg-bg-primary">
@@ -94,7 +112,74 @@ function EditorApp() {
 	const [editingName, setEditingName] = useState<string | null>(null);
 	const [editingNameValue, setEditingNameValue] = useState("");
 
+	const luaRunnerRef = useRef<LuaRunner | null>(null);
+	const animFrameRef = useRef<number>(0);
+	const viewerHandleRef = useRef<BoardViewerHandle | null>(null);
+
 	const selectedPlugin = plugins.find((p) => p.id === selectedPluginId);
+
+	// Init LuaRunner on mount
+	useEffect(() => {
+		const runner = new LuaRunner();
+		runner
+			.init()
+			.then(() => {
+				luaRunnerRef.current = runner;
+				// Load board data for LED map
+				fetch("/static/dist/boards/nyc-subway/v1/board.json")
+					.then((r) => r.json())
+					.then(
+						(board: {
+							ledCount: number;
+							strips?: number[];
+							ledPositions: Array<{
+								index: number;
+								stationId: string;
+							}>;
+						}) => {
+							const ledMap = new Array<string>(board.ledCount).fill("");
+							for (const pos of board.ledPositions) {
+								if (
+									pos.index >= 0 &&
+									pos.index < board.ledCount &&
+									pos.stationId
+								) {
+									ledMap[pos.index] = pos.stationId;
+								}
+							}
+							runner.setLedMap(ledMap);
+							if (board.strips) runner.setStripSizes(board.strips);
+						},
+					);
+			})
+			.catch(() => {
+				// LuaRunner init failed; preview will be unavailable
+			});
+		return () => {
+			cancelAnimationFrame(animFrameRef.current);
+			runner.dispose();
+		};
+	}, []);
+
+	// Fetch MTA state periodically
+	useEffect(() => {
+		const fetchState = async () => {
+			try {
+				const resp = await fetch("/api/v1/state?format=json");
+				if (resp.ok) {
+					const data = await resp.json();
+					if (data.stations && luaRunnerRef.current) {
+						luaRunnerRef.current.setMtaState(data.stations);
+					}
+				}
+			} catch {
+				// MTA state fetch failed; preview will use stale data
+			}
+		};
+		fetchState();
+		const interval = setInterval(fetchState, 5000);
+		return () => clearInterval(interval);
+	}, []);
 
 	// Load plugins on mount
 	useEffect(() => {
@@ -225,15 +310,49 @@ function EditorApp() {
 		}
 	};
 
-	const handleRun = () => {
-		if (!selectedPlugin) return;
+	const handleRun = async () => {
+		if (!selectedPlugin || !luaRunnerRef.current) return;
+
+		// If already running, stop the render loop
+		if (isRunning) {
+			cancelAnimationFrame(animFrameRef.current);
+			setIsRunning(false);
+			addConsoleMessage("info", "Stopped rendering");
+			return;
+		}
+
 		if (!selectedPlugin.lua_source.includes("function render")) {
 			addConsoleMessage("error", "Missing required 'render' function");
 			return;
 		}
+
+		const runner = luaRunnerRef.current;
+		runner.onLog = (msg) => addConsoleMessage("info", msg);
+
+		// Build config from plugin's config fields
+		const config: Record<string, string> = {};
+		for (const field of selectedPlugin.config_fields || []) {
+			config[field.key] = field.default || "";
+		}
+		runner.setConfig(config);
+
+		const err = await runner.loadScript(selectedPlugin.lua_source);
+		if (err) {
+			addConsoleMessage("error", `Lua error: ${err}`);
+			return;
+		}
+
 		setIsRunning(true);
 		addConsoleMessage("success", "Running plugin...");
-		addConsoleMessage("info", "Rendering 478 LEDs at 60fps");
+
+		// Start render loop
+		cancelAnimationFrame(animFrameRef.current);
+		const renderLoop = async () => {
+			const pixels = await runner.render();
+			viewerHandleRef.current?.setPixels(pixels);
+			animFrameRef.current = requestAnimationFrame(renderLoop);
+		};
+		renderLoop();
 	};
 
 	return (
@@ -517,17 +636,31 @@ function EditorApp() {
 									<button
 										type="button"
 										onClick={handleRun}
-										class="h-10 px-4 md:px-6 bg-accent-gold text-black rounded-full flex items-center gap-2 hover:scale-[0.98] transition-transform text-sm"
+										class={`h-10 px-4 md:px-6 ${isRunning ? "bg-status-error" : "bg-accent-gold"} text-black rounded-full flex items-center gap-2 hover:scale-[0.98] transition-transform text-sm`}
 									>
-										<svg
-											class="size-4"
-											viewBox="0 0 24 24"
-											fill="currentColor"
-											stroke="none"
-										>
-											<polygon points="6 3 20 12 6 21 6 3" />
-										</svg>
-										<span class="hidden sm:inline">Run</span>
+										{isRunning ? (
+											<svg
+												class="size-4"
+												viewBox="0 0 24 24"
+												fill="currentColor"
+												stroke="none"
+											>
+												<rect x="6" y="4" width="4" height="16" />
+												<rect x="14" y="4" width="4" height="16" />
+											</svg>
+										) : (
+											<svg
+												class="size-4"
+												viewBox="0 0 24 24"
+												fill="currentColor"
+												stroke="none"
+											>
+												<polygon points="6 3 20 12 6 21 6 3" />
+											</svg>
+										)}
+										<span class="hidden sm:inline">
+											{isRunning ? "Stop" : "Run"}
+										</span>
 									</button>
 									<button
 										type="button"
@@ -703,7 +836,10 @@ function EditorApp() {
 							</div>
 
 							{/* Preview side (desktop) */}
-							<EditorPreview isRunning={isRunning} />
+							<EditorPreview
+								isRunning={isRunning}
+								viewerHandleRef={viewerHandleRef}
+							/>
 						</div>
 					</>
 				) : (

@@ -1,13 +1,5 @@
 package plugin
 
-import (
-	"fmt"
-	"strconv"
-
-	"github.com/ProjectBarks/subway-pcb/service/internal/model"
-	"github.com/ProjectBarks/subway-pcb/service/internal/mta"
-)
-
 // FieldType controls how the UI renders a config field.
 type FieldType string
 
@@ -27,48 +19,6 @@ type ConfigField struct {
 	Min     string    `json:"min,omitempty"`
 	Max     string    `json:"max,omitempty"`
 	Options []string  `json:"options,omitempty"`
-}
-
-// RenderContext provides everything a mode needs to produce a pixel frame.
-type RenderContext struct {
-	Aggregator *mta.Aggregator
-	StationIDs []string          // flat LED index -> station ID
-	Device     *model.Device
-	Config     map[string]string // resolved config (field defaults -> preset -> device overrides)
-	TotalLEDs  int
-	Strips     []int // per-strip LED counts from board manifest
-}
-
-// ConfigColor reads a hex color from config, falling back to the field default.
-func (ctx RenderContext) ConfigColor(key string, fields []ConfigField) (r, g, b uint8) {
-	hex := ctx.Config[key]
-	if hex == "" {
-		for _, f := range fields {
-			if f.Key == key {
-				hex = f.Default
-				break
-			}
-		}
-	}
-	if len(hex) == 7 && hex[0] == '#' {
-		fmt.Sscanf(hex, "#%02x%02x%02x", &r, &g, &b)
-	}
-	return
-}
-
-// ConfigInt reads a number from config, falling back to the field default.
-func (ctx RenderContext) ConfigInt(key string, fields []ConfigField) int {
-	s := ctx.Config[key]
-	if s == "" {
-		for _, f := range fields {
-			if f.Key == key {
-				s = f.Default
-				break
-			}
-		}
-	}
-	v, _ := strconv.Atoi(s)
-	return v
 }
 
 // FieldGroup is a named group of config fields for UI rendering.

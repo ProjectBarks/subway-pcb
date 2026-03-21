@@ -73,14 +73,9 @@ func main() {
 	// Start all feed pollers.
 	mta.StartAllPollers(ctx, aggregator, *pollInterval)
 
-	// Create pixel renderer with loaded boards.
-	pixelRenderer := api.NewPixelRenderer(boards)
-	pixelRenderer.SetDeps(db, pluginRegistry)
-
 	// Set up HTTP server.
 	apiServer := api.NewServer(api.ServerConfig{
 		Aggregator:     aggregator,
-		PixelRenderer:  pixelRenderer,
 		Store:          db,
 		PluginRegistry: pluginRegistry,
 		Boards:         boards,

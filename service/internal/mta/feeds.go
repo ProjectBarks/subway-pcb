@@ -124,8 +124,8 @@ func extractUpdates(feed *gtfs.FeedMessage) []trainUpdate {
 		// TripUpdate has every future stop which floods the display.
 		if vp := entity.GetVehicle(); vp != nil {
 			routeID := vp.GetTrip().GetRouteId()
-			route := MapRoute(routeID)
-			if route == 0 {
+			route := NormalizeRoute(routeID)
+			if route == "" {
 				continue
 			}
 

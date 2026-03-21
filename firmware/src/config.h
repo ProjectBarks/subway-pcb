@@ -9,6 +9,9 @@
 /* Total LEDs across all strips */
 #define TOTAL_LEDS 478
 
+/* Maximum LED count (used for buffer sizing) */
+#define MAX_LEDS 478
+
 /* Total bytes of pixel data (478 * 3) */
 #define TOTAL_PIXEL_BYTES 1434
 
@@ -26,22 +29,18 @@ static const uint16_t STRIP_LED_COUNTS[NUM_STRIPS] = {
 #define SPI_STRIP_INDEX 8
 
 /* Server configuration */
-#define DEFAULT_SERVER_URL "https://subway-pcb-production.up.railway.app/api/v1/pixels"
+#define DEFAULT_SERVER_URL "https://subway-pcb-production.up.railway.app"
 #define SERVER_URL_NVS_KEY "server_url"
 #define SERVER_URL_MAX_LEN 128
 
-/* Polling interval in seconds */
-#define POLL_INTERVAL_SEC 1
+/* Firmware version string (sent as X-Firmware-Version header) */
+#define FIRMWARE_VERSION "0.7.0"
+
+/* Polling interval in milliseconds */
+#define POLL_INTERVAL_MS 1000
 
 /* Default LED brightness (0-255) */
 #define DEFAULT_BRIGHTNESS 10
-
-/* HTTP receive buffer size (slightly over 1428) */
-#define HTTP_BUF_SIZE 1600
-
-/* Subway client task config */
-#define SUBWAY_CLIENT_TASK_STACK 8192
-#define SUBWAY_CLIENT_TASK_PRIORITY 4
 
 /* OTA update check interval in minutes */
 #define OTA_CHECK_INTERVAL_MIN 60

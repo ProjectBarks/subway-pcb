@@ -1,19 +1,17 @@
 package mta
 
 import (
-	"log"
 	"sort"
 	"sync"
 	"time"
 
 	pb "github.com/ProjectBarks/subway-pcb/service/gen/subwaypb"
-	"google.golang.org/protobuf/proto"
 )
 
 // trainUpdate represents a single train observation from a feed.
 type trainUpdate struct {
 	StopID string
-	Route  pb.Route
+	Route  string
 	Status pb.TrainStatus
 	TripID string // unique per physical train
 }
@@ -24,15 +22,15 @@ type feedSnapshot struct {
 	timestamp time.Time
 }
 
-// Aggregator collects feed data from all pollers and builds a SubwayState.
+// Aggregator collects feed data from all pollers and builds station state.
 type Aggregator struct {
 	mu         sync.RWMutex
 	feeds      map[string]*feedSnapshot
 	sequence   uint32
 	lastUpdate time.Time
 
-	cachedBytes []byte
-	cachedState *pb.SubwayState
+	cachedStations []*pb.Station
+	cachedTimestamp uint64
 }
 
 // NewAggregator creates a new Aggregator.
@@ -68,7 +66,7 @@ func (a *Aggregator) rebuildLocked() {
 	// If same TripID appears in multiple feeds (shouldn't happen), latest wins.
 	type trainInfo struct {
 		StopID string
-		Route  pb.Route
+		Route  string
 		Status pb.TrainStatus
 	}
 	trainsByTrip := make(map[string]trainInfo)
@@ -94,7 +92,7 @@ func (a *Aggregator) rebuildLocked() {
 				}
 			} else {
 				// No trip ID — use a synthetic key
-				key := parentID + ":" + u.Route.String()
+				key := parentID + ":" + u.Route
 				trainsByTrip[key] = trainInfo{
 					StopID: parentID,
 					Route:  u.Route,
@@ -105,11 +103,11 @@ func (a *Aggregator) rebuildLocked() {
 	}
 
 	// Now build station -> best route map (one route per station max for cleaner display)
-	stationBest := make(map[string]map[pb.Route]pb.TrainStatus)
+	stationBest := make(map[string]map[string]pb.TrainStatus)
 
 	for _, t := range trainsByTrip {
 		if _, ok := stationBest[t.StopID]; !ok {
-			stationBest[t.StopID] = make(map[pb.Route]pb.TrainStatus)
+			stationBest[t.StopID] = make(map[string]pb.TrainStatus)
 		}
 		existing, exists := stationBest[t.StopID][t.Route]
 		if !exists || statusPriority(t.Status) > statusPriority(existing) {
@@ -117,18 +115,14 @@ func (a *Aggregator) rebuildLocked() {
 		}
 	}
 
-	// Build protobuf message.
-	state := &pb.SubwayState{
-		Timestamp: uint64(now.Unix()),
-		Sequence:  a.sequence,
-	}
-
+	// Build station list.
 	stopIDs := make([]string, 0, len(stationBest))
 	for stopID := range stationBest {
 		stopIDs = append(stopIDs, stopID)
 	}
 	sort.Strings(stopIDs)
 
+	stations := make([]*pb.Station, 0, len(stopIDs))
 	for _, stopID := range stopIDs {
 		routes := stationBest[stopID]
 		trains := make([]*pb.Train, 0, len(routes))
@@ -145,34 +139,28 @@ func (a *Aggregator) rebuildLocked() {
 		if len(trains) > 2 {
 			trains = trains[:2]
 		}
-		state.Stations = append(state.Stations, &pb.Station{
+		stations = append(stations, &pb.Station{
 			StopId: stopID,
 			Trains: trains,
 		})
 	}
 
-	a.cachedState = state
-
-	data, err := proto.Marshal(state)
-	if err != nil {
-		log.Printf("ERROR: failed to marshal SubwayState: %v", err)
-		return
-	}
-	a.cachedBytes = data
+	a.cachedStations = stations
+	a.cachedTimestamp = uint64(now.Unix())
 }
 
-// GetState returns the current cached SubwayState protobuf message.
-func (a *Aggregator) GetState() *pb.SubwayState {
+// GetStations returns the current cached station list.
+func (a *Aggregator) GetStations() []*pb.Station {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.cachedState
+	return a.cachedStations
 }
 
-// GetStateBytes returns the current cached serialized SubwayState.
-func (a *Aggregator) GetStateBytes() []byte {
+// GetTimestamp returns the cached timestamp.
+func (a *Aggregator) GetTimestamp() uint64 {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.cachedBytes
+	return a.cachedTimestamp
 }
 
 // LastUpdate returns the time of the last state rebuild.
@@ -186,15 +174,12 @@ func (a *Aggregator) LastUpdate() time.Time {
 func (a *Aggregator) StationCount() int {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	if a.cachedState == nil {
-		return 0
-	}
-	return len(a.cachedState.Stations)
+	return len(a.cachedStations)
 }
 
 // StationTrainInfo holds the highest-priority train at a station for pixel rendering.
 type StationTrainInfo struct {
-	Route  pb.Route
+	Route  string
 	Status pb.TrainStatus
 }
 
@@ -203,12 +188,12 @@ func (a *Aggregator) GetStationTrains() map[string]StationTrainInfo {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	if a.cachedState == nil {
+	if a.cachedStations == nil {
 		return nil
 	}
 
-	result := make(map[string]StationTrainInfo, len(a.cachedState.Stations))
-	for _, station := range a.cachedState.Stations {
+	result := make(map[string]StationTrainInfo, len(a.cachedStations))
+	for _, station := range a.cachedStations {
 		var best StationTrainInfo
 		bestPriority := -1
 		for _, train := range station.Trains {

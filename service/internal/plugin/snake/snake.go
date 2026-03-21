@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ProjectBarks/subway-pcb/service/internal/lua"
 	"github.com/ProjectBarks/subway-pcb/service/internal/model"
 	"github.com/ProjectBarks/subway-pcb/service/internal/plugin"
 )
@@ -11,9 +12,10 @@ import (
 // Plugin renders per-strip snakes with independent colors.
 type Plugin struct{}
 
-func (p *Plugin) Name() string             { return "snake" }
-func (p *Plugin) Description() string      { return "Animated snakes running across each LED strip" }
-func (p *Plugin) RequiredFeatures() []string { return nil }
+func (p *Plugin) Name() string               { return "snake" }
+func (p *Plugin) Description() string        { return "Animated snakes running across each LED strip" }
+func (p *Plugin) RequiredFeatures() []string  { return nil }
+func (p *Plugin) LuaSource() string           { return lua.SnakeSource }
 
 func (p *Plugin) ConfigFields() []plugin.ConfigField {
 	defaults := rainbow()
@@ -45,44 +47,4 @@ func (p *Plugin) DefaultPresets() []model.Preset {
 		preset("snake-neon", "Neon", neon()),
 		preset("snake-mono", "Monochrome", mono()),
 	}
-}
-
-func (p *Plugin) Render(ctx plugin.RenderContext) ([]byte, error) {
-	fields := p.ConfigFields()
-	pixels := make([]byte, ctx.TotalLEDs*3)
-
-	snakeLength := ctx.ConfigInt("snake_length", fields)
-	if snakeLength < 1 {
-		snakeLength = 5
-	}
-	snakeCount := ctx.ConfigInt("snake_count", fields)
-	if snakeCount < 1 {
-		snakeCount = 1
-	}
-	speedMs := ctx.ConfigInt("speed_ms", fields)
-	if speedMs < 50 {
-		speedMs = 2000
-	}
-
-	step := int(time.Now().UnixMilli()) / speedMs
-
-	offset := 0
-	for strip, sz := range ctx.Strips {
-		r, g, b := ctx.ConfigColor(fmt.Sprintf("strip_%d_color", strip+1), fields)
-
-		for sn := range snakeCount {
-			snakeOffset := (sz * sn) / snakeCount
-			startPixel := (step + snakeOffset) % sz
-			for px := range snakeLength {
-				flatIdx := offset + (startPixel+px)%sz
-				if flatIdx < ctx.TotalLEDs {
-					pixels[flatIdx*3+0] = r
-					pixels[flatIdx*3+1] = g
-					pixels[flatIdx*3+2] = b
-				}
-			}
-		}
-		offset += sz
-	}
-	return pixels, nil
 }

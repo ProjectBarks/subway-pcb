@@ -15,7 +15,7 @@ export interface RGB {
 
 declare global {
 	interface Window {
-		_previewRenderer?: import("./preview").PreviewRenderer;
+		_luaRunner?: import("./lua-runner").LuaRunner;
 		updatePreviewColor: (input: HTMLInputElement) => void;
 		collectRouteColorsToForm: (form: HTMLFormElement) => void;
 		collectConfigToPresetForm: (form: HTMLFormElement) => void;

@@ -7,6 +7,7 @@ list(APPEND EXTRA_COMPONENT_DIRS
     "${CMAKE_SOURCE_DIR}/components/mdns"
     "${CMAKE_SOURCE_DIR}/components/esp32-wifi-manager"
     "${CMAKE_SOURCE_DIR}/components/esp_ghota"
+    "${CMAKE_SOURCE_DIR}/components/lua54"
 )
 
 list(APPEND kconfigs "${CMAKE_SOURCE_DIR}/components/esp_ghota/Kconfig")

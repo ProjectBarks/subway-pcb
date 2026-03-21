@@ -17,13 +17,11 @@ import (
 	"github.com/ProjectBarks/subway-pcb/service/internal/plugin"
 	"github.com/ProjectBarks/subway-pcb/service/internal/store"
 	"github.com/ProjectBarks/subway-pcb/service/ui"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // ServerConfig holds all dependencies for the HTTP server.
 type ServerConfig struct {
 	Aggregator     *mta.Aggregator
-	PixelRenderer  *PixelRenderer
 	Store          store.Store
 	PluginRegistry *plugin.Registry
 	Boards         map[string]*BoardData
@@ -34,30 +32,28 @@ type ServerConfig struct {
 
 // Server is the HTTP API server.
 type Server struct {
-	aggregator    *mta.Aggregator
-	pixelRenderer *PixelRenderer
-	store         store.Store
-	plugins       *plugin.Registry
-	boards        map[string]*BoardData
-	authConfig    middleware.AuthConfig
-	staticDir     string
-	devMode       bool
-	startTime     time.Time
-	router        chi.Router
+	aggregator *mta.Aggregator
+	store      store.Store
+	plugins    *plugin.Registry
+	boards     map[string]*BoardData
+	authConfig middleware.AuthConfig
+	staticDir  string
+	devMode    bool
+	startTime  time.Time
+	router     chi.Router
 }
 
 // NewServer creates a new API server with all dependencies.
 func NewServer(cfg ServerConfig) *Server {
 	s := &Server{
-		aggregator:    cfg.Aggregator,
-		pixelRenderer: cfg.PixelRenderer,
-		store:         cfg.Store,
-		plugins:       cfg.PluginRegistry,
-		boards:        cfg.Boards,
-		authConfig:    cfg.AuthConfig,
-		staticDir:     cfg.StaticDir,
-		devMode:       cfg.DevMode,
-		startTime:     time.Now(),
+		aggregator: cfg.Aggregator,
+		store:      cfg.Store,
+		plugins:    cfg.PluginRegistry,
+		boards:     cfg.Boards,
+		authConfig: cfg.AuthConfig,
+		staticDir:  cfg.StaticDir,
+		devMode:    cfg.DevMode,
+		startTime:  time.Now(),
 	}
 	s.buildRouter()
 	return s
@@ -73,7 +69,9 @@ func (s *Server) buildRouter() {
 	}
 
 	// Device routes — accessible on all hosts including RESTRICTED_HOST
-	r.Get("/api/v1/pixels", s.handlePixels)
+	r.Get("/api/v1/device-state", s.handleDeviceState)
+	r.Get("/api/v1/device-board", s.handleDeviceBoard)
+	r.Get("/api/v1/device-script", s.handleDeviceScript)
 
 	// App routes — restricted to ALLOWED_HOSTS
 	r.Group(func(r chi.Router) {
@@ -929,44 +927,44 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	format := r.URL.Query().Get("format")
+	stations := s.aggregator.GetStations()
+	ts := s.aggregator.GetTimestamp()
 
-	if format == "json" {
-		state := s.aggregator.GetState()
-		if state == nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("{}"))
-			return
-		}
-
-		opts := protojson.MarshalOptions{
-			EmitUnpopulated: true,
-			UseProtoNames:   true,
-		}
-		data, err := opts.Marshal(state)
-		if err != nil {
-			log.Printf("api: JSON marshal error: %v", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(data)
-		return
+	type stateJSONTrain struct {
+		Route  string `json:"route"`
+		Status string `json:"status"`
+	}
+	type stateJSONStation struct {
+		StopID string           `json:"stop_id"`
+		Trains []stateJSONTrain `json:"trains"`
 	}
 
-	data := s.aggregator.GetStateBytes()
-	if data == nil {
-		w.Header().Set("Content-Type", "application/x-protobuf")
-		w.WriteHeader(http.StatusOK)
-		return
+	stationList := make([]stateJSONStation, 0, len(stations))
+	for _, st := range stations {
+		trains := make([]stateJSONTrain, 0, len(st.Trains))
+		for _, t := range st.Trains {
+			trains = append(trains, stateJSONTrain{
+				Route:  t.Route,
+				Status: t.Status.String(),
+			})
+		}
+		stationList = append(stationList, stateJSONStation{
+			StopID: st.StopId,
+			Trains: trains,
+		})
 	}
 
-	w.Header().Set("Content-Type", "application/x-protobuf")
+	resp := struct {
+		Timestamp uint64             `json:"timestamp"`
+		Stations  []stateJSONStation `json:"stations"`
+	}{
+		Timestamp: ts,
+		Stations:  stationList,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(data)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 type healthResponse struct {

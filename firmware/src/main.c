@@ -15,12 +15,15 @@
 
 #include "config.h"
 #include "led_driver.h"
-#include "subway_client.h"
+#include "render_context.h"
+#include "state_client.h"
+#include "lua_runtime.h"
 
 static const char *TAG = "main";
 static ghota_client_handle_t *s_ghota = NULL;
+static render_context_t s_render_ctx;
 
-/* Global flag: when true, subway_client pauses to give OTA exclusive HTTPS access */
+/* Global flag: when true, state_client pauses to give OTA exclusive HTTPS access */
 volatile bool g_ota_active = false;
 
 static void ghota_event_handler(void *arg, esp_event_base_t base, int32_t id, void *data)
@@ -46,11 +49,11 @@ static void ghota_event_handler(void *arg, esp_event_base_t base, int32_t id, vo
 
 static void cb_wifi_got_ip(void *pvParameter)
 {
-    ESP_LOGI(TAG, "WiFi connected — starting subway client + OTA");
+    ESP_LOGI(TAG, "WiFi connected — starting state client + OTA");
     led_driver_set_pixel(0, 0, 0, 30, 0); /* green = connected */
     led_driver_refresh();
 
-    subway_client_start();
+    state_client_start(&s_render_ctx);
 
     /* Start OTA update checker — register events AFTER wifi_manager creates the event loop */
     if (s_ghota) {
@@ -95,6 +98,10 @@ void app_main(void)
     } else {
         ESP_LOGE(TAG, "OTA init FAILED — version may not be valid semver");
     }
+
+    /* Initialize render context and start Lua render task (runs without WiFi) */
+    render_context_init(&s_render_ctx);
+    lua_runtime_start(&s_render_ctx);
 
     /* WiFi via captive portal — broadcasts "nyc-subway-pcb" AP if no saved credentials */
     wifi_manager_start();

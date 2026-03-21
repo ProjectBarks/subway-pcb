@@ -1,0 +1,28 @@
+# Station/Train
+subway.Train.route                         max_size:8
+subway.Station.stop_id                     max_size:8
+subway.Station.trains                      max_count:4
+
+# DeviceState (small, frequent)
+subway.DeviceState.script_hash             max_size:65
+subway.DeviceState.board_hash              max_size:65
+subway.DeviceState.stations                max_count:200
+subway.DeviceState.config                  max_count:50
+subway.DeviceState.ConfigEntry.key         max_size:32
+subway.DeviceState.ConfigEntry.value       max_size:32
+
+# DeviceBoard (medium, rare)
+subway.DeviceBoard.hash                    max_size:65
+subway.DeviceBoard.board_id                max_size:32
+subway.DeviceBoard.strip_sizes             max_count:16
+subway.DeviceBoard.led_map                 max_count:500
+subway.DeviceBoard.LedMapEntry.value       max_size:8
+
+# DeviceScript (large, rare)
+subway.DeviceScript.hash                   max_size:65
+subway.DeviceScript.lua_source             max_size:16384
+subway.DeviceScript.plugin_name            max_size:64
+subway.DeviceScript.plugin_description     max_size:256
+subway.DeviceScript.config                 max_count:50
+subway.DeviceScript.ConfigEntry.key        max_size:32
+subway.DeviceScript.ConfigEntry.value      max_size:32
