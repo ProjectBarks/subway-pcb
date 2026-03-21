@@ -45,11 +45,12 @@ async function initHero(): Promise<void> {
 	const container = document.getElementById("hero-board");
 	if (!container) return;
 
+	const isMobile = window.innerWidth < 768;
 	await initBoardViewer(container, {
 		boardUrl: "/static/dist/boards/nyc-subway/v1/board.json",
 		mode: "hero",
 		pixelsUrl: "/api/v1/pixels",
-		camera: { distance: 300 },
+		camera: { distance: isMobile ? 220 : 300 },
 	});
 }
 

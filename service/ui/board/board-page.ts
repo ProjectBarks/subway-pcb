@@ -85,9 +85,11 @@ function onLedHover(info: LedInfo | null): void {
 function collectInitialConfig(): Record<string, string> {
 	const config: Record<string, string> = {};
 	document
-		.querySelectorAll<HTMLInputElement>("input[data-route-key]")
+		.querySelectorAll<HTMLInputElement>(
+			"input[type='color'][name], input[type='number'][name], select[name]",
+		)
 		.forEach((el) => {
-			config[el.dataset.routeKey!] = el.value;
+			if (el.name) config[el.name] = el.value;
 		});
 	return config;
 }
