@@ -79,6 +79,20 @@ tools/debugger:                        ## Start click-to-light web debugger → 
 tools/viewer:                          ## Start standalone board viewer → http://localhost:8888
 	cd tools/board-viewer && uv run serve.py
 
+# ─── E2E Tests ──────────────────────────────────────────
+
+.PHONY: e2e/install e2e/test e2e/test-headed
+
+e2e/install:                              ## Install E2E test deps + Chromium browser
+	cd service && npm install
+	cd service && npx playwright install chromium --with-deps
+
+e2e/test: frontend/build                  ## Run E2E tests (headless)
+	cd service && npx cucumber-js --config e2e/cucumber.mjs
+
+e2e/test-headed: frontend/build           ## Run E2E tests (visible browser)
+	cd service && HEADED=true npx cucumber-js --config e2e/cucumber.mjs
+
 # ─── Site ────────────────────────────────────────────────
 
 .PHONY: site/build site/preview

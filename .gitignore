@@ -28,6 +28,8 @@ service/tmp/
 service/data/
 service/static/
 service/node_modules/
+service/e2e/screenshots/
+service/e2e/reports/
 
 # Generated assets (regenerate with tools/pcb-glb-generator)
 pcb/top_texture.png

@@ -1,0 +1,23 @@
+{
+  "id": "test-board",
+  "name": "Test Board",
+  "version": 1,
+  "ledCount": 9,
+  "strips": [9],
+  "model": "test-board.glb",
+  "camera": { "fov": 40, "distance": 100 },
+  "defaultPlugin": "snake",
+  "defaultPreset": "snake-rainbow",
+  "features": [],
+  "ledPositions": [
+    { "ref": "T1", "x": 0,  "y": 0,  "z": 0, "angle": 0, "index": 0, "stationId": "test-1" },
+    { "ref": "T2", "x": 10, "y": 0,  "z": 0, "angle": 0, "index": 1, "stationId": "test-2" },
+    { "ref": "T3", "x": 20, "y": 0,  "z": 0, "angle": 0, "index": 2, "stationId": "test-3" },
+    { "ref": "T4", "x": 0,  "y": 10, "z": 0, "angle": 0, "index": 3, "stationId": "test-4" },
+    { "ref": "T5", "x": 10, "y": 10, "z": 0, "angle": 0, "index": 4, "stationId": "test-5" },
+    { "ref": "T6", "x": 20, "y": 10, "z": 0, "angle": 0, "index": 5, "stationId": "test-6" },
+    { "ref": "T7", "x": 0,  "y": 20, "z": 0, "angle": 0, "index": 6, "stationId": "test-7" },
+    { "ref": "T8", "x": 10, "y": 20, "z": 0, "angle": 0, "index": 7, "stationId": "test-8" },
+    { "ref": "T9", "x": 20, "y": 20, "z": 0, "angle": 0, "index": 8, "stationId": "test-9" }
+  ]
+}
