@@ -226,7 +226,7 @@
 
 	/* Button: outline (ghost border) */
 	.btn-outline {
-		@apply h-10 px-4 bg-bg-surface-raised border border-border-subtle text-text-primary rounded-full hover:border-border-hover transition-all;
+		@apply h-10 px-4 bg-bg-surface-raised border border-border-subtle text-text-primary rounded-lg hover:border-border-hover transition-all;
 	}
 
 	/* Input field */

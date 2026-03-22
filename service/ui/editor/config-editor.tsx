@@ -44,7 +44,7 @@ export function ConfigFieldEditor({
 				<button
 					type="button"
 					onClick={addField}
-					class="h-9 px-4 bg-accent-gold text-black rounded-lg text-sm font-medium flex items-center gap-2 hover:scale-[0.98] transition-transform"
+					class="btn-primary flex items-center gap-2"
 				>
 					<svg
 						class="size-4"

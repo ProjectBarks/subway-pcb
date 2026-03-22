@@ -220,6 +220,17 @@ export async function initPreviews(
 			observer.observe(card.el);
 		}
 
+		// Eagerly render cards already in the viewport (handles HTMX swap
+		// where the initial IntersectionObserver callback may not fire).
+		requestAnimationFrame(() => {
+			const eager = cards.filter((c) => {
+				if (c.rendered) return false;
+				const rect = c.el.getBoundingClientRect();
+				return rect.top < window.innerHeight + 200 && rect.bottom > -200;
+			});
+			if (eager.length > 0) renderVisible(eager);
+		});
+
 		return {
 			destroy() {
 				stopAnimation();
