@@ -112,7 +112,6 @@ func (s *Server) buildRouter() {
 				r.Put("/preset", s.handleSetPreset)
 				r.Put("/name", s.handleSetName)
 				r.Put("/config", s.handleSetPluginConfig)
-				r.Get("/preview", s.handleBoardPreview)
 				// Access management
 				r.Post("/access", s.handleGrantAccess)
 				r.Delete("/access/{email}", s.handleRevokeAccess)
@@ -171,10 +170,6 @@ func requireOwnerOrAdmin(w http.ResponseWriter, user *model.User, ownerEmail str
 		return false
 	}
 	return true
-}
-
-func isHTMX(r *http.Request) bool {
-	return r.Header.Get("HX-Request") == "true"
 }
 
 func jsonResponse(w http.ResponseWriter, data any) {

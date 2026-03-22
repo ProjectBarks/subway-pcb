@@ -47,19 +47,7 @@ templ communityPluginCard(p model.Plugin, isInstalled bool) {
 			</div>
 			<!-- Actions -->
 			<div class="flex gap-2 mt-auto">
-				if isInstalled {
-					<button
-						hx-delete={ "/api/v1/plugins/" + p.ID + "/install" }
-						hx-swap="outerHTML"
-						class="flex-1 h-10 border border-border-subtle text-text-secondary rounded-full transition-all font-medium hover:border-status-error hover:text-status-error"
-					>Uninstall</button>
-				} else {
-					<button
-						hx-post={ "/api/v1/plugins/" + p.ID + "/install" }
-						hx-swap="outerHTML"
-						class="flex-1 h-10 bg-white text-black rounded-full transition-all font-medium"
-					>Install</button>
-				}
+				@PluginInstallButton(p.ID, isInstalled)
 				<button onclick={ templ.JSFuncCall("showCodeModal", p.ID, p.Name, p.AuthorEmail) } class="h-10 px-4 border border-border-subtle rounded-full text-text-secondary hover:border-accent-gold hover:text-accent-gold transition-all">
 					@components.Icon("code", "size-4")
 				</button>

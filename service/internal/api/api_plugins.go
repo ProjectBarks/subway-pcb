@@ -2,8 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
-	"html"
 	"net/http"
 	"time"
 
@@ -13,8 +11,6 @@ import (
 	"github.com/ProjectBarks/subway-pcb/service/internal/middleware"
 	"github.com/ProjectBarks/subway-pcb/service/internal/model"
 )
-
-// --- Plugin API ---
 
 func (s *Server) handleListPlugins(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
@@ -163,65 +159,4 @@ func (s *Server) handlePublishPlugin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonResponse(w, existing)
-}
-
-func (s *Server) handleInstallPlugin(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	user := middleware.UserFromContext(r.Context())
-
-	if err := s.store.InstallPlugin(user.Email, id); err != nil {
-		jsonError(w, "install failed", http.StatusInternalServerError)
-		return
-	}
-	s.store.IncrementPluginInstalls(id)
-
-	if isHTMX(r) {
-		writePluginButton(w, id, false)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) handleUninstallPlugin(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	user := middleware.UserFromContext(r.Context())
-
-	if err := s.store.UninstallPlugin(user.Email, id); err != nil {
-		jsonError(w, "uninstall failed", http.StatusInternalServerError)
-		return
-	}
-
-	if isHTMX(r) {
-		writePluginButton(w, id, true)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// writePluginButton renders an HTMX-swappable install/uninstall button.
-// When installed=true, it renders an "Install" button; when false, "Uninstall".
-func writePluginButton(w http.ResponseWriter, pluginID string, installed bool) {
-	safeID := html.EscapeString(pluginID)
-	if installed {
-		fmt.Fprintf(w,
-			`<button `+
-				`hx-post="/api/v1/plugins/%s/install" `+
-				`hx-swap="outerHTML" `+
-				`class="flex-1 h-10 bg-white text-black rounded-full transition-all font-medium">`+
-				`Install`+
-				`</button>`,
-			safeID,
-		)
-	} else {
-		fmt.Fprintf(w,
-			`<button `+
-				`hx-delete="/api/v1/plugins/%s/install" `+
-				`hx-swap="outerHTML" `+
-				`class="flex-1 h-10 border border-border-subtle text-text-secondary rounded-full transition-all font-medium `+
-				`hover:border-status-error hover:text-status-error">`+
-				`Uninstall`+
-				`</button>`,
-			safeID,
-		)
-	}
 }

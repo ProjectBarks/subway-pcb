@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/ProjectBarks/subway-pcb/service/internal/middleware"
 	"github.com/ProjectBarks/subway-pcb/service/internal/model"
 	"github.com/ProjectBarks/subway-pcb/service/ui"
@@ -39,7 +41,12 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cards := s.buildBoardCards(user, boards)
+	cards, err := s.buildBoardCards(r.Context(), user, boards)
+	if err != nil {
+		log.Printf("api: build board cards error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	ui.DashboardPage(user, boards, cards).Render(r.Context(), w)
 }
 
@@ -52,7 +59,12 @@ func (s *Server) handleBoardListPartial(w http.ResponseWriter, r *http.Request) 
 		boards, _ = s.store.ListDevicesByUser(user.Email)
 	}
 
-	cards := s.buildBoardCards(user, boards)
+	cards, err := s.buildBoardCards(r.Context(), user, boards)
+	if err != nil {
+		log.Printf("api: build board cards error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	ui.BoardGrid(cards).Render(r.Context(), w)
 }
 
@@ -61,13 +73,26 @@ func (s *Server) handleBoardListPartial(w http.ResponseWriter, r *http.Request) 
 func (s *Server) handleCommunity(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 
-	plugins, err := s.store.ListPublishedPlugins()
-	if err != nil {
+	var plugins []model.Plugin
+	var installed []model.Plugin
+
+	g, _ := errgroup.WithContext(r.Context())
+	g.Go(func() error {
+		var err error
+		plugins, err = s.store.ListPublishedPlugins()
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		installed, err = s.store.ListInstalledPlugins(user.Email)
+		return err
+	})
+	if err := g.Wait(); err != nil {
 		log.Printf("api: community error: %v", err)
-		plugins = nil
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 
-	installed, _ := s.store.ListInstalledPlugins(user.Email)
 	installedSet := make(map[string]bool)
 	for _, p := range installed {
 		installedSet[p.ID] = true
@@ -81,13 +106,26 @@ func (s *Server) handleCommunitySearch(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
 	sort := r.URL.Query().Get("sort")
 
-	plugins, err := s.store.SearchPlugins(q, sort)
-	if err != nil {
+	var plugins []model.Plugin
+	var installed []model.Plugin
+
+	g, _ := errgroup.WithContext(r.Context())
+	g.Go(func() error {
+		var err error
+		plugins, err = s.store.SearchPlugins(q, sort)
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		installed, err = s.store.ListInstalledPlugins(user.Email)
+		return err
+	})
+	if err := g.Wait(); err != nil {
 		log.Printf("api: community search error: %v", err)
-		plugins = nil
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 
-	installed, _ := s.store.ListInstalledPlugins(user.Email)
 	installedSet := make(map[string]bool)
 	for _, p := range installed {
 		installedSet[p.ID] = true

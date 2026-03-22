@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -9,22 +10,30 @@ import (
 	"time"
 
 	pb "github.com/ProjectBarks/subway-pcb/service/gen/subwaypb"
-	"github.com/ProjectBarks/subway-pcb/service/internal/middleware"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/ProjectBarks/subway-pcb/service/internal/middleware"
+	"github.com/ProjectBarks/subway-pcb/service/internal/model"
 )
 
 // handleDeviceState serves the realtime DeviceState protobuf.
 // GET /api/v1/device-state
 func (s *Server) handleDeviceState(w http.ResponseWriter, r *http.Request) {
-	mac := r.Header.Get(HeaderDeviceID)
-	hardware := middleware.HardwareFromContext(r.Context())
+	mac := r.Header.Get(middleware.HeaderDeviceID)
+	hardware := r.Header.Get(middleware.HeaderHardware)
 
 	// Resolve board
 	boardKey := BoardModelKey(hardware)
 	board := s.boards[boardKey]
 
 	// Resolve active plugin + Lua source
-	luaSource, pluginName := s.resolveDeviceLua(mac)
+	luaSource, pluginName, err := s.resolveDeviceLua(mac)
+	if err != nil {
+		log.Printf("api: resolve device lua error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	scriptHash := sha256Hex(luaSource)
 
 	// Compute board hash
@@ -37,7 +46,12 @@ func (s *Server) handleDeviceState(w http.ResponseWriter, r *http.Request) {
 	stations := s.aggregator.GetStations()
 
 	// Build merged config
-	config := s.buildDeviceConfig(mac, pluginName)
+	config, err := s.buildDeviceConfig(r.Context(), mac, pluginName)
+	if err != nil {
+		log.Printf("api: device config error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 
 	state := &pb.DeviceState{
 		ScriptHash: scriptHash,
@@ -61,7 +75,7 @@ func (s *Server) handleDeviceState(w http.ResponseWriter, r *http.Request) {
 // handleDeviceBoard serves the static DeviceBoard protobuf.
 // GET /api/v1/device-board
 func (s *Server) handleDeviceBoard(w http.ResponseWriter, r *http.Request) {
-	hardware := middleware.HardwareFromContext(r.Context())
+	hardware := r.Header.Get(middleware.HeaderHardware)
 	boardKey := BoardModelKey(hardware)
 	board := s.boards[boardKey]
 	if board == nil {
@@ -103,8 +117,13 @@ func (s *Server) handleDeviceBoard(w http.ResponseWriter, r *http.Request) {
 // handleDeviceScript serves the Lua script protobuf.
 // GET /api/v1/device-script
 func (s *Server) handleDeviceScript(w http.ResponseWriter, r *http.Request) {
-	mac := r.Header.Get(HeaderDeviceID)
-	luaSource, pluginName := s.resolveDeviceLua(mac)
+	mac := r.Header.Get(middleware.HeaderDeviceID)
+	luaSource, pluginName, err := s.resolveDeviceLua(mac)
+	if err != nil {
+		log.Printf("api: resolve device lua error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 
 	// Get plugin description from DB
 	var description string
@@ -113,7 +132,12 @@ func (s *Server) handleDeviceScript(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build config defaults
-	config := s.buildDeviceConfig(mac, pluginName)
+	config, err := s.buildDeviceConfig(r.Context(), mac, pluginName)
+	if err != nil {
+		log.Printf("api: device config error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 
 	msg := &pb.DeviceScript{
 		Hash:              sha256Hex(luaSource),
@@ -135,32 +159,58 @@ func (s *Server) handleDeviceScript(w http.ResponseWriter, r *http.Request) {
 }
 
 // resolveDeviceLua returns the Lua source and plugin name for a device.
-func (s *Server) resolveDeviceLua(mac string) (luaSource, pluginName string) {
+func (s *Server) resolveDeviceLua(mac string) (luaSource, pluginName string, err error) {
 	if mac != "" {
-		device, _ := s.store.GetDevice(mac)
+		device, err := s.store.GetDevice(mac)
+		if err != nil {
+			return "", "", err
+		}
 		if device != nil && device.PluginName != "" {
 			pluginName = device.PluginName
 		}
 	}
 
 	if pluginName == "" {
-		return "", ""
+		return "", "", nil
 	}
 
-	dbPlugin, _ := s.store.GetPlugin(pluginName)
+	dbPlugin, err := s.store.GetPlugin(pluginName)
+	if err != nil {
+		return "", pluginName, err
+	}
 	if dbPlugin != nil && dbPlugin.LuaSource != "" {
-		return dbPlugin.LuaSource, pluginName
+		return dbPlugin.LuaSource, pluginName, nil
 	}
 
-	return "", pluginName
+	return "", pluginName, nil
 }
 
 // buildDeviceConfig returns the merged config for a device's active plugin.
-func (s *Server) buildDeviceConfig(mac, pluginName string) map[string]string {
+func (s *Server) buildDeviceConfig(ctx context.Context, mac, pluginName string) (map[string]string, error) {
 	config := make(map[string]string)
 
+	// Fetch plugin and device concurrently (independent queries).
+	var dbPlugin *model.Plugin
+	var device *model.Device
+
+	g, _ := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		var err error
+		dbPlugin, err = s.store.GetPlugin(pluginName)
+		return err
+	})
+	if mac != "" {
+		g.Go(func() error {
+			var err error
+			device, err = s.store.GetDevice(mac)
+			return err
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
 	// Field defaults from DB plugin
-	dbPlugin, _ := s.store.GetPlugin(pluginName)
 	if dbPlugin != nil && len(dbPlugin.ConfigFields) > 0 {
 		var fields []struct {
 			Key     string `json:"key"`
@@ -172,28 +222,28 @@ func (s *Server) buildDeviceConfig(mac, pluginName string) map[string]string {
 		}
 	}
 
-	if mac == "" {
-		return config
+	if device == nil {
+		return config, nil
 	}
 
 	// Preset overrides
-	device, _ := s.store.GetDevice(mac)
-	if device != nil {
-		if device.PresetID != "" {
-			preset, _ := s.store.GetPreset(device.PresetID)
-			if preset != nil {
-				for k, v := range preset.Values {
-					config[k] = v
-				}
+	if device.PresetID != "" {
+		preset, err := s.store.GetPreset(device.PresetID)
+		if err != nil {
+			return nil, err
+		}
+		if preset != nil {
+			for k, v := range preset.Values {
+				config[k] = v
 			}
 		}
-		// Device overrides
-		for k, v := range device.PluginConfig {
-			config[k] = v
-		}
+	}
+	// Device overrides
+	for k, v := range device.PluginConfig {
+		config[k] = v
 	}
 
-	return config
+	return config, nil
 }
 
 // sha256Hex returns the hex-encoded SHA256 of a string.

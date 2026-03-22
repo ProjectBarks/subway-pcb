@@ -1,13 +1,14 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/ProjectBarks/subway-pcb/service/internal/middleware"
 	"github.com/ProjectBarks/subway-pcb/service/internal/model"
@@ -28,17 +29,36 @@ func (s *Server) handleBoardView(w http.ResponseWriter, r *http.Request) {
 
 	access, _ := s.store.ListAccessByDevice(mac)
 
-	data := s.buildBoardData(user, device, mac, access)
+	data, err := s.buildBoardData(r.Context(), user, device, mac, access)
+	if err != nil {
+		log.Printf("api: build board data error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	ui.BoardPage(data).Render(r.Context(), w)
 }
 
 // buildBoardCards creates board card data for dashboard display.
-func (s *Server) buildBoardCards(user *model.User, boards []model.Device) []ui.BoardCard {
+func (s *Server) buildBoardCards(ctx context.Context, user *model.User, boards []model.Device) ([]ui.BoardCard, error) {
 	// Prefetch installed plugins once for name resolution.
 	var installedPlugins []model.Plugin
 	if user != nil {
-		own, _ := s.store.ListPluginsByAuthor(user.Email)
-		inst, _ := s.store.ListInstalledPlugins(user.Email)
+		var own, inst []model.Plugin
+		g, _ := errgroup.WithContext(ctx)
+		g.Go(func() error {
+			var err error
+			own, err = s.store.ListPluginsByAuthor(user.Email)
+			return err
+		})
+		g.Go(func() error {
+			var err error
+			inst, err = s.store.ListInstalledPlugins(user.Email)
+			return err
+		})
+		if err := g.Wait(); err != nil {
+			return nil, err
+		}
+
 		seen := make(map[string]bool)
 		for _, p := range own {
 			seen[p.ID] = true
@@ -52,26 +72,41 @@ func (s *Server) buildBoardCards(user *model.User, boards []model.Device) []ui.B
 	}
 
 	cards := make([]ui.BoardCard, len(boards))
+	g, _ := errgroup.WithContext(ctx)
 	for i, d := range boards {
-		cards[i].Device = d
-		if d.PresetID != "" {
-			t, _ := s.store.GetPreset(d.PresetID)
-			cards[i].Preset = t
-		}
-		cards[i].ActivePluginName = s.resolvePluginName(d.PluginName, installedPlugins)
-		if board, ok := s.boards[BoardModelKey(d.BoardModelID)]; ok {
-			cards[i].BoardModelName = board.Manifest.Name
-		}
+		g.Go(func() error {
+			cards[i].Device = d
+			if d.PresetID != "" {
+				t, err := s.store.GetPreset(d.PresetID)
+				if err != nil {
+					return err
+				}
+				cards[i].Preset = t
+			}
+			cards[i].ActivePluginName = s.resolvePluginName(d.PluginName, installedPlugins)
+			if board, ok := s.boards[BoardModelKey(d.BoardModelID)]; ok {
+				cards[i].BoardModelName = board.Manifest.Name
+			}
 
-		// LED preview data
-		luaSource, _ := s.resolveDeviceLua(d.MAC)
-		cards[i].LuaSource = luaSource
-		cards[i].BoardURL = BoardURLPath(d.BoardModelID)
-		config := s.buildDeviceConfig(d.MAC, d.PluginName)
-		configBytes, _ := json.Marshal(config)
-		cards[i].ConfigJSON = string(configBytes)
+			luaSource, _, err := s.resolveDeviceLua(d.MAC)
+			if err != nil {
+				return err
+			}
+			cards[i].LuaSource = luaSource
+			cards[i].BoardURL = BoardURLPath(d.BoardModelID)
+			config, err := s.buildDeviceConfig(ctx, d.MAC, d.PluginName)
+			if err != nil {
+				return err
+			}
+			configBytes, _ := json.Marshal(config)
+			cards[i].ConfigJSON = string(configBytes)
+			return nil
+		})
 	}
-	return cards
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	return cards, nil
 }
 
 // resolvePluginName returns the human-readable name for a plugin ID.
@@ -92,32 +127,77 @@ func (s *Server) resolvePluginName(id string, installedPlugins []model.Plugin) s
 }
 
 // buildBoardData builds the typed data for the board view and controls.
-func (s *Server) buildBoardData(user *model.User, device *model.Device, mac string, access []model.DeviceAccess) ui.BoardData {
+func (s *Server) buildBoardData(ctx context.Context, user *model.User, device *model.Device, mac string, access []model.DeviceAccess) (ui.BoardData, error) {
 	pluginName := device.PluginName
 
-	// Get config fields for the active plugin (built-in or DB)
-	configFields := s.getConfigFields(pluginName)
+	// Fetch all independent data concurrently.
+	var (
+		dbPlugin         *model.Plugin
+		preset           *model.Preset
+		allPresets       []model.Preset
+		ownPlugins       []model.Plugin
+		installedOnly    []model.Plugin
+		publishedPlugins []model.Plugin
+	)
+
+	g, _ := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		var err error
+		dbPlugin, err = s.store.GetPlugin(pluginName)
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		allPresets, err = s.store.ListPresets()
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		ownPlugins, err = s.store.ListPluginsByAuthor(user.Email)
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		installedOnly, err = s.store.ListInstalledPlugins(user.Email)
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		publishedPlugins, err = s.store.ListPublishedPlugins()
+		return err
+	})
+	if device.PresetID != "" {
+		g.Go(func() error {
+			var err error
+			preset, err = s.store.GetPreset(device.PresetID)
+			return err
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return ui.BoardData{}, err
+	}
+
+	// Config fields + values from the fetched plugin
+	var configFields []plugin.ConfigField
+	if dbPlugin != nil && len(dbPlugin.ConfigFields) > 0 {
+		json.Unmarshal(dbPlugin.ConfigFields, &configFields)
+	}
 	configGroups := plugin.GroupedFields(configFields)
 
-	// Build config values: defaults -> preset -> device overrides
 	configValues := make(map[string]string)
 	for _, f := range configFields {
 		configValues[f.Key] = f.Default
 	}
-	if device.PresetID != "" {
-		preset, _ := s.store.GetPreset(device.PresetID)
-		if preset != nil {
-			for k, v := range preset.Values {
-				configValues[k] = v
-			}
+	if preset != nil {
+		for k, v := range preset.Values {
+			configValues[k] = v
 		}
 	}
 	for k, v := range device.PluginConfig {
 		configValues[k] = v
 	}
 
-	// Get presets for this plugin: built-in + user's own
-	allPresets, _ := s.store.ListPresets()
+	// Filter presets for this plugin
 	var pluginPresets []model.Preset
 	for _, t := range allPresets {
 		if t.PluginName == pluginName && (t.IsBuiltIn || t.OwnerEmail == user.Email) {
@@ -125,10 +205,7 @@ func (s *Server) buildBoardData(user *model.User, device *model.Device, mac stri
 		}
 	}
 
-	// Get user's own + installed plugins from DB for Browse tab
-	ownPlugins, _ := s.store.ListPluginsByAuthor(user.Email)
-	installedOnly, _ := s.store.ListInstalledPlugins(user.Email)
-	// Merge: own plugins first, then installed (skip duplicates)
+	// Merge own + installed plugins (dedup)
 	seen := make(map[string]bool)
 	var installedPlugins []model.Plugin
 	for _, p := range ownPlugins {
@@ -142,22 +219,20 @@ func (s *Server) buildBoardData(user *model.User, device *model.Device, mac stri
 	}
 
 	// Filter published plugins by board compatibility
-	var compatiblePlugins []model.Plugin
 	boardData := s.boards[BoardModelKey(device.BoardModelID)]
 	var boardFeatures []string
 	if boardData != nil {
 		boardFeatures = boardData.Manifest.Features
 	}
-	publishedPlugins, _ := s.store.ListPublishedPlugins()
+	var compatiblePlugins []model.Plugin
 	for _, p := range publishedPlugins {
 		if plugin.IsPluginCompatible(p.RequiredFeatures, boardFeatures) {
 			compatiblePlugins = append(compatiblePlugins, p)
 		}
 	}
 
-	// Resolve active plugin Lua source
 	var activeLuaSource string
-	if dbPlugin, _ := s.store.GetPlugin(pluginName); dbPlugin != nil {
+	if dbPlugin != nil {
 		activeLuaSource = dbPlugin.LuaSource
 	}
 
@@ -173,7 +248,7 @@ func (s *Server) buildBoardData(user *model.User, device *model.Device, mac stri
 		ConfigValues:     configValues,
 		BoardURL:         BoardURLPath(device.BoardModelID),
 		ActiveLuaSource:  activeLuaSource,
-	}
+	}, nil
 }
 
 func (s *Server) handleSetPlugin(w http.ResponseWriter, r *http.Request) {
@@ -281,17 +356,6 @@ func (s *Server) handleSetPluginConfig(w http.ResponseWriter, r *http.Request) {
 	s.renderControls(w, r, mac)
 }
 
-func (s *Server) handleBoardPreview(w http.ResponseWriter, r *http.Request) {
-	mac := chi.URLParam(r, "mac")
-	device, _ := s.store.GetDevice(mac)
-	if device == nil {
-		http.Error(w, "not found", http.StatusNotFound)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(w, `<div class="text-sm text-gray-400">Preview for %s</div>`, device.Name)
-}
-
 // --- Access Management ---
 
 func (s *Server) handleGrantAccess(w http.ResponseWriter, r *http.Request) {
@@ -365,6 +429,11 @@ func (s *Server) renderControls(w http.ResponseWriter, r *http.Request, mac stri
 		return
 	}
 
-	data := s.buildBoardData(user, device, mac, access)
+	data, err := s.buildBoardData(r.Context(), user, device, mac, access)
+	if err != nil {
+		log.Printf("api: build board data error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	ui.BoardControls(data).Render(r.Context(), w)
 }

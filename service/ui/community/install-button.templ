@@ -1,0 +1,18 @@
+package community
+
+// PluginInstallButton renders an HTMX-swappable install/uninstall button.
+templ PluginInstallButton(pluginID string, isInstalled bool) {
+	if isInstalled {
+		<button
+			hx-delete={ "/api/v1/plugins/" + pluginID + "/install" }
+			hx-swap="outerHTML"
+			class="flex-1 h-10 border border-border-subtle text-text-secondary rounded-full transition-all font-medium hover:border-status-error hover:text-status-error"
+		>Uninstall</button>
+	} else {
+		<button
+			hx-post={ "/api/v1/plugins/" + pluginID + "/install" }
+			hx-swap="outerHTML"
+			class="flex-1 h-10 bg-white text-black rounded-full transition-all font-medium"
+		>Install</button>
+	}
+}
