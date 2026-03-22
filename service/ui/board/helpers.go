@@ -20,12 +20,6 @@ func configJSON(config map[string]string) string {
 	return string(b)
 }
 
-// pluginDefaultConfigJSON returns JSON of a built-in plugin's default config values.
-func pluginDefaultConfigJSON(p plugin.Plugin) string {
-	b, _ := json.Marshal(plugin.DefaultConfigMap(p.ConfigFields()))
-	return string(b)
-}
-
 // dbPluginDefaultConfigJSON returns JSON of a DB plugin's default config values.
 func dbPluginDefaultConfigJSON(p model.Plugin) string {
 	if len(p.ConfigFields) == 0 {

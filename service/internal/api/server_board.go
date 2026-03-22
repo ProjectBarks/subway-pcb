@@ -79,10 +79,9 @@ func (s *Server) resolvePluginName(id string, installedPlugins []model.Plugin) s
 	if id == "" {
 		return ""
 	}
-	for _, p := range s.plugins.List() {
-		if p.Name() == id {
-			return p.Name()
-		}
+	// Check DB (covers built-in and community plugins)
+	if dbPlugin, _ := s.store.GetPlugin(id); dbPlugin != nil {
+		return dbPlugin.Name
 	}
 	for _, p := range installedPlugins {
 		if p.ID == id {
@@ -95,9 +94,6 @@ func (s *Server) resolvePluginName(id string, installedPlugins []model.Plugin) s
 // buildBoardData builds the typed data for the board view and controls.
 func (s *Server) buildBoardData(user *model.User, device *model.Device, mac string, access []model.DeviceAccess) ui.BoardData {
 	pluginName := device.PluginName
-	if pluginName == "" {
-		pluginName = "track"
-	}
 
 	// Get config fields for the active plugin (built-in or DB)
 	configFields := s.getConfigFields(pluginName)
@@ -145,28 +141,24 @@ func (s *Server) buildBoardData(user *model.User, device *model.Device, mac stri
 		}
 	}
 
-	// Filter built-in plugins by board compatibility
-	var compatiblePlugins []plugin.Plugin
+	// Filter published plugins by board compatibility
+	var compatiblePlugins []model.Plugin
 	boardData := s.boards[BoardModelKey(device.BoardModelID)]
 	var boardFeatures []string
 	if boardData != nil {
 		boardFeatures = boardData.Manifest.Features
 	}
-	for _, p := range s.plugins.List() {
-		if plugin.IsPluginCompatible(p.RequiredFeatures(), boardFeatures) {
+	publishedPlugins, _ := s.store.ListPublishedPlugins()
+	for _, p := range publishedPlugins {
+		if plugin.IsPluginCompatible(p.RequiredFeatures, boardFeatures) {
 			compatiblePlugins = append(compatiblePlugins, p)
 		}
 	}
 
 	// Resolve active plugin Lua source
 	var activeLuaSource string
-	if p, ok := s.plugins.Get(pluginName); ok {
-		activeLuaSource = p.LuaSource()
-	} else {
-		dbPlugin, _ := s.store.GetPlugin(pluginName)
-		if dbPlugin != nil {
-			activeLuaSource = dbPlugin.LuaSource
-		}
+	if dbPlugin, _ := s.store.GetPlugin(pluginName); dbPlugin != nil {
+		activeLuaSource = dbPlugin.LuaSource
 	}
 
 	return ui.BoardData{
@@ -189,17 +181,12 @@ func (s *Server) handleSetPlugin(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	pluginName := r.FormValue("plugin")
 
-	// Accept built-in plugins by name or DB plugins by ID
-	var requiredFeatures []string
-	if builtIn, ok := s.plugins.Get(pluginName); ok {
-		requiredFeatures = builtIn.RequiredFeatures()
-	} else {
-		dbPlugin, ok := getOrError(w, func() (*model.Plugin, error) { return s.store.GetPlugin(pluginName) }, "unknown plugin", http.StatusBadRequest)
-		if !ok {
-			return
-		}
-		_ = dbPlugin
+	// Look up plugin from DB
+	dbPlugin, ok := getOrError(w, func() (*model.Plugin, error) { return s.store.GetPlugin(pluginName) }, "unknown plugin", http.StatusBadRequest)
+	if !ok {
+		return
 	}
+	requiredFeatures := dbPlugin.RequiredFeatures
 
 	device, ok := getOrError(w, func() (*model.Device, error) { return s.store.GetDevice(mac) }, "device not found", http.StatusNotFound)
 	if !ok {

@@ -55,18 +55,19 @@ func (u *User) IsAdmin() bool {
 
 // Plugin represents a community or built-in plugin stored in the database.
 type Plugin struct {
-	ID           string          `json:"id"`
-	Name         string          `json:"name"`
-	Type         string          `json:"type"`         // "builtin" or "lua"
-	AuthorEmail  string          `json:"author_email"`
-	Description  string          `json:"description"`
-	Category     string          `json:"category"` // ambient, data-driven, reactive, artistic
-	LuaSource    string          `json:"lua_source"`
-	ConfigFields json.RawMessage `json:"config_fields,omitempty"`
-	Installs     int             `json:"installs"`
-	IsPublished  bool            `json:"is_published"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
+	ID               string          `json:"id"`
+	Name             string          `json:"name"`
+	Type             string          `json:"type"`         // "builtin" or "lua"
+	AuthorEmail      string          `json:"author_email"`
+	Description      string          `json:"description"`
+	Category         string          `json:"category"` // ambient, data-driven, reactive, artistic
+	LuaSource        string          `json:"lua_source"`
+	ConfigFields     json.RawMessage `json:"config_fields,omitempty"`
+	RequiredFeatures []string        `json:"required_features,omitempty"`
+	Installs         int             `json:"installs"`
+	IsPublished      bool            `json:"is_published"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
 // UserPlugin tracks which plugins a user has installed.

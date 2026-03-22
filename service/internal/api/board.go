@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -127,6 +128,21 @@ func (b *BoardData) HasAllFeatures(features []string) bool {
 		}
 	}
 	return true
+}
+
+// Hash returns a SHA256 hash of the board's led_map + strip sizes.
+func (b *BoardData) Hash() string {
+	h := sha256.New()
+	fmt.Fprintf(h, "id=%s;leds=%d;", b.Manifest.ID, b.Manifest.LEDCount)
+	for i, sz := range b.Manifest.Strips {
+		fmt.Fprintf(h, "s%d=%d;", i, sz)
+	}
+	for i, sid := range b.StationIDs {
+		if sid != "" {
+			fmt.Fprintf(h, "%d=%s;", i, sid)
+		}
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 // BoardModelKey returns the composite key for looking up a board (e.g. "nyc-subway/v1").

@@ -11,26 +11,23 @@ import (
 	"github.com/ProjectBarks/subway-pcb/service/internal/middleware"
 	"github.com/ProjectBarks/subway-pcb/service/internal/model"
 	"github.com/ProjectBarks/subway-pcb/service/internal/mta"
-	"github.com/ProjectBarks/subway-pcb/service/internal/plugin"
 	"github.com/ProjectBarks/subway-pcb/service/internal/store"
 )
 
 // ServerConfig holds all dependencies for the HTTP server.
 type ServerConfig struct {
-	Aggregator     *mta.Aggregator
-	Store          store.Store
-	PluginRegistry *plugin.Registry
-	Boards         map[string]*BoardData
-	AuthConfig     middleware.AuthConfig
-	StaticDir      string // optional: directory to serve at /static/
-	DevMode        bool   // enable dev-only routes (e.g. /landing)
+	Aggregator *mta.Aggregator
+	Store      store.Store
+	Boards     map[string]*BoardData
+	AuthConfig middleware.AuthConfig
+	StaticDir  string // optional: directory to serve at /static/
+	DevMode    bool   // enable dev-only routes (e.g. /landing)
 }
 
 // Server is the HTTP API server.
 type Server struct {
 	aggregator *mta.Aggregator
 	store      store.Store
-	plugins    *plugin.Registry
 	boards     map[string]*BoardData
 	authConfig middleware.AuthConfig
 	staticDir  string
@@ -44,7 +41,6 @@ func NewServer(cfg ServerConfig) *Server {
 	s := &Server{
 		aggregator: cfg.Aggregator,
 		store:      cfg.Store,
-		plugins:    cfg.PluginRegistry,
 		boards:     cfg.Boards,
 		authConfig: cfg.AuthConfig,
 		staticDir:  cfg.StaticDir,
@@ -65,9 +61,21 @@ func (s *Server) buildRouter() {
 	}
 
 	// Device routes — accessible on all hosts including RESTRICTED_HOST
-	r.Get("/api/v1/device-state", s.handleDeviceState)
-	r.Get("/api/v1/device-board", s.handleDeviceBoard)
-	r.Get("/api/v1/device-script", s.handleDeviceScript)
+	r.Group(func(r chi.Router) {
+		// Build board defaults map for device auto-registration middleware
+		boardDefaults := make(map[string]middleware.BoardDefaults, len(s.boards))
+		for key, b := range s.boards {
+			boardDefaults[key] = middleware.BoardDefaults{
+				DefaultPlugin: b.Manifest.DefaultPlugin,
+				DefaultPreset: b.Manifest.DefaultPreset,
+			}
+		}
+		r.Use(middleware.DeviceAutoRegister(s.store, boardDefaults))
+
+		r.Get("/api/v1/device-state", s.handleDeviceState)
+		r.Get("/api/v1/device-board", s.handleDeviceBoard)
+		r.Get("/api/v1/device-script", s.handleDeviceScript)
+	})
 
 	// App routes — restricted to ALLOWED_HOSTS
 	r.Group(func(r chi.Router) {

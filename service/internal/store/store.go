@@ -9,7 +9,6 @@ type Store interface {
 	ListDevices() ([]model.Device, error)
 	ListDevicesByUser(email string) ([]model.Device, error)
 	UpsertDevice(d *model.Device) error
-	UpdateDeviceLastSeen(mac string) error
 
 	// Access
 	GrantAccess(a *model.DeviceAccess) error

@@ -12,8 +12,8 @@ templ ActivePluginContent(data BoardData) {
 				}
 			</h3>
 			for _, p := range data.Plugins {
-				if p.Name() == data.Device.PluginName && p.Description() != "" {
-					<p class="text-text-secondary text-sm">{ p.Description() }</p>
+				if p.ID == data.Device.PluginName && p.Description != "" {
+					<p class="text-text-secondary text-sm">{ p.Description }</p>
 				}
 			}
 			for _, ip := range data.InstalledPlugins {

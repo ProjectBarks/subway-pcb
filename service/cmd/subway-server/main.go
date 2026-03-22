@@ -52,15 +52,25 @@ func main() {
 	pluginRegistry.Register(&track.Plugin{})
 	pluginRegistry.Register(&snake.Plugin{})
 
-	// Seed built-in presets from all registered plugins
-	if err := store.SeedPresets(db, pluginRegistry.AllDefaultPresets()); err != nil {
-		log.Fatalf("Failed to seed presets: %v", err)
+	// Seed built-in plugins and their presets into the store
+	if err := seedBuiltinPlugins(db, pluginRegistry); err != nil {
+		log.Fatalf("Failed to seed built-in plugins: %v", err)
 	}
 
 	// Load all versioned board definitions
 	boards, err := api.LoadAllBoards(*boardsDir)
 	if err != nil {
 		log.Fatalf("Failed to load boards: %v", err)
+	}
+
+	// Validate board defaults
+	for key, b := range boards {
+		if b.Manifest.DefaultPlugin == "" {
+			log.Fatalf("board %s has empty DefaultPlugin", key)
+		}
+		if b.Manifest.DefaultPreset == "" {
+			log.Fatalf("board %s has empty DefaultPreset", key)
+		}
 	}
 
 	// Create aggregator.
@@ -75,13 +85,12 @@ func main() {
 
 	// Set up HTTP server.
 	apiServer := api.NewServer(api.ServerConfig{
-		Aggregator:     aggregator,
-		Store:          db,
-		PluginRegistry: pluginRegistry,
-		Boards:         boards,
-		AuthConfig:     authCfg,
-		StaticDir:      *staticDir,
-		DevMode:        *devMode,
+		Aggregator: aggregator,
+		Store:      db,
+		Boards:     boards,
+		AuthConfig: authCfg,
+		StaticDir:  *staticDir,
+		DevMode:    *devMode,
 	})
 
 	httpServer := &http.Server{

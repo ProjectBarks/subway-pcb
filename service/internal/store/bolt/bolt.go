@@ -107,26 +107,6 @@ func (s *BoltStore) UpsertDevice(d *model.Device) error {
 	return s.put(bucketDevices, d.MAC, d)
 }
 
-func (s *BoltStore) UpdateDeviceLastSeen(mac string) error {
-	return s.db.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(bucketDevices)
-		v := b.Get([]byte(mac))
-		if v == nil {
-			return fmt.Errorf("bolt: device %q not found", mac)
-		}
-		var d model.Device
-		if err := json.Unmarshal(v, &d); err != nil {
-			return err
-		}
-		d.LastSeen = time.Now()
-		data, err := json.Marshal(&d)
-		if err != nil {
-			return err
-		}
-		return b.Put([]byte(mac), data)
-	})
-}
-
 // ---------------------------------------------------------------------------
 // Access
 // ---------------------------------------------------------------------------

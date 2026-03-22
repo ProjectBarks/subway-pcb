@@ -142,11 +142,8 @@ func (s *Server) handleDeletePreset(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// getConfigFields returns config fields for a plugin, whether built-in or DB-stored.
+// getConfigFields returns config fields for a plugin from the DB.
 func (s *Server) getConfigFields(pluginName string) []plugin.ConfigField {
-	if p, ok := s.plugins.Get(pluginName); ok {
-		return p.ConfigFields()
-	}
 	dbPlugin, _ := s.store.GetPlugin(pluginName)
 	if dbPlugin == nil || len(dbPlugin.ConfigFields) == 0 {
 		return nil

@@ -54,18 +54,19 @@ type User struct {
 }
 
 type Plugin struct {
-	ID           string         `gorm:"column:id;primaryKey;size:50"`
-	Name         string         `gorm:"column:name;size:255"`
-	Type         string         `gorm:"column:type;size:20;default:'lua'"`
-	AuthorEmail  string         `gorm:"column:author_email;size:255;index"`
-	Description  string         `gorm:"column:description;type:text"`
-	Category     string         `gorm:"column:category;size:50"`
-	LuaSource    string         `gorm:"column:lua_source;type:longtext"`
-	ConfigFields datatypes.JSON `gorm:"column:config_fields;type:json"`
-	Installs     int            `gorm:"column:installs;default:0"`
-	IsPublished  bool           `gorm:"column:is_published;default:false"`
-	CreatedAt    time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt    time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	ID               string         `gorm:"column:id;primaryKey;size:50"`
+	Name             string         `gorm:"column:name;size:255"`
+	Type             string         `gorm:"column:type;size:20;default:'lua'"`
+	AuthorEmail      string         `gorm:"column:author_email;size:255;index"`
+	Description      string         `gorm:"column:description;type:text"`
+	Category         string         `gorm:"column:category;size:50"`
+	LuaSource        string         `gorm:"column:lua_source;type:longtext"`
+	ConfigFields     datatypes.JSON `gorm:"column:config_fields;type:json"`
+	RequiredFeatures datatypes.JSON `gorm:"column:required_features;type:json"`
+	Installs         int            `gorm:"column:installs;default:0"`
+	IsPublished      bool           `gorm:"column:is_published;default:false"`
+	CreatedAt        time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt        time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 }
 
 type UserPlugin struct {
@@ -131,10 +132,6 @@ func (s *MySQLStore) ListDevicesByUser(email string) ([]model.Device, error) {
 func (s *MySQLStore) UpsertDevice(d *model.Device) error {
 	row := fromModelDevice(d)
 	return s.db.Save(&row).Error
-}
-
-func (s *MySQLStore) UpdateDeviceLastSeen(mac string) error {
-	return s.db.Model(&Device{}).Where("mac = ?", mac).Update("last_seen", time.Now()).Error
 }
 
 // ---------- Access ----------
@@ -519,19 +516,24 @@ func fromModelUser(u *model.User) User {
 }
 
 func toModelPlugin(p *Plugin) model.Plugin {
+	var features []string
+	if len(p.RequiredFeatures) > 0 {
+		_ = json.Unmarshal(p.RequiredFeatures, &features)
+	}
 	return model.Plugin{
-		ID:           p.ID,
-		Name:         p.Name,
-		Type:         p.Type,
-		AuthorEmail:  p.AuthorEmail,
-		Description:  p.Description,
-		Category:     p.Category,
-		LuaSource:    p.LuaSource,
-		ConfigFields: json.RawMessage(p.ConfigFields),
-		Installs:     p.Installs,
-		IsPublished:  p.IsPublished,
-		CreatedAt:    p.CreatedAt,
-		UpdatedAt:    p.UpdatedAt,
+		ID:               p.ID,
+		Name:             p.Name,
+		Type:             p.Type,
+		AuthorEmail:      p.AuthorEmail,
+		Description:      p.Description,
+		Category:         p.Category,
+		LuaSource:        p.LuaSource,
+		ConfigFields:     json.RawMessage(p.ConfigFields),
+		RequiredFeatures: features,
+		Installs:         p.Installs,
+		IsPublished:      p.IsPublished,
+		CreatedAt:        p.CreatedAt,
+		UpdatedAt:        p.UpdatedAt,
 	}
 }
 
@@ -544,18 +546,23 @@ func toModelPlugins(rows []Plugin) []model.Plugin {
 }
 
 func fromModelPlugin(p *model.Plugin) Plugin {
+	var rf datatypes.JSON
+	if len(p.RequiredFeatures) > 0 {
+		rf, _ = json.Marshal(p.RequiredFeatures)
+	}
 	return Plugin{
-		ID:           p.ID,
-		Name:         p.Name,
-		Type:         p.Type,
-		AuthorEmail:  p.AuthorEmail,
-		Description:  p.Description,
-		Category:     p.Category,
-		LuaSource:    p.LuaSource,
-		ConfigFields: datatypes.JSON(p.ConfigFields),
-		Installs:     p.Installs,
-		IsPublished:  p.IsPublished,
-		CreatedAt:    p.CreatedAt,
-		UpdatedAt:    p.UpdatedAt,
+		ID:               p.ID,
+		Name:             p.Name,
+		Type:             p.Type,
+		AuthorEmail:      p.AuthorEmail,
+		Description:      p.Description,
+		Category:         p.Category,
+		LuaSource:        p.LuaSource,
+		ConfigFields:     datatypes.JSON(p.ConfigFields),
+		RequiredFeatures: rf,
+		Installs:         p.Installs,
+		IsPublished:      p.IsPublished,
+		CreatedAt:        p.CreatedAt,
+		UpdatedAt:        p.UpdatedAt,
 	}
 }

@@ -11,7 +11,7 @@ type BoardData struct {
 	Device           *model.Device
 	Presets          []model.Preset
 	Access           []model.DeviceAccess
-	Plugins          []plugin.Plugin       // built-in renderers (track, snake)
+	Plugins          []model.Plugin        // compatible plugins (built-in + published)
 	InstalledPlugins []model.Plugin        // user-installed DB plugins
 	Boards           []model.Device
 	ActiveMAC        string
@@ -25,11 +25,11 @@ type BoardData struct {
 func (d BoardData) ActivePluginName() string {
 	pn := d.Device.PluginName
 	if pn == "" {
-		return "track"
+		return ""
 	}
 	for _, p := range d.Plugins {
-		if p.Name() == pn {
-			return p.Name()
+		if p.ID == pn {
+			return p.Name
 		}
 	}
 	for _, ip := range d.InstalledPlugins {

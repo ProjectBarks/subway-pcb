@@ -4,17 +4,17 @@ import "fmt"
 
 templ BrowsePluginsContent(data BoardData) {
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-		<!-- Built-in plugins -->
+		<!-- Compatible plugins -->
 		for _, p := range data.Plugins {
 			<button
 				hx-put={ "/boards/" + data.Device.MAC + "/plugin" }
-				hx-vals={ fmt.Sprintf(`{"plugin":"%s"}`, p.Name()) }
+				hx-vals={ fmt.Sprintf(`{"plugin":"%s"}`, p.ID) }
 				hx-target="#controls"
 				hx-swap="outerHTML"
 				class={
 					"rounded-xl border transition-all text-left flex flex-col overflow-hidden",
-					templ.KV("border-accent-gold bg-accent-gold/5", data.Device.PluginName == p.Name()),
-					templ.KV("border-border-subtle bg-bg-surface hover:border-border-hover", data.Device.PluginName != p.Name()),
+					templ.KV("border-accent-gold bg-accent-gold/5", data.Device.PluginName == p.ID),
+					templ.KV("border-border-subtle bg-bg-surface hover:border-border-hover", data.Device.PluginName != p.ID),
 				}
 			>
 				<!-- Preview -->
@@ -22,23 +22,27 @@ templ BrowsePluginsContent(data BoardData) {
 					class="h-32 bg-bg-surface-raised relative overflow-hidden"
 					data-preview-card
 					data-board-url={ data.BoardURL }
-					data-lua-source={ p.LuaSource() }
-					data-config={ pluginDefaultConfigJSON(p) }
+					data-lua-source={ p.LuaSource }
+					data-config={ dbPluginDefaultConfigJSON(p) }
 				>
 					<canvas class="w-full h-full block"></canvas>
 				</div>
 				<!-- Plugin Info -->
 				<div class="p-4 flex flex-col">
 					<div class="flex items-start justify-between mb-1">
-						<div class="text-text-primary text-sm font-medium">{ p.Name() }</div>
-						if data.Device.PluginName == p.Name() {
+						<div class="text-text-primary text-sm font-medium">{ p.Name }</div>
+						if data.Device.PluginName == p.ID {
 							<div class="size-3 rounded-full bg-accent-gold animate-pulse"></div>
 						}
 					</div>
-					if p.Description() != "" {
-						<p class="text-text-secondary text-xs leading-relaxed line-clamp-2">{ p.Description() }</p>
+					if p.Description != "" {
+						<p class="text-text-secondary text-xs leading-relaxed line-clamp-2">{ p.Description }</p>
 					}
-					<span class="text-text-muted text-xs mt-1">Built-in</span>
+					if p.Type == "builtin" {
+						<span class="text-text-muted text-xs mt-1">Built-in</span>
+					} else {
+						<span class="text-text-muted text-xs mt-1">{ p.AuthorEmail }</span>
+					}
 				</div>
 			</button>
 		}
