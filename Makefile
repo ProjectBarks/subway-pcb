@@ -24,9 +24,12 @@ frontend/typecheck:                    ## Typecheck frontend TypeScript
 
 # ─── Backend ─────────────────────────────────────────────
 
-.PHONY: backend/build backend/start backend/stop backend/dev
+.PHONY: backend/generate backend/build backend/start backend/stop backend/dev
 
-backend/build:                         ## Build the Go backend binary
+backend/generate:                      ## Generate templ + Go code
+	cd service && go run github.com/a-h/templ/cmd/templ generate && go generate ./ui/...
+
+backend/build: backend/generate        ## Build the Go backend binary
 	cd service && go build ./cmd/subway-server/
 
 backend/start: backend/build           ## Build and start backend → http://localhost:8080
@@ -34,7 +37,7 @@ backend/start: backend/build           ## Build and start backend → http://loc
 	cd service && ./subway-server --port 8080 --boards-dir public/boards --data-dir data --static-dir static &
 	@echo "→ http://localhost:8080/"
 
-backend/dev:                           ## Start backend with auto-reload on file changes
+backend/dev: backend/generate          ## Start backend with auto-reload on file changes
 	cd service && air
 
 backend/stop:                          ## Stop the running backend
@@ -87,10 +90,10 @@ e2e/install:                              ## Install E2E test deps + Chromium br
 	cd service && npm install
 	cd service && npx playwright install chromium --with-deps
 
-e2e/test: frontend/build                  ## Run E2E tests (headless)
+e2e/test: frontend/build backend/generate  ## Run E2E tests (headless)
 	cd service && npx cucumber-js --config e2e/cucumber.mjs
 
-e2e/test-headed: frontend/build           ## Run E2E tests (visible browser)
+e2e/test-headed: frontend/build backend/generate  ## Run E2E tests (visible browser)
 	cd service && HEADED=true npx cucumber-js --config e2e/cucumber.mjs
 
 # ─── Site ────────────────────────────────────────────────
@@ -98,7 +101,7 @@ e2e/test-headed: frontend/build           ## Run E2E tests (visible browser)
 .PHONY: site/build site/preview
 
 site/build: frontend/build             ## Build static landing page → _site/
-	cd service && templ generate && go generate ./ui/... && go run ./cmd/generate-site/ ../_site
+	cd service && go run ./cmd/generate-site/ ../_site
 	mkdir -p _site/static/dist
 	cp -r service/static/dist/* _site/static/dist/
 
@@ -111,8 +114,8 @@ site/preview: site/build               ## Build and open landing page in browser
 
 lint: lint/go lint/python lint/firmware lint/frontend  ## Run all linters
 
-lint/go:                               ## Lint Go backend
-	cd service && templ generate && go generate ./ui/... && go vet ./...
+lint/go: backend/generate              ## Lint Go backend
+	cd service && go vet ./...
 
 lint/python:                           ## Lint and typecheck Python tools
 	uvx ruff check tools/ --exclude '**/.venv'
@@ -138,7 +141,7 @@ hooks:                                 ## Install git pre-commit hook
 
 .PHONY: dev
 
-dev: frontend/build                    ## Start frontend watch + backend with auto-reload
+dev: frontend/build backend/generate   ## Start frontend watch + backend with auto-reload
 	@trap 'kill 0' EXIT; \
 	(cd service && npm run dev) & \
 	(cd service && air) & \

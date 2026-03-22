@@ -31,10 +31,10 @@ Feature: Dashboard
       | desktop  |
       | mobile   |
 
-  Scenario Outline: Add board card is visible
+  Scenario Outline: Empty state shows setup prompt
     Given I am using a <viewport> viewport
     When I navigate to "/boards"
-    Then I should see "Add Board"
+    Then I should see "No boards yet"
 
     Examples:
       | viewport |
