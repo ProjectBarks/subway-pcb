@@ -28,6 +28,9 @@ jobs:
       - name: Install templ
         run: go install github.com/a-h/templ/cmd/templ@latest
 
+      - name: Generate Go code
+        run: cd service && templ generate && go generate ./ui/...
+
       - name: Install dependencies
         run: make e2e/install
 
