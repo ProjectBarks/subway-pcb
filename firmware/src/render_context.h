@@ -101,6 +101,9 @@ typedef struct {
     int diag_lua_errors;           /* consecutive Lua errors */
     uint32_t diag_lua_mem;         /* Lua VM memory usage in bytes */
     uint32_t diag_first_lit_led;   /* index of first non-zero LED */
+    int diag_last_reload;          /* 0=none, 1=ok, -1=failed */
+    char diag_last_lua_err[64];    /* last Lua error (truncated) */
+    char diag_fetch_err[64];       /* last fetch_board/script error info */
 } render_context_t;
 
 /* Initialize the render context (call once at startup) */

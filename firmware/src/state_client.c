@@ -14,6 +14,7 @@
 
 #include "esp_crt_bundle.h"
 #include "esp_system.h"
+#include "esp_heap_caps.h"
 #include "pb_decode.h"
 #include "subway.pb.h"
 
@@ -80,9 +81,6 @@ static void read_nvs_config(void)
  * nanopb generates static arrays for all repeated fields (via .options max_count),
  * so no callbacks are needed — pb_decode fills the structs directly. */
 
-/* Persistent HTTP client — reuses TLS session to avoid ~40KB alloc/free per request */
-static esp_http_client_handle_t s_http_client = NULL;
-
 static int http_fetch(const char *path, const char *diag)
 {
     char url[384];
@@ -90,33 +88,27 @@ static int http_fetch(const char *path, const char *diag)
 
     s_http_buf_len = 0;
 
-    if (!s_http_client) {
-        esp_http_client_config_t cfg = {
-            .url = url,
-            .event_handler = http_event_handler,
-            .timeout_ms = 10000,
-            .crt_bundle_attach = esp_crt_bundle_attach,
-            .keep_alive_enable = true,
-        };
-        s_http_client = esp_http_client_init(&cfg);
-        if (!s_http_client) {
-            ESP_LOGE(TAG, "Failed to create HTTP client");
-            return -1;
-        }
-        esp_http_client_set_header(s_http_client, "X-Device-ID", s_device_id);
-        esp_http_client_set_header(s_http_client, "X-Firmware-Version", FIRMWARE_VERSION);
-        esp_http_client_set_header(s_http_client, "X-Hardware", s_hardware);
+    esp_http_client_config_t cfg = {
+        .url = url,
+        .event_handler = http_event_handler,
+        .timeout_ms = 10000,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&cfg);
+    if (!client) {
+        ESP_LOGE(TAG, "Failed to create HTTP client");
+        return -1;
     }
+    esp_http_client_set_header(client, "X-Device-ID", s_device_id);
+    esp_http_client_set_header(client, "X-Firmware-Version", FIRMWARE_VERSION);
+    esp_http_client_set_header(client, "X-Hardware", s_hardware);
 
-    esp_http_client_set_url(s_http_client, url);
-    esp_err_t err = esp_http_client_perform(s_http_client);
-    int status = esp_http_client_get_status_code(s_http_client);
+    esp_err_t err = esp_http_client_perform(client);
+    int status = esp_http_client_get_status_code(client);
+    esp_http_client_cleanup(client);
 
     if (err != ESP_OK || status != 200) {
         ESP_LOGE(TAG, "HTTP FAILED %s: err=%d(%s) status=%d", path, err, esp_err_to_name(err), status);
-        /* Destroy client on error so next call creates a fresh one */
-        esp_http_client_cleanup(s_http_client);
-        s_http_client = NULL;
         return -1;
     }
 
@@ -177,49 +169,58 @@ static bool fetch_state(const char *diag)
     return true;
 }
 
-/* DeviceBoard is 6KB — allocate on demand and free after use (only fetched on change) */
+/* DeviceBoard — stripped to isolate crash */
 static bool fetch_board(void)
 {
+    /* Step 1: HTTP fetch */
     int len = http_fetch("/api/v1/device-board", NULL);
+    snprintf(s_ctx->diag_fetch_err, sizeof(s_ctx->diag_fetch_err), "board:step1_len%d", len);
     if (len <= 0) return false;
 
-    subway_DeviceBoard *s_board_buf = calloc(1, sizeof(subway_DeviceBoard));
-    if (!s_board_buf) { ESP_LOGE(TAG, "OOM: DeviceBoard"); return false; }
+    /* Step 2: calloc */
+    subway_DeviceBoard *buf = calloc(1, sizeof(subway_DeviceBoard));
+    snprintf(s_ctx->diag_fetch_err, sizeof(s_ctx->diag_fetch_err),
+             "board:step2_alloc%s", buf ? "ok" : "fail");
+    if (!buf) return false;
 
+    /* Step 3: decode */
     pb_istream_t stream = pb_istream_from_buffer(s_http_buf, len);
-    if (!pb_decode(&stream, subway_DeviceBoard_fields, s_board_buf)) {
-        ESP_LOGE(TAG, "Failed to decode DeviceBoard");
-        return false;
-    }
-    subway_DeviceBoard *board = s_board_buf;
+    bool decoded = pb_decode(&stream, subway_DeviceBoard_fields, buf);
+    snprintf(s_ctx->diag_fetch_err, sizeof(s_ctx->diag_fetch_err),
+             "board:step3_dec%s_leds%lu_strips%d",
+             decoded ? "ok" : "fail",
+             decoded ? (unsigned long)buf->led_count : 0,
+             decoded ? (int)buf->strip_sizes_count : 0);
+    if (!decoded) { free(buf); return false; }
 
+    /* Step 4: copy to context */
     xSemaphoreTake(s_ctx->mutex, portMAX_DELAY);
-
-    strncpy(s_ctx->board.board_id, board->board_id, sizeof(s_ctx->board.board_id) - 1);
-    s_ctx->board.led_count = board->led_count;
-    s_ctx->board.strip_count = board->strip_sizes_count;
-    for (pb_size_t i = 0; i < board->strip_sizes_count && i < 16; i++) {
-        s_ctx->board.strip_sizes[i] = board->strip_sizes[i];
+    strncpy(s_ctx->board.board_id, buf->board_id, sizeof(s_ctx->board.board_id) - 1);
+    s_ctx->board.led_count = buf->led_count;
+    s_ctx->board.strip_count = buf->strip_sizes_count;
+    for (pb_size_t i = 0; i < buf->strip_sizes_count && i < 16; i++) {
+        s_ctx->board.strip_sizes[i] = buf->strip_sizes[i];
     }
-    strncpy(s_ctx->board.hash, board->hash, MAX_HASH_LEN - 1);
-
+    strncpy(s_ctx->board.hash, buf->hash, MAX_HASH_LEN - 1);
     memset(s_ctx->board.led_map, 0, sizeof(s_ctx->board.led_map));
-    for (pb_size_t i = 0; i < board->led_map_count; i++) {
-        uint32_t idx = board->led_map[i].key;
+    for (pb_size_t i = 0; i < buf->led_map_count; i++) {
+        uint32_t idx = buf->led_map[i].key;
         if (idx < MAX_LEDS) {
-            strncpy(s_ctx->board.led_map[idx], board->led_map[i].value, MAX_STOP_ID_LEN - 1);
+            strncpy(s_ctx->board.led_map[idx], buf->led_map[i].value, MAX_STOP_ID_LEN - 1);
         }
     }
-
     s_ctx->board_loaded = true;
+    snprintf(s_ctx->diag_fetch_err, sizeof(s_ctx->diag_fetch_err), "board:step4_copy_ok");
+
+    /* Step 5: build index */
     render_context_build_station_leds(s_ctx);
-    strncpy(s_ctx->cached_board_hash, board->hash, MAX_HASH_LEN - 1);
-
+    strncpy(s_ctx->cached_board_hash, buf->hash, MAX_HASH_LEN - 1);
     xSemaphoreGive(s_ctx->mutex);
+    snprintf(s_ctx->diag_fetch_err, sizeof(s_ctx->diag_fetch_err), "board:step5_idx_ok");
 
-    ESP_LOGI(TAG, "Board loaded: %s, %lu LEDs, %d strips",
-             board->board_id, (unsigned long)board->led_count, board->strip_sizes_count);
-    free(s_board_buf);
+    /* Step 6: free + done */
+    free(buf);
+    s_ctx->diag_fetch_err[0] = '\0';  /* clear so lua errors show through */
     return true;
 }
 
@@ -227,14 +228,22 @@ static bool fetch_board(void)
 static bool fetch_script(void)
 {
     int len = http_fetch("/api/v1/device-script", NULL);
-    if (len <= 0) return false;
+    if (len <= 0) {
+        snprintf(s_ctx->diag_fetch_err, sizeof(s_ctx->diag_fetch_err), "script:http_len%d", len);
+        return false;
+    }
 
     subway_DeviceScript *s_script_buf = calloc(1, sizeof(subway_DeviceScript));
     if (!s_script_buf) { ESP_LOGE(TAG, "OOM: DeviceScript"); return false; }
 
     pb_istream_t stream = pb_istream_from_buffer(s_http_buf, len);
     if (!pb_decode(&stream, subway_DeviceScript_fields, s_script_buf)) {
-        ESP_LOGE(TAG, "Failed to decode DeviceScript");
+        snprintf(s_ctx->diag_fetch_err, sizeof(s_ctx->diag_fetch_err),
+                 "script:len%d,b0x%02x%02x%02x%02x,%s",
+                 len, s_http_buf[0], s_http_buf[1], s_http_buf[2], s_http_buf[3],
+                 PB_GET_ERROR(&stream));
+        ESP_LOGE(TAG, "Script decode fail: %s", s_ctx->diag_fetch_err);
+        free(s_script_buf);
         return false;
     }
     subway_DeviceScript *script = s_script_buf;
@@ -284,15 +293,33 @@ static void state_task(void *arg)
         /* Update diag for NEXT cycle — includes this cycle's results */
         int sh_match = (strcmp(ctx->script_hash, ctx->cached_script_hash) == 0) ? 1 : 0;
         snprintf(diag, sizeof(diag),
-                 "?d=st%d,bf%d,sf%d,shm%d,px%lu,lerr%d,heap%lu,first%lu",
+                 "?d=st%d,bf%d,sf%d,shm%d,px%lu,lerr%d,lmem%lu,heap%lu,maxblk%lu,rld%d,first%lu",
                  state_ok ? 1 : 0,
                  board_fetched ? 1 : 0,
                  script_fetched ? 1 : 0,
                  sh_match,
                  (unsigned long)ctx->diag_nonzero_pixels,
                  ctx->diag_lua_errors,
+                 (unsigned long)ctx->diag_lua_mem,
                  (unsigned long)esp_get_free_heap_size(),
+                 (unsigned long)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+                 ctx->diag_last_reload,
                  (unsigned long)ctx->diag_first_lit_led);
+        /* Append errors if any (URL-safe: replace bad chars) */
+        {
+            const char *err_src = ctx->diag_fetch_err[0] ? ctx->diag_fetch_err : ctx->diag_last_lua_err;
+            if (err_src[0]) {
+                char err_safe[50];
+                strncpy(err_safe, err_src, sizeof(err_safe) - 1);
+                err_safe[sizeof(err_safe) - 1] = '\0';
+                for (char *p = err_safe; *p; p++) {
+                    if (*p == ' ') *p = '_';
+                    if (*p == '?' || *p == '&' || *p == '=' || *p == '#') *p = '.';
+                }
+                size_t dlen = strlen(diag);
+                snprintf(diag + dlen, sizeof(diag) - dlen, ",err=%s", err_safe);
+            }
+        }
 
         if (state_ok) {
             /* Check if board needs updating */
@@ -304,13 +331,17 @@ static void state_task(void *arg)
             xSemaphoreGive(ctx->mutex);
 
             if (board_changed) {
+                ESP_LOGW(TAG, "Fetching board... heap=%lu", (unsigned long)esp_get_free_heap_size());
                 if (fetch_board()) {
                     board_fetched = true;
-                    ESP_LOGI(TAG, "Board data updated");
+                    ESP_LOGW(TAG, "Board OK. heap=%lu", (unsigned long)esp_get_free_heap_size());
+                } else {
+                    ESP_LOGE(TAG, "Board FAILED. heap=%lu", (unsigned long)esp_get_free_heap_size());
                 }
             }
 
-            if (script_changed) {
+            if (script_changed && board_fetched) {
+                ESP_LOGW(TAG, "Fetching script... heap=%lu", (unsigned long)esp_get_free_heap_size());
                 if (fetch_script()) {
                     script_fetched = true;
                     ESP_LOGI(TAG, "Script updated");
@@ -324,5 +355,5 @@ static void state_task(void *arg)
 
 void state_client_start(render_context_t *ctx)
 {
-    xTaskCreate(state_task, "state_task", 12288, ctx, 3, NULL);
+    xTaskCreate(state_task, "state_task", 16384, ctx, 3, NULL);
 }

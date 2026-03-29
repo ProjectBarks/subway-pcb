@@ -21,7 +21,7 @@ static const char *TAG = "lua_runtime";
 #define LUA_MAX_MEM (40 * 1024)
 
 /* Maximum instructions per render call */
-#define LUA_MAX_INSTRUCTIONS 100000
+#define LUA_MAX_INSTRUCTIONS 500000
 
 /* Consecutive failure limit before fallback */
 #define MAX_CONSECUTIVE_FAILURES 5
@@ -32,6 +32,10 @@ static render_context_t *s_ctx = NULL;
 /* LED pixel buffer */
 static uint8_t s_pixels[MAX_LEDS * 3];
 static uint32_t s_led_count = MAX_LEDS;
+
+/* Strip layout snapshot — safe to read from Lua without mutex */
+static uint8_t s_snap_strip_count = 0;
+static uint32_t s_snap_strip_sizes[16];
 
 /* Snapshot of render context for current frame.
  * Only fast-changing data (stations, config) is copied each frame.
@@ -333,8 +337,8 @@ static int l_hex_to_rgb(lua_State *L)
 static int l_get_strip_info(lua_State *L)
 {
     lua_newtable(L);
-    for (uint8_t i = 0; i < s_ctx->board.strip_count; i++) {
-        lua_pushinteger(L, s_ctx->board.strip_sizes[i]);
+    for (uint8_t i = 0; i < s_snap_strip_count; i++) {
+        lua_pushinteger(L, s_snap_strip_sizes[i]);
         lua_rawseti(L, -2, i + 1);
     }
     return 1;
@@ -344,13 +348,13 @@ static int l_led_to_strip(lua_State *L)
 {
     int index = luaL_checkinteger(L, 1);
     uint32_t offset = 0;
-    for (uint8_t s = 0; s < s_ctx->board.strip_count; s++) {
-        if ((uint32_t)index < offset + s_ctx->board.strip_sizes[s]) {
+    for (uint8_t s = 0; s < s_snap_strip_count; s++) {
+        if ((uint32_t)index < offset + s_snap_strip_sizes[s]) {
             lua_pushinteger(L, s + 1);       /* 1-based strip number */
             lua_pushinteger(L, index - offset); /* pixel within strip */
             return 2;
         }
-        offset += s_ctx->board.strip_sizes[s];
+        offset += s_snap_strip_sizes[s];
     }
     lua_pushnil(L);
     lua_pushnil(L);
@@ -488,8 +492,10 @@ static void render_task(void *arg)
                 if (L && luaL_dostring(L, new_source) == LUA_OK) {
                     script_loaded = true;
                     consecutive_failures = 0;
+                    s_ctx->diag_last_reload = 1;
                     ESP_LOGI(TAG, "Loaded new script (%d bytes)", (int)strlen(new_source));
                 } else {
+                    s_ctx->diag_last_reload = -1;
                     if (L) {
                         ESP_LOGW(TAG, "Script load failed: %s", lua_tostring(L, -1));
                         lua_pop(L, 1);
@@ -508,14 +514,17 @@ static void render_task(void *arg)
             free(new_source);
         }
 
-        /* Snapshot fast-changing data (stations, config) each frame.
-         * Board and station_leds are read directly from ctx (rarely change). */
+        /* Snapshot shared data under mutex each frame */
         xSemaphoreTake(ctx->mutex, portMAX_DELAY);
         memcpy(s_snap_stations, ctx->stations, sizeof(station_t) * ctx->station_count);
         s_snap_station_count = ctx->station_count;
         memcpy(s_snap_config, ctx->config, sizeof(config_entry_t) * ctx->config_count);
         s_snap_config_count = ctx->config_count;
         s_led_count = ctx->board.led_count > 0 ? ctx->board.led_count : MAX_LEDS;
+        s_snap_strip_count = ctx->board.strip_count;
+        for (uint8_t si = 0; si < s_snap_strip_count && si < 16; si++) {
+            s_snap_strip_sizes[si] = ctx->board.strip_sizes[si];
+        }
         xSemaphoreGive(ctx->mutex);
 
         /* GC before render — free temporary allocations from previous frame
@@ -531,6 +540,10 @@ static void render_task(void *arg)
             if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
                 const char *err = lua_tostring(L, -1);
                 ESP_LOGW(TAG, "Lua render error: %s", err ? err : "unknown");
+                /* Store error for remote diagnostics */
+                if (err) {
+                    strncpy(s_ctx->diag_last_lua_err, err, sizeof(s_ctx->diag_last_lua_err) - 1);
+                }
                 lua_pop(L, 1);
                 consecutive_failures++;
 
@@ -555,21 +568,20 @@ static void render_task(void *arg)
             }
         }
 
-        /* Push pixels to LED driver */
+        /* Push pixels to LED driver (using frame-level strip snapshot) */
         uint32_t pushed = 0;
         for (uint32_t i = 0; i < s_led_count && i < MAX_LEDS; i++) {
             uint32_t strip, pixel;
-            /* Convert flat index to strip/pixel */
             uint32_t offset = 0;
             bool found = false;
-            for (uint8_t si = 0; si < s_ctx->board.strip_count; si++) {
-                if (i < offset + s_ctx->board.strip_sizes[si]) {
+            for (uint8_t si = 0; si < s_snap_strip_count; si++) {
+                if (i < offset + s_snap_strip_sizes[si]) {
                     strip = si;
                     pixel = i - offset;
                     found = true;
                     break;
                 }
-                offset += s_ctx->board.strip_sizes[si];
+                offset += s_snap_strip_sizes[si];
             }
             if (found) {
                 led_driver_set_pixel(strip, pixel,
