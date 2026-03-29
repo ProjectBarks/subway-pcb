@@ -39,11 +39,10 @@ esp_err_t led_driver_set_pixel(uint8_t strip, uint16_t pixel, uint8_t r, uint8_t
     if (strip >= NUM_STRIPS || pixel >= STRIP_LED_COUNTS[strip]) {
         return ESP_ERR_INVALID_ARG;
     }
-    /* Scale brightness locally — server sends full-range colors */
     int idx = (s_strip_offsets[strip] + pixel) * 3;
-    s_pixel_buf[idx + 0] = (uint8_t)((uint16_t)r * DEFAULT_BRIGHTNESS / 255);
-    s_pixel_buf[idx + 1] = (uint8_t)((uint16_t)g * DEFAULT_BRIGHTNESS / 255);
-    s_pixel_buf[idx + 2] = (uint8_t)((uint16_t)b * DEFAULT_BRIGHTNESS / 255);
+    s_pixel_buf[idx + 0] = r;
+    s_pixel_buf[idx + 1] = g;
+    s_pixel_buf[idx + 2] = b;
     return ESP_OK;
 }
 
@@ -81,14 +80,23 @@ static esp_err_t refresh_strip_spi(int strip_idx)
     return ret;
 }
 
+/* Last refresh results (read by lua_runtime for diagnostics) */
+int g_led_strip_ok = 0;
+int g_led_strip_fail = 0;
+
 esp_err_t led_driver_refresh(void)
 {
+    int ok = 0, fail = 0;
     for (int i = 0; i < NUM_STRIPS; i++) {
         esp_err_t ret = refresh_strip_spi(i);
         if (ret != ESP_OK) {
-            ESP_LOGW(TAG, "Strip %d refresh failed: %s", i, esp_err_to_name(ret));
+            fail++;
+        } else {
+            ok++;
         }
     }
+    g_led_strip_ok = ok;
+    g_led_strip_fail = fail;
     return ESP_OK;
 }
 

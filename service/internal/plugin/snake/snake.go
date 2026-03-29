@@ -28,6 +28,7 @@ func (p *Plugin) ConfigFields() []plugin.ConfigField {
 		})
 	}
 	fields = append(fields,
+		plugin.ConfigField{Key: "brightness", Label: "Brightness", Type: plugin.FieldNumber, Default: "255", Min: "1", Max: "255", Group: "Settings"},
 		plugin.ConfigField{Key: "snake_length", Label: "Snake Length", Type: plugin.FieldNumber, Default: "5", Min: "1", Max: "30", Group: "Settings"},
 		plugin.ConfigField{Key: "snake_count", Label: "Number of Snakes", Type: plugin.FieldNumber, Default: "1", Min: "1", Max: "5", Group: "Settings"},
 		plugin.ConfigField{Key: "speed_ms", Label: "Step Delay (ms)", Type: plugin.FieldNumber, Default: "2000", Min: "50", Max: "5000", Group: "Settings"},

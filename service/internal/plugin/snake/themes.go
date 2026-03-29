@@ -4,7 +4,7 @@ import "fmt"
 
 // theme builds a Values map from 9 strip colors and default settings.
 func theme(strips [9]string) map[string]string {
-	m := map[string]string{"snake_length": "5", "snake_count": "1", "speed_ms": "2000"}
+	m := map[string]string{"brightness": "255", "snake_length": "5", "snake_count": "1", "speed_ms": "2000"}
 	for i, c := range strips {
 		m[fmt.Sprintf("strip_%d_color", i+1)] = c
 	}

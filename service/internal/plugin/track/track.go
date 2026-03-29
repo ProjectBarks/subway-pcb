@@ -32,7 +32,11 @@ func (p *Plugin) RequiredFeatures() []string  { return []string{"mta-stations"} 
 func (p *Plugin) LuaSource() string           { return lua.TrackSource }
 
 func (p *Plugin) ConfigFields() []plugin.ConfigField {
-	fields := make([]plugin.ConfigField, 0, len(routeKeys))
+	fields := make([]plugin.ConfigField, 0, len(routeKeys)+1)
+	fields = append(fields, plugin.ConfigField{
+		Key: "brightness", Label: "Brightness", Type: plugin.FieldNumber,
+		Default: "255", Min: "1", Max: "255", Group: "Settings",
+	})
 	for _, key := range routeKeys {
 		fields = append(fields, plugin.ConfigField{
 			Key:     key,

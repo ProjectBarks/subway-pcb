@@ -13,6 +13,7 @@
 #include "nvs.h"
 
 #include "esp_crt_bundle.h"
+#include "esp_system.h"
 #include "pb_decode.h"
 #include "subway.pb.h"
 
@@ -79,53 +80,69 @@ static void read_nvs_config(void)
  * nanopb generates static arrays for all repeated fields (via .options max_count),
  * so no callbacks are needed — pb_decode fills the structs directly. */
 
-static int http_fetch(const char *path)
+/* Persistent HTTP client — reuses TLS session to avoid ~40KB alloc/free per request */
+static esp_http_client_handle_t s_http_client = NULL;
+
+static int http_fetch(const char *path, const char *diag)
 {
-    char url[256];
-    snprintf(url, sizeof(url), "%s%s", s_server_url, path);
+    char url[384];
+    snprintf(url, sizeof(url), "%s%s%s", s_server_url, path, diag ? diag : "");
 
     s_http_buf_len = 0;
 
-    esp_http_client_config_t cfg = {
-        .url = url,
-        .event_handler = http_event_handler,
-        .timeout_ms = 10000,
-        .crt_bundle_attach = esp_crt_bundle_attach,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&cfg);
+    if (!s_http_client) {
+        esp_http_client_config_t cfg = {
+            .url = url,
+            .event_handler = http_event_handler,
+            .timeout_ms = 10000,
+            .crt_bundle_attach = esp_crt_bundle_attach,
+            .keep_alive_enable = true,
+        };
+        s_http_client = esp_http_client_init(&cfg);
+        if (!s_http_client) {
+            ESP_LOGE(TAG, "Failed to create HTTP client");
+            return -1;
+        }
+        esp_http_client_set_header(s_http_client, "X-Device-ID", s_device_id);
+        esp_http_client_set_header(s_http_client, "X-Firmware-Version", FIRMWARE_VERSION);
+        esp_http_client_set_header(s_http_client, "X-Hardware", s_hardware);
+    }
 
-    esp_http_client_set_header(client, "X-Device-ID", s_device_id);
-    esp_http_client_set_header(client, "X-Firmware-Version", FIRMWARE_VERSION);
-    esp_http_client_set_header(client, "X-Hardware", s_hardware);
-
-    ESP_LOGW(TAG, "HTTP fetch: %s", url);
-    esp_err_t err = esp_http_client_perform(client);
-    int status = esp_http_client_get_status_code(client);
-    esp_http_client_cleanup(client);
+    esp_http_client_set_url(s_http_client, url);
+    esp_err_t err = esp_http_client_perform(s_http_client);
+    int status = esp_http_client_get_status_code(s_http_client);
 
     if (err != ESP_OK || status != 200) {
         ESP_LOGE(TAG, "HTTP FAILED %s: err=%d(%s) status=%d", path, err, esp_err_to_name(err), status);
+        /* Destroy client on error so next call creates a fresh one */
+        esp_http_client_cleanup(s_http_client);
+        s_http_client = NULL;
         return -1;
     }
 
     return s_http_buf_len;
 }
 
-static bool fetch_state(void)
+/* Persistent decode buffer — avoids 17KB alloc/free every 3s which fragments heap */
+static subway_DeviceState *s_state_buf = NULL;
+
+static bool fetch_state(const char *diag)
 {
-    int len = http_fetch("/api/v1/device-state");
+    int len = http_fetch("/api/v1/device-state", diag);
     if (len <= 0) return false;
 
-    /* Heap-allocate — struct is ~15KB (stations[200]), too large for stack */
-    subway_DeviceState *state = calloc(1, sizeof(subway_DeviceState));
-    if (!state) { ESP_LOGE(TAG, "OOM: DeviceState"); return false; }
+    if (!s_state_buf) {
+        s_state_buf = calloc(1, sizeof(subway_DeviceState));
+        if (!s_state_buf) { ESP_LOGE(TAG, "OOM: DeviceState"); return false; }
+    }
+    memset(s_state_buf, 0, sizeof(subway_DeviceState));
 
     pb_istream_t stream = pb_istream_from_buffer(s_http_buf, len);
-    if (!pb_decode(&stream, subway_DeviceState_fields, state)) {
-        ESP_LOGE(TAG, "Failed to decode DeviceState");
-        free(state);
+    if (!pb_decode(&stream, subway_DeviceState_fields, s_state_buf)) {
+        ESP_LOGE(TAG, "Failed to decode DeviceState (len=%d)", len);
         return false;
     }
+    subway_DeviceState *state = s_state_buf;
 
     /* Update render context under mutex */
     xSemaphoreTake(s_ctx->mutex, portMAX_DELAY);
@@ -157,25 +174,24 @@ static bool fetch_state(void)
 
     ESP_LOGI(TAG, "State: %d stations, %d config entries",
              s_ctx->station_count, s_ctx->config_count);
-    free(state);
     return true;
 }
 
+/* DeviceBoard is 6KB — allocate on demand and free after use (only fetched on change) */
 static bool fetch_board(void)
 {
-    int len = http_fetch("/api/v1/device-board");
+    int len = http_fetch("/api/v1/device-board", NULL);
     if (len <= 0) return false;
 
-    /* Heap-allocate — struct is ~6KB, too large for task stack */
-    subway_DeviceBoard *board = calloc(1, sizeof(subway_DeviceBoard));
-    if (!board) { ESP_LOGE(TAG, "OOM: DeviceBoard"); return false; }
+    subway_DeviceBoard *s_board_buf = calloc(1, sizeof(subway_DeviceBoard));
+    if (!s_board_buf) { ESP_LOGE(TAG, "OOM: DeviceBoard"); return false; }
 
     pb_istream_t stream = pb_istream_from_buffer(s_http_buf, len);
-    if (!pb_decode(&stream, subway_DeviceBoard_fields, board)) {
+    if (!pb_decode(&stream, subway_DeviceBoard_fields, s_board_buf)) {
         ESP_LOGE(TAG, "Failed to decode DeviceBoard");
-        free(board);
         return false;
     }
+    subway_DeviceBoard *board = s_board_buf;
 
     xSemaphoreTake(s_ctx->mutex, portMAX_DELAY);
 
@@ -203,34 +219,39 @@ static bool fetch_board(void)
 
     ESP_LOGI(TAG, "Board loaded: %s, %lu LEDs, %d strips",
              board->board_id, (unsigned long)board->led_count, board->strip_sizes_count);
-    free(board);
+    free(s_board_buf);
     return true;
 }
 
+/* DeviceScript is 17KB — allocate on demand and free after use (only fetched on change) */
 static bool fetch_script(void)
 {
-    int len = http_fetch("/api/v1/device-script");
+    int len = http_fetch("/api/v1/device-script", NULL);
     if (len <= 0) return false;
 
-    /* Heap-allocate — struct is ~17KB (lua_source[16384]), way too large for stack */
-    subway_DeviceScript *script = calloc(1, sizeof(subway_DeviceScript));
-    if (!script) { ESP_LOGE(TAG, "OOM: DeviceScript"); return false; }
+    subway_DeviceScript *s_script_buf = calloc(1, sizeof(subway_DeviceScript));
+    if (!s_script_buf) { ESP_LOGE(TAG, "OOM: DeviceScript"); return false; }
 
     pb_istream_t stream = pb_istream_from_buffer(s_http_buf, len);
-    if (!pb_decode(&stream, subway_DeviceScript_fields, script)) {
+    if (!pb_decode(&stream, subway_DeviceScript_fields, s_script_buf)) {
         ESP_LOGE(TAG, "Failed to decode DeviceScript");
-        free(script);
         return false;
     }
+    subway_DeviceScript *script = s_script_buf;
+
+    /* Copy Lua source to heap for render task to consume */
+    char *src = strdup(script->lua_source);
 
     xSemaphoreTake(s_ctx->mutex, portMAX_DELAY);
     strncpy(s_ctx->cached_script_hash, script->hash, MAX_HASH_LEN - 1);
+    free(s_ctx->lua_source);  /* free previous if any */
+    s_ctx->lua_source = src;
     s_ctx->script_changed = true;
     xSemaphoreGive(s_ctx->mutex);
 
     ESP_LOGI(TAG, "Script loaded: %s (%d bytes)",
              script->plugin_name, (int)strlen(script->lua_source));
-    free(script);
+    free(s_script_buf);
     return true;
 }
 
@@ -244,27 +265,7 @@ static void state_task(void *arg)
 
     ESP_LOGI(TAG, "State task started (device=%s, url=%s)", s_device_id, s_server_url);
 
-    /* Ping health endpoint to confirm connectivity — shows in server logs */
-    {
-        char url[256];
-        snprintf(url, sizeof(url), "%s/health", s_server_url);
-        s_http_buf_len = 0;
-        esp_http_client_config_t cfg = {
-            .url = url,
-            .event_handler = http_event_handler,
-            .timeout_ms = 15000,
-            .crt_bundle_attach = esp_crt_bundle_attach,
-        };
-        esp_http_client_handle_t client = esp_http_client_init(&cfg);
-        esp_http_client_set_header(client, "X-Device-ID", s_device_id);
-        esp_http_client_set_header(client, "X-Firmware-Version", FIRMWARE_VERSION);
-        esp_http_client_set_header(client, "X-Hardware", s_hardware);
-        esp_err_t err = esp_http_client_perform(client);
-        int status = esp_http_client_get_status_code(client);
-        esp_http_client_cleanup(client);
-        ESP_LOGW(TAG, "HEALTH PING: err=%d(%s) status=%d bytes=%d",
-                 err, esp_err_to_name(err), status, s_http_buf_len);
-    }
+    /* Diagnostics now go via query string on device-state requests */
 
     /* Initial fetch of board and script */
     bool board_fetched = false;
@@ -276,8 +277,22 @@ static void state_task(void *arg)
             continue;
         }
 
-        /* Fetch state (every cycle) */
-        bool state_ok = fetch_state();
+        /* Build diag from previous cycle, pass as query string on this fetch */
+        static char diag[256] = "";
+        bool state_ok = fetch_state(diag);
+
+        /* Update diag for NEXT cycle — includes this cycle's results */
+        int sh_match = (strcmp(ctx->script_hash, ctx->cached_script_hash) == 0) ? 1 : 0;
+        snprintf(diag, sizeof(diag),
+                 "?d=st%d,bf%d,sf%d,shm%d,px%lu,lerr%d,heap%lu,first%lu",
+                 state_ok ? 1 : 0,
+                 board_fetched ? 1 : 0,
+                 script_fetched ? 1 : 0,
+                 sh_match,
+                 (unsigned long)ctx->diag_nonzero_pixels,
+                 ctx->diag_lua_errors,
+                 (unsigned long)esp_get_free_heap_size(),
+                 (unsigned long)ctx->diag_first_lit_led);
 
         if (state_ok) {
             /* Check if board needs updating */

@@ -52,7 +52,7 @@ typedef struct _subway_DeviceState {
     pb_size_t stations_count;
     subway_Station stations[200];
     pb_size_t config_count;
-    subway_DeviceState_ConfigEntry config[50];
+    subway_DeviceState_ConfigEntry config[80];
 } subway_DeviceState;
 
 typedef struct _subway_DeviceBoard_LedMapEntry {
@@ -85,7 +85,7 @@ typedef struct _subway_DeviceScript {
     char plugin_name[64];
     char plugin_description[256];
     pb_size_t config_count;
-    subway_DeviceScript_ConfigEntry config[50];
+    subway_DeviceScript_ConfigEntry config[80];
 } subway_DeviceScript;
 
 

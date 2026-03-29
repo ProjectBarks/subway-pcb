@@ -77,7 +77,13 @@ void app_main(void)
     /* Initialize render context */
     render_context_init(&s_render_ctx);
 
-    /* Start WiFi FIRST — no SPI (LED) activity before WiFi radio is up */
+    /* Turn LEDs off immediately — they latch the last frame across resets,
+     * drawing current that can starve the WiFi radio during PHY cal. */
+    ESP_ERROR_CHECK(led_driver_init());
+    led_driver_clear();
+    ESP_LOGW(TAG, "LEDs cleared. heap=%lu", (unsigned long)esp_get_free_heap_size());
+
+    /* Now start WiFi — LEDs are dark so the radio gets clean power */
     ESP_LOGW(TAG, "Starting WiFi manager...");
     wifi_manager_start();
     wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_wifi_got_ip);
@@ -98,9 +104,7 @@ void app_main(void)
     ESP_LOGW(TAG, "WiFi connected. heap=%lu",
              (unsigned long)esp_get_free_heap_size());
 
-    /* NOW init LED driver + OTA — WiFi radio is stable */
-    ESP_ERROR_CHECK(led_driver_init());
-
+    /* OTA — WiFi radio is stable */
     ghota_config_t ghota_config = {
         .filenamematch = "firmware.bin",
         .storagenamematch = "",

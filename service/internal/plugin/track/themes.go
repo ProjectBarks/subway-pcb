@@ -1,6 +1,7 @@
 package track
 
 var classicMTA = map[string]string{
+	"brightness": "255",
 	"1": "#ff0000", "2": "#ff0000", "3": "#ff0000",
 	"4": "#00933c", "5": "#00933c", "6": "#00933c",
 	"7": "#b933ad",
@@ -15,6 +16,7 @@ var classicMTA = map[string]string{
 }
 
 var nightMode = map[string]string{
+	"brightness": "100",
 	"1": "#991111", "2": "#991111", "3": "#991111",
 	"4": "#0a5c2a", "5": "#0a5c2a", "6": "#0a5c2a",
 	"7": "#6b1f6b",
@@ -29,6 +31,7 @@ var nightMode = map[string]string{
 }
 
 var sunset = map[string]string{
+	"brightness": "255",
 	"1": "#ff4500", "2": "#ff4500", "3": "#ff4500",
 	"4": "#ff6347", "5": "#ff6347", "6": "#ff6347",
 	"7": "#ff1493",
@@ -43,6 +46,7 @@ var sunset = map[string]string{
 }
 
 var ocean = map[string]string{
+	"brightness": "255",
 	"1": "#00bfff", "2": "#00bfff", "3": "#00bfff",
 	"4": "#20b2aa", "5": "#20b2aa", "6": "#20b2aa",
 	"7": "#7b68ee",
@@ -57,6 +61,7 @@ var ocean = map[string]string{
 }
 
 var monochrome = map[string]string{
+	"brightness": "255",
 	"1": "#ffffff", "2": "#ffffff", "3": "#ffffff",
 	"4": "#ffffff", "5": "#ffffff", "6": "#ffffff",
 	"7": "#ffffff",

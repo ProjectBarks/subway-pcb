@@ -12,7 +12,7 @@
 #define MAX_TRAINS_PER_STATION 4
 #define MAX_ROUTE_LEN     8
 #define MAX_STOP_ID_LEN   8
-#define MAX_CONFIG_ENTRIES 50
+#define MAX_CONFIG_ENTRIES 80
 #define MAX_CONFIG_KEY_LEN 32
 #define MAX_CONFIG_VAL_LEN 32
 #define MAX_SCRIPT_SIZE   16384
@@ -87,10 +87,20 @@ typedef struct {
     char script_hash[MAX_HASH_LEN];
     char board_hash[MAX_HASH_LEN];
     bool script_changed;
+    char *lua_source;  /* heap-allocated, set by state_client, consumed by lua_runtime */
 
     /* Lua source (stored in SPIFFS, hash for change detection) */
     char cached_script_hash[MAX_HASH_LEN];
     char cached_board_hash[MAX_HASH_LEN];
+
+    /* Render diagnostics (written by lua_runtime, read by state_client) */
+    uint32_t diag_nonzero_pixels;  /* non-zero pixels after Lua render() */
+    uint32_t diag_pushed_pixels;   /* pixels mapped to strips */
+    int diag_strip_ok;             /* strips refreshed successfully */
+    int diag_strip_fail;           /* strips that failed refresh */
+    int diag_lua_errors;           /* consecutive Lua errors */
+    uint32_t diag_lua_mem;         /* Lua VM memory usage in bytes */
+    uint32_t diag_first_lit_led;   /* index of first non-zero LED */
 } render_context_t;
 
 /* Initialize the render context (call once at startup) */

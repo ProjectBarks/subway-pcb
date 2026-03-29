@@ -17,8 +17,8 @@
 
 static const char *TAG = "lua_runtime";
 
-/* Maximum Lua memory (32KB) */
-#define LUA_MAX_MEM (32 * 1024)
+/* Maximum Lua memory (40KB) */
+#define LUA_MAX_MEM (40 * 1024)
 
 /* Maximum instructions per render call */
 #define LUA_MAX_INSTRUCTIONS 100000
@@ -42,23 +42,26 @@ static uint16_t s_snap_station_count;
 static config_entry_t s_snap_config[MAX_CONFIG_ENTRIES];
 static uint8_t s_snap_config_count;
 
-/* Custom allocator to cap memory */
-static size_t s_lua_mem_used = 0;
+/* Custom allocator to cap memory. Uses int32_t to avoid unsigned underflow. */
+static int32_t s_lua_mem_used = 0;
 
 static void *lua_custom_alloc(void *ud, void *ptr, size_t osize, size_t nsize)
 {
     (void)ud;
     if (nsize == 0) {
-        s_lua_mem_used -= osize;
+        s_lua_mem_used -= (int32_t)osize;
+        if (s_lua_mem_used < 0) s_lua_mem_used = 0;
         free(ptr);
         return NULL;
     }
-    if (s_lua_mem_used - osize + nsize > LUA_MAX_MEM) {
+    int32_t delta = (int32_t)nsize - (int32_t)osize;
+    if (s_lua_mem_used + delta > (int32_t)LUA_MAX_MEM) {
         return NULL; /* OOM — Lua will raise error */
     }
     void *new_ptr = realloc(ptr, nsize);
     if (new_ptr) {
-        s_lua_mem_used = s_lua_mem_used - osize + nsize;
+        s_lua_mem_used += delta;
+        if (s_lua_mem_used < 0) s_lua_mem_used = 0;
     }
     return new_ptr;
 }
@@ -405,13 +408,35 @@ static void register_lua_functions(lua_State *L)
     lua_setglobal(L, "IN_TRANSIT_TO");
 }
 
-/* Fallback script for error recovery */
+/* Fallback script — bright chase pattern so it's visible even at low DEFAULT_BRIGHTNESS */
 static const char *FALLBACK_SCRIPT =
     "function render()\n"
     "    local t = get_time()\n"
-    "    local i = math.floor(t) % led_count()\n"
-    "    set_led(i, 0, 0, 30)\n"
+    "    local n = led_count()\n"
+    "    local pos = math.floor(t * 5) % n\n"
+    "    for i = 0, 9 do\n"
+    "        set_led((pos + i) % n, 0, 0, 255)\n"
+    "    end\n"
     "end\n";
+
+/* Create a fresh Lua VM with libraries and C API registered */
+static lua_State *create_lua_state(void)
+{
+    s_lua_mem_used = 0;
+    lua_State *L = lua_newstate(lua_custom_alloc, NULL);
+    if (!L) return NULL;
+
+    luaL_requiref(L, "_G", luaopen_base, 1);
+    luaL_requiref(L, "math", luaopen_math, 1);
+    luaL_requiref(L, "string", luaopen_string, 1);
+    luaL_requiref(L, "table", luaopen_table, 1);
+    luaL_requiref(L, "utf8", luaopen_utf8, 1);
+    lua_pop(L, 5);
+
+    lua_sethook(L, lua_instruction_hook, LUA_MASKCOUNT, LUA_MAX_INSTRUCTIONS);
+    register_lua_functions(L);
+    return L;
+}
 
 static void render_task(void *arg)
 {
@@ -420,29 +445,13 @@ static void render_task(void *arg)
 
     ESP_LOGI(TAG, "Render task started");
 
-    /* Create Lua state with custom allocator */
-    lua_State *L = lua_newstate(lua_custom_alloc, NULL);
+    lua_State *L = create_lua_state();
     if (!L) {
         ESP_LOGE(TAG, "Failed to create Lua state!");
         vTaskDelete(NULL);
         return;
     }
 
-    /* Open safe standard libraries */
-    luaL_requiref(L, "_G", luaopen_base, 1);
-    luaL_requiref(L, "math", luaopen_math, 1);
-    luaL_requiref(L, "string", luaopen_string, 1);
-    luaL_requiref(L, "table", luaopen_table, 1);
-    luaL_requiref(L, "utf8", luaopen_utf8, 1);
-    lua_pop(L, 5);
-
-    /* Set instruction hook for safety */
-    lua_sethook(L, lua_instruction_hook, LUA_MASKCOUNT, LUA_MAX_INSTRUCTIONS);
-
-    /* Register our C API */
-    register_lua_functions(L);
-
-    /* Load fallback script initially */
     bool script_loaded = false;
     int consecutive_failures = 0;
 
@@ -455,6 +464,7 @@ static void render_task(void *arg)
 
     /* Main render loop */
     while (1) {
+
         /* Check for script changes */
         xSemaphoreTake(ctx->mutex, portMAX_DELAY);
         bool need_reload = ctx->script_changed;
@@ -464,11 +474,38 @@ static void render_task(void *arg)
         xSemaphoreGive(ctx->mutex);
 
         if (need_reload) {
-            /* TODO: Read new script from SPIFFS and reload Lua VM */
-            /* For now, this is a placeholder. When SPIFFS caching is
-               implemented in state_client.c, read the script from there. */
-            ESP_LOGI(TAG, "Script change detected (reload not yet implemented)");
-            consecutive_failures = 0;
+            xSemaphoreTake(ctx->mutex, portMAX_DELAY);
+            char *new_source = ctx->lua_source;
+            ctx->lua_source = NULL;
+            xSemaphoreGive(ctx->mutex);
+
+            if (new_source && new_source[0]) {
+                /* Destroy old VM and create fresh one — prevents memory
+                 * fragmentation from accumulating across script reloads */
+                lua_close(L);
+                L = create_lua_state();
+
+                if (L && luaL_dostring(L, new_source) == LUA_OK) {
+                    script_loaded = true;
+                    consecutive_failures = 0;
+                    ESP_LOGI(TAG, "Loaded new script (%d bytes)", (int)strlen(new_source));
+                } else {
+                    if (L) {
+                        ESP_LOGW(TAG, "Script load failed: %s", lua_tostring(L, -1));
+                        lua_pop(L, 1);
+                    } else {
+                        ESP_LOGE(TAG, "Failed to recreate Lua state");
+                        L = create_lua_state();
+                    }
+                    if (L) {
+                        if (luaL_dostring(L, FALLBACK_SCRIPT) == LUA_OK) {
+                            script_loaded = true;
+                        }
+                    }
+                    consecutive_failures = 0;
+                }
+            }
+            free(new_source);
         }
 
         /* Snapshot fast-changing data (stations, config) each frame.
@@ -480,6 +517,10 @@ static void render_task(void *arg)
         s_snap_config_count = ctx->config_count;
         s_led_count = ctx->board.led_count > 0 ? ctx->board.led_count : MAX_LEDS;
         xSemaphoreGive(ctx->mutex);
+
+        /* GC before render — free temporary allocations from previous frame
+         * so max Lua memory is available during the render call */
+        lua_gc(L, LUA_GCCOLLECT, 0);
 
         /* Clear pixel buffer */
         memset(s_pixels, 0, s_led_count * 3);
@@ -504,7 +545,18 @@ static void render_task(void *arg)
             }
         }
 
+        /* Count non-zero pixels and find first lit LED after Lua render */
+        uint32_t nonzero_pixels = 0;
+        uint32_t first_lit = UINT32_MAX;
+        for (uint32_t i = 0; i < s_led_count && i < MAX_LEDS; i++) {
+            if (s_pixels[i*3] || s_pixels[i*3+1] || s_pixels[i*3+2]) {
+                nonzero_pixels++;
+                if (first_lit == UINT32_MAX) first_lit = i;
+            }
+        }
+
         /* Push pixels to LED driver */
+        uint32_t pushed = 0;
         for (uint32_t i = 0; i < s_led_count && i < MAX_LEDS; i++) {
             uint32_t strip, pixel;
             /* Convert flat index to strip/pixel */
@@ -522,12 +574,21 @@ static void render_task(void *arg)
             if (found) {
                 led_driver_set_pixel(strip, pixel,
                                      s_pixels[i * 3], s_pixels[i * 3 + 1], s_pixels[i * 3 + 2]);
+                pushed++;
             }
         }
+
         led_driver_refresh();
 
-        /* GC */
-        lua_gc(L, LUA_GCCOLLECT, 0);
+        /* Write render diagnostics to shared context (read by state_client) */
+        extern int g_led_strip_ok, g_led_strip_fail;
+        s_ctx->diag_nonzero_pixels = nonzero_pixels;
+        s_ctx->diag_pushed_pixels = pushed;
+        s_ctx->diag_lua_errors = consecutive_failures;
+        s_ctx->diag_strip_ok = g_led_strip_ok;
+        s_ctx->diag_strip_fail = g_led_strip_fail;
+        s_ctx->diag_lua_mem = (uint32_t)s_lua_mem_used;
+        s_ctx->diag_first_lit_led = first_lit;
 
         /* Sleep for render interval (~30ms = ~33fps) */
         vTaskDelay(pdMS_TO_TICKS(30));
