@@ -15,6 +15,7 @@ import (
 
 	"github.com/ProjectBarks/subway-pcb/service/internal/middleware"
 	"github.com/ProjectBarks/subway-pcb/service/internal/model"
+	"github.com/ProjectBarks/subway-pcb/service/internal/utils"
 )
 
 // handleDeviceState serves the realtime DeviceState protobuf.
@@ -190,21 +191,15 @@ func (s *Server) buildDeviceConfig(ctx context.Context, mac, pluginName string) 
 	config := make(map[string]string)
 
 	// Fetch plugin and device concurrently (independent queries).
-	var dbPlugin *model.Plugin
-	var device *model.Device
+	var (
+		dbPlugin *model.Plugin
+		device   *model.Device
+	)
 
 	g, _ := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		var err error
-		dbPlugin, err = s.store.GetPlugin(pluginName)
-		return err
-	})
+	g.Go(utils.Bind1(&dbPlugin, s.store.GetPlugin, pluginName))
 	if mac != "" {
-		g.Go(func() error {
-			var err error
-			device, err = s.store.GetDevice(mac)
-			return err
-		})
+		g.Go(utils.Bind1(&device, s.store.GetDevice, mac))
 	}
 	if err := g.Wait(); err != nil {
 		return nil, err
@@ -251,4 +246,3 @@ func sha256Hex(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return fmt.Sprintf("%x", h[:])
 }
-

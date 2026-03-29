@@ -136,7 +136,6 @@ func (s *Server) buildRouter() {
 			// Admin-only
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RequireAdmin)
-				r.Get("/api/v1/users", s.handleListUsers)
 			})
 		})
 	})

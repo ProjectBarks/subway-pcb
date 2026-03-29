@@ -1,21 +1,18 @@
 import { BeforeAll, AfterAll, Before, After, setWorldConstructor, setDefaultTimeout, Status } from "@cucumber/cucumber";
 import { PlaywrightWorld } from "./world";
-import { buildServer, startServer, waitForHealth, stopServer } from "./server";
-import { mkdirSync } from "fs";
+import { waitForHealth } from "./server";
 
 setDefaultTimeout(30000);
 setWorldConstructor(PlaywrightWorld);
 
 BeforeAll(async function () {
-  mkdirSync("e2e/screenshots", { recursive: true });
-  mkdirSync("e2e/reports", { recursive: true });
-  buildServer();
-  startServer();
+  // Server is started by the Makefile before cucumber launches.
+  // Just verify it's reachable (fast check, already healthy).
   await waitForHealth();
 });
 
 AfterAll(async function () {
-  stopServer();
+  // Server is stopped by the Makefile after cucumber exits.
 });
 
 Before(async function (this: PlaywrightWorld) {

@@ -27,7 +27,7 @@ frontend/typecheck:                    ## Typecheck frontend TypeScript
 .PHONY: backend/generate backend/build backend/start backend/stop backend/dev
 
 backend/generate:                      ## Generate templ + Go code
-	cd service && go run github.com/a-h/templ/cmd/templ generate && go generate ./ui/...
+	cd service && go tool templ generate && go generate ./ui/...
 
 backend/build: backend/generate        ## Build the Go backend binary
 	cd service && go build ./cmd/subway-server/
@@ -90,11 +90,21 @@ e2e/install:                              ## Install E2E test deps + Chromium br
 	cd service && npm install
 	cd service && npx playwright install chromium --with-deps
 
-e2e/test: frontend/build backend/generate  ## Run E2E tests (headless)
-	cd service && npx cucumber-js --config e2e/cucumber.mjs
+E2E_PORT ?= 9199
 
-e2e/test-headed: frontend/build backend/generate  ## Run E2E tests (visible browser)
-	cd service && HEADED=true npx cucumber-js --config e2e/cucumber.mjs
+e2e/test: frontend/build backend/build   ## Run E2E tests (headless)
+	@mkdir -p service/e2e/screenshots service/e2e/reports
+	@E2E_DATA=$$(mktemp -d); \
+	service/subway-server --port $(E2E_PORT) --boards-dir service/public/boards --data-dir "$$E2E_DATA" --static-dir service/static >>"$$E2E_DATA/server.log" 2>&1 & SERVER_PID=$$!; \
+	trap 'kill $$SERVER_PID 2>/dev/null; rm -rf "$$E2E_DATA"' EXIT; \
+	cd service && BASE_URL=http://localhost:$(E2E_PORT) ./node_modules/.bin/cucumber-js --config e2e/cucumber.mjs
+
+e2e/test-headed: frontend/build backend/build  ## Run E2E tests (visible browser)
+	@mkdir -p service/e2e/screenshots service/e2e/reports
+	@E2E_DATA=$$(mktemp -d); \
+	service/subway-server --port $(E2E_PORT) --boards-dir service/public/boards --data-dir "$$E2E_DATA" --static-dir service/static >>"$$E2E_DATA/server.log" 2>&1 & SERVER_PID=$$!; \
+	trap 'kill $$SERVER_PID 2>/dev/null; rm -rf "$$E2E_DATA"' EXIT; \
+	cd service && BASE_URL=http://localhost:$(E2E_PORT) HEADED=true ./node_modules/.bin/cucumber-js --config e2e/cucumber.mjs
 
 # ─── Site ────────────────────────────────────────────────
 

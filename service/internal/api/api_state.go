@@ -9,6 +9,23 @@ import (
 
 // --- State & Health ---
 
+type (
+	JSONTrain struct {
+		Route  string `json:"route"`
+		Status string `json:"status"`
+	}
+
+	JSONStation struct {
+		StopID string      `json:"stop_id"`
+		Trains []JSONTrain `json:"trains"`
+	}
+
+	JSONStateResp struct {
+		Timestamp uint64        `json:"timestamp"`
+		Stations  []JSONStation `json:"stations"`
+	}
+)
+
 func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -18,44 +35,30 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 	stations := s.aggregator.GetStations()
 	ts := s.aggregator.GetTimestamp()
 
-	type stateJSONTrain struct {
-		Route  string `json:"route"`
-		Status string `json:"status"`
-	}
-	type stateJSONStation struct {
-		StopID string           `json:"stop_id"`
-		Trains []stateJSONTrain `json:"trains"`
-	}
-
-	stationList := make([]stateJSONStation, 0, len(stations))
+	stationList := make([]JSONStation, 0, len(stations))
 	for _, st := range stations {
-		trains := make([]stateJSONTrain, 0, len(st.Trains))
+		trains := make([]JSONTrain, 0, len(st.Trains))
 		for _, t := range st.Trains {
-			trains = append(trains, stateJSONTrain{
+			trains = append(trains, JSONTrain{
 				Route:  t.Route,
 				Status: t.Status.String(),
 			})
 		}
-		stationList = append(stationList, stateJSONStation{
+		stationList = append(stationList, JSONStation{
 			StopID: st.StopId,
 			Trains: trains,
 		})
 	}
 
-	resp := struct {
-		Timestamp uint64             `json:"timestamp"`
-		Stations  []stateJSONStation `json:"stations"`
-	}{
-		Timestamp: ts,
-		Stations:  stationList,
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(JSONStateResp{
+		Timestamp: ts,
+		Stations:  stationList,
+	})
 }
 
-type healthResponse struct {
+type HeathResponse struct {
 	Status        string  `json:"status"`
 	Uptime        string  `json:"uptime"`
 	UptimeSeconds float64 `json:"uptime_seconds"`
@@ -77,26 +80,13 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		lastUpdateStr = fmt.Sprintf("%ds ago", int(time.Since(lastUpdate).Seconds()))
 	}
 
-	resp := healthResponse{
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(HeathResponse{
 		Status:        "ok",
 		Uptime:        uptime.Round(time.Second).String(),
 		UptimeSeconds: uptime.Seconds(),
 		LastUpdate:    lastUpdateStr,
 		StationCount:  s.aggregator.StationCount(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(resp)
-}
-
-// --- Users (Admin) ---
-
-func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := s.store.ListUsers()
-	if err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	jsonResponse(w, users)
+	})
 }

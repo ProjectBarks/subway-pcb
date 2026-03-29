@@ -13,6 +13,7 @@ import (
 	"github.com/ProjectBarks/subway-pcb/service/internal/middleware"
 	"github.com/ProjectBarks/subway-pcb/service/internal/model"
 	"github.com/ProjectBarks/subway-pcb/service/internal/plugin"
+	"github.com/ProjectBarks/subway-pcb/service/internal/utils"
 	"github.com/ProjectBarks/subway-pcb/service/ui"
 )
 
@@ -141,37 +142,13 @@ func (s *Server) buildBoardData(ctx context.Context, user *model.User, device *m
 	)
 
 	g, _ := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		var err error
-		dbPlugin, err = s.store.GetPlugin(pluginName)
-		return err
-	})
-	g.Go(func() error {
-		var err error
-		allPresets, err = s.store.ListPresets()
-		return err
-	})
-	g.Go(func() error {
-		var err error
-		ownPlugins, err = s.store.ListPluginsByAuthor(user.Email)
-		return err
-	})
-	g.Go(func() error {
-		var err error
-		installedOnly, err = s.store.ListInstalledPlugins(user.Email)
-		return err
-	})
-	g.Go(func() error {
-		var err error
-		publishedPlugins, err = s.store.ListPublishedPlugins()
-		return err
-	})
+	g.Go(utils.Bind1(&dbPlugin, s.store.GetPlugin, pluginName))
+	g.Go(utils.Bind0(&allPresets, s.store.ListPresets))
+	g.Go(utils.Bind1(&ownPlugins, s.store.ListPluginsByAuthor, user.Email))
+	g.Go(utils.Bind1(&installedOnly, s.store.ListInstalledPlugins, user.Email))
+	g.Go(utils.Bind0(&publishedPlugins, s.store.ListPublishedPlugins))
 	if device.PresetID != "" {
-		g.Go(func() error {
-			var err error
-			preset, err = s.store.GetPreset(device.PresetID)
-			return err
-		})
+		g.Go(utils.Bind1(&preset, s.store.GetPreset, device.PresetID))
 	}
 	if err := g.Wait(); err != nil {
 		return ui.BoardData{}, err
