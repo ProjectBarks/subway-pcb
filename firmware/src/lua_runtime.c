@@ -17,8 +17,8 @@
 
 static const char *TAG = "lua_runtime";
 
-/* Maximum Lua memory (80KB) */
-#define LUA_MAX_MEM (80 * 1024)
+/* Maximum Lua memory (32KB) */
+#define LUA_MAX_MEM (32 * 1024)
 
 /* Maximum instructions per render call */
 #define LUA_MAX_INSTRUCTIONS 100000
@@ -33,14 +33,14 @@ static render_context_t *s_ctx = NULL;
 static uint8_t s_pixels[MAX_LEDS * 3];
 static uint32_t s_led_count = MAX_LEDS;
 
-/* Snapshot of render context for current frame */
+/* Snapshot of render context for current frame.
+ * Only fast-changing data (stations, config) is copied each frame.
+ * Board and station_leds are read directly from render context since they
+ * only change on board hash updates (rare) and are never partially written. */
 static station_t s_snap_stations[MAX_STATIONS];
 static uint16_t s_snap_station_count;
 static config_entry_t s_snap_config[MAX_CONFIG_ENTRIES];
 static uint8_t s_snap_config_count;
-static board_info_t s_snap_board;
-static station_leds_entry_t s_snap_station_leds[MAX_STATIONS];
-static uint16_t s_snap_station_leds_count;
 
 /* Custom allocator to cap memory */
 static size_t s_lua_mem_used = 0;
@@ -128,7 +128,7 @@ static int l_has_train(lua_State *L)
         lua_pushboolean(L, 0);
         return 1;
     }
-    const char *sid = s_snap_board.led_map[led_index];
+    const char *sid = s_ctx->board.led_map[led_index];
     if (sid[0] == '\0') {
         lua_pushboolean(L, 0);
         return 1;
@@ -148,7 +148,7 @@ static int l_has_status(lua_State *L)
         return 1;
     }
 
-    const char *sid = s_snap_board.led_map[led_index];
+    const char *sid = s_ctx->board.led_map[led_index];
     if (sid[0] == '\0') {
         lua_pushboolean(L, 0);
         return 1;
@@ -180,7 +180,7 @@ static int l_get_route(lua_State *L)
         lua_pushnil(L);
         return 1;
     }
-    const char *sid = s_snap_board.led_map[led_index];
+    const char *sid = s_ctx->board.led_map[led_index];
     if (sid[0] == '\0') { lua_pushnil(L); return 1; }
 
     int idx = find_station(sid);
@@ -198,7 +198,7 @@ static int l_get_routes(lua_State *L)
     lua_newtable(L);
 
     if (led_index < 0 || (uint32_t)led_index >= s_led_count) return 1;
-    const char *sid = s_snap_board.led_map[led_index];
+    const char *sid = s_ctx->board.led_map[led_index];
     if (sid[0] == '\0') return 1;
 
     int idx = find_station(sid);
@@ -218,7 +218,7 @@ static int l_get_station(lua_State *L)
         lua_pushnil(L);
         return 1;
     }
-    const char *sid = s_snap_board.led_map[led_index];
+    const char *sid = s_ctx->board.led_map[led_index];
     if (sid[0] == '\0') {
         lua_pushnil(L);
         return 1;
@@ -232,10 +232,10 @@ static int l_get_leds_for_station(lua_State *L)
     const char *station_id = luaL_checkstring(L, 1);
     lua_newtable(L);
 
-    for (uint16_t i = 0; i < s_snap_station_leds_count; i++) {
-        if (strcmp(s_snap_station_leds[i].station_id, station_id) == 0) {
-            for (uint8_t j = 0; j < s_snap_station_leds[i].count; j++) {
-                lua_pushinteger(L, s_snap_station_leds[i].led_indices[j]);
+    for (uint16_t i = 0; i < s_ctx->station_leds_count; i++) {
+        if (strcmp(s_ctx->station_leds[i].station_id, station_id) == 0) {
+            for (uint8_t j = 0; j < s_ctx->station_leds[i].count; j++) {
+                lua_pushinteger(L, s_ctx->station_leds[i].led_indices[j]);
                 lua_rawseti(L, -2, j + 1);
             }
             break;
@@ -330,8 +330,8 @@ static int l_hex_to_rgb(lua_State *L)
 static int l_get_strip_info(lua_State *L)
 {
     lua_newtable(L);
-    for (uint8_t i = 0; i < s_snap_board.strip_count; i++) {
-        lua_pushinteger(L, s_snap_board.strip_sizes[i]);
+    for (uint8_t i = 0; i < s_ctx->board.strip_count; i++) {
+        lua_pushinteger(L, s_ctx->board.strip_sizes[i]);
         lua_rawseti(L, -2, i + 1);
     }
     return 1;
@@ -341,13 +341,13 @@ static int l_led_to_strip(lua_State *L)
 {
     int index = luaL_checkinteger(L, 1);
     uint32_t offset = 0;
-    for (uint8_t s = 0; s < s_snap_board.strip_count; s++) {
-        if ((uint32_t)index < offset + s_snap_board.strip_sizes[s]) {
+    for (uint8_t s = 0; s < s_ctx->board.strip_count; s++) {
+        if ((uint32_t)index < offset + s_ctx->board.strip_sizes[s]) {
             lua_pushinteger(L, s + 1);       /* 1-based strip number */
             lua_pushinteger(L, index - offset); /* pixel within strip */
             return 2;
         }
-        offset += s_snap_board.strip_sizes[s];
+        offset += s_ctx->board.strip_sizes[s];
     }
     lua_pushnil(L);
     lua_pushnil(L);
@@ -471,15 +471,13 @@ static void render_task(void *arg)
             consecutive_failures = 0;
         }
 
-        /* Snapshot render context */
+        /* Snapshot fast-changing data (stations, config) each frame.
+         * Board and station_leds are read directly from ctx (rarely change). */
         xSemaphoreTake(ctx->mutex, portMAX_DELAY);
         memcpy(s_snap_stations, ctx->stations, sizeof(station_t) * ctx->station_count);
         s_snap_station_count = ctx->station_count;
         memcpy(s_snap_config, ctx->config, sizeof(config_entry_t) * ctx->config_count);
         s_snap_config_count = ctx->config_count;
-        memcpy(&s_snap_board, &ctx->board, sizeof(board_info_t));
-        memcpy(s_snap_station_leds, ctx->station_leds, sizeof(station_leds_entry_t) * ctx->station_leds_count);
-        s_snap_station_leds_count = ctx->station_leds_count;
         s_led_count = ctx->board.led_count > 0 ? ctx->board.led_count : MAX_LEDS;
         xSemaphoreGive(ctx->mutex);
 
@@ -512,14 +510,14 @@ static void render_task(void *arg)
             /* Convert flat index to strip/pixel */
             uint32_t offset = 0;
             bool found = false;
-            for (uint8_t si = 0; si < s_snap_board.strip_count; si++) {
-                if (i < offset + s_snap_board.strip_sizes[si]) {
+            for (uint8_t si = 0; si < s_ctx->board.strip_count; si++) {
+                if (i < offset + s_ctx->board.strip_sizes[si]) {
                     strip = si;
                     pixel = i - offset;
                     found = true;
                     break;
                 }
-                offset += s_snap_board.strip_sizes[si];
+                offset += s_ctx->board.strip_sizes[si];
             }
             if (found) {
                 led_driver_set_pixel(strip, pixel,
@@ -541,5 +539,5 @@ static void render_task(void *arg)
 
 void lua_runtime_start(render_context_t *ctx)
 {
-    xTaskCreate(render_task, "render_task", 16384, ctx, 5, NULL);
+    xTaskCreate(render_task, "render_task", 8192, ctx, 5, NULL);
 }

@@ -29,7 +29,7 @@ static const uint16_t STRIP_LED_COUNTS[NUM_STRIPS] = {
 #define SPI_STRIP_INDEX 8
 
 /* Server configuration */
-#define DEFAULT_SERVER_URL "https://subway-pcb-production.up.railway.app"
+#define DEFAULT_SERVER_URL "https://device.pcb.nyc"
 #define SERVER_URL_NVS_KEY "server_url"
 #define SERVER_URL_MAX_LEN 128
 

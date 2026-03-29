@@ -37,7 +37,13 @@ def main():
 
         while True:
             try:
-                ser = serial.Serial(port, args.baud, timeout=1)
+                ser = serial.Serial()
+                ser.port = port
+                ser.baudrate = args.baud
+                ser.timeout = 1
+                ser.dtr = False
+                ser.rts = False
+                ser.open()
                 f.write(f"[CONNECTED {time.strftime('%H:%M:%S')}]\n")
                 f.flush()
                 print(f"[{time.strftime('%H:%M:%S')}] Connected")

@@ -12,6 +12,7 @@
 #include "nvs_flash.h"
 #include "nvs.h"
 
+#include "esp_crt_bundle.h"
 #include "pb_decode.h"
 #include "subway.pb.h"
 
@@ -64,12 +65,12 @@ static void read_nvs_config(void)
         }
         len = sizeof(s_hardware);
         if (nvs_get_str(nvs, "hardware", s_hardware, &len) != ESP_OK) {
-            strncpy(s_hardware, "nyc-subway", sizeof(s_hardware) - 1);
+            strncpy(s_hardware, "nyc-subway/v1", sizeof(s_hardware) - 1);
         }
         nvs_close(nvs);
     } else {
         strncpy(s_server_url, DEFAULT_SERVER_URL, sizeof(s_server_url) - 1);
-        strncpy(s_hardware, "nyc-subway", sizeof(s_hardware) - 1);
+        strncpy(s_hardware, "nyc-subway/v1", sizeof(s_hardware) - 1);
     }
     ESP_LOGI(TAG, "Server URL: %s, Hardware: %s", s_server_url, s_hardware);
 }
@@ -89,6 +90,7 @@ static int http_fetch(const char *path)
         .url = url,
         .event_handler = http_event_handler,
         .timeout_ms = 10000,
+        .crt_bundle_attach = esp_crt_bundle_attach,
     };
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
 
@@ -96,12 +98,13 @@ static int http_fetch(const char *path)
     esp_http_client_set_header(client, "X-Firmware-Version", FIRMWARE_VERSION);
     esp_http_client_set_header(client, "X-Hardware", s_hardware);
 
+    ESP_LOGW(TAG, "HTTP fetch: %s", url);
     esp_err_t err = esp_http_client_perform(client);
     int status = esp_http_client_get_status_code(client);
     esp_http_client_cleanup(client);
 
     if (err != ESP_OK || status != 200) {
-        ESP_LOGW(TAG, "HTTP fetch %s failed: err=%d status=%d", path, err, status);
+        ESP_LOGE(TAG, "HTTP FAILED %s: err=%d(%s) status=%d", path, err, esp_err_to_name(err), status);
         return -1;
     }
 
@@ -113,47 +116,48 @@ static bool fetch_state(void)
     int len = http_fetch("/api/v1/device-state");
     if (len <= 0) return false;
 
-    subway_DeviceState state = subway_DeviceState_init_zero;
+    /* Heap-allocate — struct is ~15KB (stations[200]), too large for stack */
+    subway_DeviceState *state = calloc(1, sizeof(subway_DeviceState));
+    if (!state) { ESP_LOGE(TAG, "OOM: DeviceState"); return false; }
 
     pb_istream_t stream = pb_istream_from_buffer(s_http_buf, len);
-    if (!pb_decode(&stream, subway_DeviceState_fields, &state)) {
+    if (!pb_decode(&stream, subway_DeviceState_fields, state)) {
         ESP_LOGE(TAG, "Failed to decode DeviceState");
+        free(state);
         return false;
     }
 
     /* Update render context under mutex */
     xSemaphoreTake(s_ctx->mutex, portMAX_DELAY);
 
-    /* Copy stations from static arrays */
     s_ctx->station_count = 0;
-    for (pb_size_t i = 0; i < state.stations_count && i < MAX_STATIONS; i++) {
-        strncpy(s_ctx->stations[i].stop_id, state.stations[i].stop_id, MAX_STOP_ID_LEN - 1);
+    for (pb_size_t i = 0; i < state->stations_count && i < MAX_STATIONS; i++) {
+        strncpy(s_ctx->stations[i].stop_id, state->stations[i].stop_id, MAX_STOP_ID_LEN - 1);
         s_ctx->stations[i].train_count = 0;
-        for (pb_size_t j = 0; j < state.stations[i].trains_count && j < MAX_TRAINS_PER_STATION; j++) {
-            strncpy(s_ctx->stations[i].trains[j].route, state.stations[i].trains[j].route, MAX_ROUTE_LEN - 1);
-            s_ctx->stations[i].trains[j].status = (train_status_t)state.stations[i].trains[j].status;
+        for (pb_size_t j = 0; j < state->stations[i].trains_count && j < MAX_TRAINS_PER_STATION; j++) {
+            strncpy(s_ctx->stations[i].trains[j].route, state->stations[i].trains[j].route, MAX_ROUTE_LEN - 1);
+            s_ctx->stations[i].trains[j].status = (train_status_t)state->stations[i].trains[j].status;
             s_ctx->stations[i].train_count++;
         }
         s_ctx->station_count++;
     }
-    s_ctx->timestamp = state.timestamp;
+    s_ctx->timestamp = state->timestamp;
 
-    /* Copy config from static arrays */
     s_ctx->config_count = 0;
-    for (pb_size_t i = 0; i < state.config_count && i < MAX_CONFIG_ENTRIES; i++) {
-        strncpy(s_ctx->config[i].key, state.config[i].key, MAX_CONFIG_KEY_LEN - 1);
-        strncpy(s_ctx->config[i].value, state.config[i].value, MAX_CONFIG_VAL_LEN - 1);
+    for (pb_size_t i = 0; i < state->config_count && i < MAX_CONFIG_ENTRIES; i++) {
+        strncpy(s_ctx->config[i].key, state->config[i].key, MAX_CONFIG_KEY_LEN - 1);
+        strncpy(s_ctx->config[i].value, state->config[i].value, MAX_CONFIG_VAL_LEN - 1);
         s_ctx->config_count++;
     }
 
-    /* Check hash changes */
-    strncpy(s_ctx->script_hash, state.script_hash, MAX_HASH_LEN - 1);
-    strncpy(s_ctx->board_hash, state.board_hash, MAX_HASH_LEN - 1);
+    strncpy(s_ctx->script_hash, state->script_hash, MAX_HASH_LEN - 1);
+    strncpy(s_ctx->board_hash, state->board_hash, MAX_HASH_LEN - 1);
 
     xSemaphoreGive(s_ctx->mutex);
 
     ESP_LOGI(TAG, "State: %d stations, %d config entries",
              s_ctx->station_count, s_ctx->config_count);
+    free(state);
     return true;
 }
 
@@ -162,48 +166,44 @@ static bool fetch_board(void)
     int len = http_fetch("/api/v1/device-board");
     if (len <= 0) return false;
 
-    subway_DeviceBoard board = subway_DeviceBoard_init_zero;
-
-    /* TODO: Set up decode callbacks for led_map and strip_sizes */
-    /* For now, use static decode since nanopb generates fixed-size fields */
+    /* Heap-allocate — struct is ~6KB, too large for task stack */
+    subway_DeviceBoard *board = calloc(1, sizeof(subway_DeviceBoard));
+    if (!board) { ESP_LOGE(TAG, "OOM: DeviceBoard"); return false; }
 
     pb_istream_t stream = pb_istream_from_buffer(s_http_buf, len);
-    if (!pb_decode(&stream, subway_DeviceBoard_fields, &board)) {
+    if (!pb_decode(&stream, subway_DeviceBoard_fields, board)) {
         ESP_LOGE(TAG, "Failed to decode DeviceBoard");
+        free(board);
         return false;
     }
 
     xSemaphoreTake(s_ctx->mutex, portMAX_DELAY);
 
-    strncpy(s_ctx->board.board_id, board.board_id, sizeof(s_ctx->board.board_id) - 1);
-    s_ctx->board.led_count = board.led_count;
-    s_ctx->board.strip_count = board.strip_sizes_count;
-    for (pb_size_t i = 0; i < board.strip_sizes_count && i < 16; i++) {
-        s_ctx->board.strip_sizes[i] = board.strip_sizes[i];
+    strncpy(s_ctx->board.board_id, board->board_id, sizeof(s_ctx->board.board_id) - 1);
+    s_ctx->board.led_count = board->led_count;
+    s_ctx->board.strip_count = board->strip_sizes_count;
+    for (pb_size_t i = 0; i < board->strip_sizes_count && i < 16; i++) {
+        s_ctx->board.strip_sizes[i] = board->strip_sizes[i];
     }
-    strncpy(s_ctx->board.hash, board.hash, MAX_HASH_LEN - 1);
+    strncpy(s_ctx->board.hash, board->hash, MAX_HASH_LEN - 1);
 
-    /* Copy LED map from static array of LedMapEntry {key: led_index, value: station_id} */
     memset(s_ctx->board.led_map, 0, sizeof(s_ctx->board.led_map));
-    for (pb_size_t i = 0; i < board.led_map_count; i++) {
-        uint32_t idx = board.led_map[i].key;
+    for (pb_size_t i = 0; i < board->led_map_count; i++) {
+        uint32_t idx = board->led_map[i].key;
         if (idx < MAX_LEDS) {
-            strncpy(s_ctx->board.led_map[idx], board.led_map[i].value, MAX_STOP_ID_LEN - 1);
+            strncpy(s_ctx->board.led_map[idx], board->led_map[i].value, MAX_STOP_ID_LEN - 1);
         }
     }
 
     s_ctx->board_loaded = true;
-
-    /* Rebuild inverted index */
     render_context_build_station_leds(s_ctx);
-
-    /* Cache hash */
-    strncpy(s_ctx->cached_board_hash, board.hash, MAX_HASH_LEN - 1);
+    strncpy(s_ctx->cached_board_hash, board->hash, MAX_HASH_LEN - 1);
 
     xSemaphoreGive(s_ctx->mutex);
 
     ESP_LOGI(TAG, "Board loaded: %s, %lu LEDs, %d strips",
-             board.board_id, (unsigned long)board.led_count, board.strip_sizes_count);
+             board->board_id, (unsigned long)board->led_count, board->strip_sizes_count);
+    free(board);
     return true;
 }
 
@@ -212,23 +212,25 @@ static bool fetch_script(void)
     int len = http_fetch("/api/v1/device-script");
     if (len <= 0) return false;
 
-    subway_DeviceScript script = subway_DeviceScript_init_zero;
+    /* Heap-allocate — struct is ~17KB (lua_source[16384]), way too large for stack */
+    subway_DeviceScript *script = calloc(1, sizeof(subway_DeviceScript));
+    if (!script) { ESP_LOGE(TAG, "OOM: DeviceScript"); return false; }
 
     pb_istream_t stream = pb_istream_from_buffer(s_http_buf, len);
-    if (!pb_decode(&stream, subway_DeviceScript_fields, &script)) {
+    if (!pb_decode(&stream, subway_DeviceScript_fields, script)) {
         ESP_LOGE(TAG, "Failed to decode DeviceScript");
+        free(script);
         return false;
     }
 
-    /* TODO: Write script to SPIFFS for caching */
-
     xSemaphoreTake(s_ctx->mutex, portMAX_DELAY);
-    strncpy(s_ctx->cached_script_hash, script.hash, MAX_HASH_LEN - 1);
+    strncpy(s_ctx->cached_script_hash, script->hash, MAX_HASH_LEN - 1);
     s_ctx->script_changed = true;
     xSemaphoreGive(s_ctx->mutex);
 
     ESP_LOGI(TAG, "Script loaded: %s (%d bytes)",
-             script.plugin_name, (int)strlen(script.lua_source));
+             script->plugin_name, (int)strlen(script->lua_source));
+    free(script);
     return true;
 }
 
@@ -240,7 +242,29 @@ static void state_task(void *arg)
     read_device_id();
     read_nvs_config();
 
-    ESP_LOGI(TAG, "State task started (device=%s)", s_device_id);
+    ESP_LOGI(TAG, "State task started (device=%s, url=%s)", s_device_id, s_server_url);
+
+    /* Ping health endpoint to confirm connectivity — shows in server logs */
+    {
+        char url[256];
+        snprintf(url, sizeof(url), "%s/health", s_server_url);
+        s_http_buf_len = 0;
+        esp_http_client_config_t cfg = {
+            .url = url,
+            .event_handler = http_event_handler,
+            .timeout_ms = 15000,
+            .crt_bundle_attach = esp_crt_bundle_attach,
+        };
+        esp_http_client_handle_t client = esp_http_client_init(&cfg);
+        esp_http_client_set_header(client, "X-Device-ID", s_device_id);
+        esp_http_client_set_header(client, "X-Firmware-Version", FIRMWARE_VERSION);
+        esp_http_client_set_header(client, "X-Hardware", s_hardware);
+        esp_err_t err = esp_http_client_perform(client);
+        int status = esp_http_client_get_status_code(client);
+        esp_http_client_cleanup(client);
+        ESP_LOGW(TAG, "HEALTH PING: err=%d(%s) status=%d bytes=%d",
+                 err, esp_err_to_name(err), status, s_http_buf_len);
+    }
 
     /* Initial fetch of board and script */
     bool board_fetched = false;
@@ -285,5 +309,5 @@ static void state_task(void *arg)
 
 void state_client_start(render_context_t *ctx)
 {
-    xTaskCreate(state_task, "state_task", 8192, ctx, 3, NULL);
+    xTaskCreate(state_task, "state_task", 12288, ctx, 3, NULL);
 }

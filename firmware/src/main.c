@@ -47,27 +47,23 @@ static void ghota_event_handler(void *arg, esp_event_base_t base, int32_t id, vo
     }
 }
 
+static volatile bool s_wifi_connected = false;
+
 static void cb_wifi_got_ip(void *pvParameter)
 {
-    ESP_LOGI(TAG, "WiFi connected — starting state client + OTA");
-    led_driver_set_pixel(0, 0, 0, 30, 0); /* green = connected */
-    led_driver_refresh();
-
-    state_client_start(&s_render_ctx);
-
-    /* Start OTA update checker — register events AFTER wifi_manager creates the event loop */
-    if (s_ghota) {
-        esp_event_handler_register(GHOTA_EVENTS, ESP_EVENT_ANY_ID, &ghota_event_handler, NULL);
-        ghota_start_update_timer(s_ghota);
-        ESP_LOGI(TAG, "OTA checker started (every %d min, repo: ProjectBarks/subway-pcb)", OTA_CHECK_INTERVAL_MIN);
-    } else {
-        ESP_LOGE(TAG, "OTA not initialized — skipping update checker");
-    }
+    /* Keep this callback lightweight — runs on wifi_manager's 4KB stack.
+     * Just set a flag; app_main loop handles the heavy lifting. */
+    ESP_LOGI(TAG, "WiFi connected");
+    s_wifi_connected = true;
 }
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "=== NYC Subway PCB v0.6.0 ===");
+    ESP_LOGW(TAG, "=== NYC Subway PCB v0.6.0 ===");
+    ESP_LOGW(TAG, "HEAP: %lu free, %lu min, %lu largest block",
+             (unsigned long)esp_get_free_heap_size(),
+             (unsigned long)esp_get_minimum_free_heap_size(),
+             (unsigned long)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 
     /* NVS */
     esp_err_t ret = nvs_flash_init();
@@ -76,13 +72,35 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+    ESP_LOGW(TAG, "HEAP after NVS: %lu free", (unsigned long)esp_get_free_heap_size());
 
-    /* LED strips */
+    /* Initialize render context */
+    render_context_init(&s_render_ctx);
+
+    /* Start WiFi FIRST — no SPI (LED) activity before WiFi radio is up */
+    ESP_LOGW(TAG, "Starting WiFi manager...");
+    wifi_manager_start();
+    wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_wifi_got_ip);
+
+    ESP_LOGW(TAG, "Waiting for WiFi. heap=%lu",
+             (unsigned long)esp_get_free_heap_size());
+
+    /* Poll for WiFi connection (flag set by lightweight callback) */
+    int wifi_wait = 0;
+    while (!s_wifi_connected) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        wifi_wait++;
+        if (wifi_wait % 5 == 0) {
+            ESP_LOGW(TAG, "Still waiting for WiFi... (%ds)", wifi_wait);
+        }
+    }
+
+    ESP_LOGW(TAG, "WiFi connected. heap=%lu",
+             (unsigned long)esp_get_free_heap_size());
+
+    /* NOW init LED driver + OTA — WiFi radio is stable */
     ESP_ERROR_CHECK(led_driver_init());
-    led_driver_set_pixel(0, 0, 30, 0, 0); /* red = booting */
-    led_driver_refresh();
 
-    /* Init OTA — checks GitHub releases for firmware updates */
     ghota_config_t ghota_config = {
         .filenamematch = "firmware.bin",
         .storagenamematch = "",
@@ -94,22 +112,16 @@ void app_main(void)
     };
     s_ghota = ghota_init(&ghota_config);
     if (s_ghota) {
-        ESP_LOGI(TAG, "OTA initialized (ProjectBarks/subway-pcb, match: firmware.bin)");
-    } else {
-        ESP_LOGE(TAG, "OTA init FAILED — version may not be valid semver");
+        esp_event_handler_register(GHOTA_EVENTS, ESP_EVENT_ANY_ID, &ghota_event_handler, NULL);
+        ghota_start_update_timer(s_ghota);
+        ESP_LOGI(TAG, "OTA checker started (every %d min)", OTA_CHECK_INTERVAL_MIN);
     }
 
-    /* Initialize render context and start Lua render task (runs without WiFi) */
-    render_context_init(&s_render_ctx);
+    /* Start state polling + Lua render */
+    state_client_start(&s_render_ctx);
     lua_runtime_start(&s_render_ctx);
 
-    /* WiFi via captive portal — broadcasts "nyc-subway-pcb" AP if no saved credentials */
-    wifi_manager_start();
-    wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_wifi_got_ip);
-
-    /* Blue blink = waiting for WiFi config/connection */
-    led_driver_set_pixel(0, 0, 0, 0, 30);
-    led_driver_refresh();
-
-    ESP_LOGI(TAG, "Waiting for WiFi (connect to 'nyc-subway-pcb' AP to configure)");
+    ESP_LOGW(TAG, "All services running. heap=%lu min=%lu",
+             (unsigned long)esp_get_free_heap_size(),
+             (unsigned long)esp_get_minimum_free_heap_size());
 }
