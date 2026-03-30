@@ -104,14 +104,15 @@ static bool fetch_state(render_context_t *ctx, bool board_fetched, bool script_f
     if (http_client_post("/api/v1/device-state", diag_buf, ostream.bytes_written, &resp) != 0)
         return false;
 
-    /* Temporary decode buffer — allocated per cycle, freed after copy to render context */
-    subway_DeviceState *state = calloc(1, sizeof(subway_DeviceState));
-    if (!state) { DLOG_E(TAG, "OOM: DeviceState"); return false; }
+    /* Static decode buffer — lives in BSS, no heap alloc/free, no fragmentation.
+     * ~24KB of BSS but avoids the heap churn that caused crashes after hours. */
+    static subway_DeviceState s_state_decode;
+    memset(&s_state_decode, 0, sizeof(s_state_decode));
+    subway_DeviceState *state = &s_state_decode;
 
     pb_istream_t stream = pb_istream_from_buffer(resp.data, resp.len);
     if (!pb_decode(&stream, subway_DeviceState_fields, state)) {
         DLOG_E(TAG, "Failed to decode DeviceState (len=%d): %s", resp.len, PB_GET_ERROR(&stream));
-        free(state);
         return false;
     }
 
@@ -133,11 +134,8 @@ static bool fetch_state(render_context_t *ctx, bool board_fetched, bool script_f
 
     xSemaphoreGive(s_ctx->mutex);
 
-    pb_size_t log_sc = s_ctx->station_count;
-    pb_size_t log_cc = s_ctx->config_count;
-    free(state);
-
-    DLOG_I(TAG, "State: %d stations, %d config entries", log_sc, log_cc);
+    DLOG_I(TAG, "State: %d stations, %d config entries",
+             s_ctx->station_count, s_ctx->config_count);
     return true;
 }
 
