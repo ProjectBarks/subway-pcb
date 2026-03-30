@@ -255,6 +255,79 @@
 }
 
 /* ============================================================
+   Config Slider (range input)
+   ============================================================ */
+
+.config-slider {
+	-webkit-appearance: none;
+	appearance: none;
+	height: 6px;
+	border-radius: 3px;
+	background: linear-gradient(
+		to right,
+		rgba(255, 255, 255, 0.06),
+		rgba(255, 255, 255, 0.12)
+	);
+	outline: none;
+	transition: background 0.15s;
+}
+
+.config-slider:hover {
+	background: linear-gradient(
+		to right,
+		rgba(255, 255, 255, 0.08),
+		rgba(255, 255, 255, 0.18)
+	);
+}
+
+.config-slider::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: radial-gradient(circle at 40% 35%, #e0c850, #c9a830 60%, #a8882a);
+	cursor: pointer;
+	border: 2px solid rgba(0, 0, 0, 0.25);
+	box-shadow:
+		0 1px 4px rgba(0, 0, 0, 0.4),
+		0 0 0 1px rgba(255, 255, 255, 0.08),
+		inset 0 1px 0 rgba(255, 255, 255, 0.3);
+	transition:
+		transform 0.15s,
+		box-shadow 0.15s;
+}
+
+.config-slider::-webkit-slider-thumb:hover {
+	transform: scale(1.15);
+	box-shadow:
+		0 2px 8px rgba(201, 168, 48, 0.4),
+		0 0 0 1px rgba(255, 255, 255, 0.12),
+		inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.config-slider::-moz-range-thumb {
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: radial-gradient(circle at 40% 35%, #e0c850, #c9a830 60%, #a8882a);
+	cursor: pointer;
+	border: 2px solid rgba(0, 0, 0, 0.25);
+	box-shadow:
+		0 1px 4px rgba(0, 0, 0, 0.4),
+		0 0 0 1px rgba(255, 255, 255, 0.08),
+		inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.config-slider::-moz-range-thumb:hover {
+	transform: scale(1.15);
+	box-shadow:
+		0 2px 8px rgba(201, 168, 48, 0.4),
+		0 0 0 1px rgba(255, 255, 255, 0.12),
+		inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================================
    Custom Scrollbar
    ============================================================ */
 

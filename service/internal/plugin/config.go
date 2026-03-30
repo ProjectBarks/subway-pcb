@@ -36,6 +36,19 @@ type FieldGroup struct {
 	Fields []ConfigField
 }
 
+// AllColors returns true if every field in the group is a color field.
+func (g FieldGroup) AllColors() bool {
+	if len(g.Fields) == 0 {
+		return false
+	}
+	for _, f := range g.Fields {
+		if f.Type != FieldColor {
+			return false
+		}
+	}
+	return true
+}
+
 // GroupedFields groups config fields by their Group label, preserving order.
 func GroupedFields(fields []ConfigField) []FieldGroup {
 	groupMap := make(map[string][]ConfigField)

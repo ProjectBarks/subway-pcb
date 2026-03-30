@@ -2,7 +2,7 @@
 export function collectConfig(): Record<string, string> {
 	const config: Record<string, string> = {};
 	document
-		.querySelectorAll<HTMLInputElement>(
+		.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
 			"input[type='color'][name], input[type='number'][name], select[name]",
 		)
 		.forEach((el) => {
