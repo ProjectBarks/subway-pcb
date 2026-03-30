@@ -32,8 +32,6 @@ RUN npm ci
 COPY service/ui/ ./ui/
 COPY service/public/ ./public/
 COPY service/vite.config.ts service/tsconfig.json service/biome.json ./
-# Copy generated _templ.go files so Tailwind can scan all class names
-COPY --from=builder /app/ui/ ./ui/
 RUN npm run build -- --outDir /frontend-dist
 
 # Run stage
