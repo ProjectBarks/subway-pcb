@@ -215,12 +215,13 @@ Then(
 When("I delete the plugin", async function (this: PlaywrightWorld) {
   await openSidebarIfMobile(this);
 
-  // Force-click the delete button (hidden behind opacity-0 group-hover:opacity-100)
-  const deleteBtn = this.page.locator(
-    '#editor-root button[title="Delete"]',
+  // Target the delete button on the selected plugin (data-selected="true")
+  const selectedEntry = this.page.locator(
+    '#editor-root [data-selected="true"]',
   );
-  await expect(deleteBtn.first()).toBeAttached({ timeout: 10000 });
-  await deleteBtn.first().click({ force: true });
+  await expect(selectedEntry.first()).toBeAttached({ timeout: 10000 });
+  const deleteBtn = selectedEntry.first().locator('button[title="Delete"]');
+  await deleteBtn.click({ force: true });
 
   // Wait for confirmation dialog
   const dialogHeading = this.page.locator(

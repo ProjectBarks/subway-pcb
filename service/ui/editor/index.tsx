@@ -357,6 +357,10 @@ function EditorApp() {
 							{plugins.map((plugin) => (
 								<div
 									key={plugin.id}
+									data-plugin-id={plugin.id}
+									data-selected={
+										selectedPluginId === plugin.id ? "true" : undefined
+									}
 									class={`group relative rounded-lg transition-all cursor-pointer ${
 										selectedPluginId === plugin.id
 											? "bg-accent-gold/10 border border-accent-gold/30"

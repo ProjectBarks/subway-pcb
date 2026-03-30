@@ -110,7 +110,7 @@ e2e/test-headed: frontend/build backend/build  ## Run E2E tests (visible browser
 
 .PHONY: site/build site/preview
 
-site/build: frontend/build             ## Build static landing page → _site/
+site/build: frontend/build backend/generate  ## Build static landing page → _site/
 	cd service && go run ./cmd/generate-site/ ../_site
 	mkdir -p _site/static/dist
 	cp -r service/static/dist/* _site/static/dist/
