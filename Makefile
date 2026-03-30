@@ -95,14 +95,14 @@ E2E_PORT ?= 9199
 e2e/test: frontend/build backend/build   ## Run E2E tests (headless)
 	@mkdir -p service/e2e/screenshots service/e2e/reports
 	@E2E_DATA=$$(mktemp -d); \
-	service/subway-server --port $(E2E_PORT) --boards-dir service/public/boards --data-dir "$$E2E_DATA" --static-dir service/static >>"$$E2E_DATA/server.log" 2>&1 & SERVER_PID=$$!; \
+	service/subway-server --port $(E2E_PORT) --boards-dir service/public/boards --data-dir "$$E2E_DATA" --static-dir service/static --dev >>"$$E2E_DATA/server.log" 2>&1 & SERVER_PID=$$!; \
 	trap 'kill $$SERVER_PID 2>/dev/null; rm -rf "$$E2E_DATA"' EXIT; \
 	cd service && BASE_URL=http://localhost:$(E2E_PORT) ./node_modules/.bin/cucumber-js --config e2e/cucumber.mjs
 
 e2e/test-headed: frontend/build backend/build  ## Run E2E tests (visible browser)
 	@mkdir -p service/e2e/screenshots service/e2e/reports
 	@E2E_DATA=$$(mktemp -d); \
-	service/subway-server --port $(E2E_PORT) --boards-dir service/public/boards --data-dir "$$E2E_DATA" --static-dir service/static >>"$$E2E_DATA/server.log" 2>&1 & SERVER_PID=$$!; \
+	service/subway-server --port $(E2E_PORT) --boards-dir service/public/boards --data-dir "$$E2E_DATA" --static-dir service/static --dev >>"$$E2E_DATA/server.log" 2>&1 & SERVER_PID=$$!; \
 	trap 'kill $$SERVER_PID 2>/dev/null; rm -rf "$$E2E_DATA"' EXIT; \
 	cd service && BASE_URL=http://localhost:$(E2E_PORT) HEADED=true ./node_modules/.bin/cucumber-js --config e2e/cucumber.mjs
 

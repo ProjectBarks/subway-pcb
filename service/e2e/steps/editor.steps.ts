@@ -221,7 +221,7 @@ When("I delete the plugin", async function (this: PlaywrightWorld) {
   );
   await expect(selectedEntry.first()).toBeAttached({ timeout: 10000 });
   const deleteBtn = selectedEntry.first().locator('button[title="Delete"]');
-  await deleteBtn.click({ force: true });
+  await deleteBtn.dispatchEvent("click");
 
   // Wait for confirmation dialog
   const dialogHeading = this.page.locator(
