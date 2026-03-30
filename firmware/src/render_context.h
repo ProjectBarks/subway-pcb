@@ -8,7 +8,7 @@
 #include "config.h"
 
 /* Maximum sizes */
-#define MAX_STATIONS      200
+#define MAX_STATIONS      300
 #define MAX_TRAINS_PER_STATION 4
 #define MAX_ROUTE_LEN     8
 #define MAX_STOP_ID_LEN   8

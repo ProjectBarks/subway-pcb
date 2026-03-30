@@ -6,7 +6,7 @@ subway.Station.trains                      max_count:4
 # DeviceState (small, frequent)
 subway.DeviceState.script_hash             max_size:65
 subway.DeviceState.board_hash              max_size:65
-subway.DeviceState.stations                max_count:200
+subway.DeviceState.stations                max_count:300
 subway.DeviceState.config                  max_count:80
 subway.DeviceState.ConfigEntry.key         max_size:32
 subway.DeviceState.ConfigEntry.value       max_size:32
@@ -27,6 +27,6 @@ subway.DeviceScript.hash                   max_size:65
 subway.DeviceScript.lua_source             max_size:16384
 subway.DeviceScript.plugin_name            max_size:64
 subway.DeviceScript.plugin_description     max_size:256
-subway.DeviceScript.config                 max_count:80
+subway.DeviceScript.config                 max_count:60
 subway.DeviceScript.ConfigEntry.key        max_size:32
 subway.DeviceScript.ConfigEntry.value      max_size:32

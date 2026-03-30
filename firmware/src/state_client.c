@@ -64,8 +64,10 @@ static bool s_last_state_ok = false;
 
 static bool fetch_state(render_context_t *ctx, bool board_fetched, bool script_fetched)
 {
-    /* Build diagnostics protobuf (reports previous cycle's results) */
-    subway_DeviceDiagnostics diag = subway_DeviceDiagnostics_init_zero;
+    /* Build diagnostics protobuf (reports previous cycle's results).
+     * Static to keep ~2.3KB (mostly logs[2048]) off the 16KB task stack. */
+    static subway_DeviceDiagnostics diag;
+    memset(&diag, 0, sizeof(diag));
 
     diag.has_system = true;
     diag.system.reset_reason = (int32_t)esp_reset_reason();
@@ -113,7 +115,7 @@ static bool fetch_state(render_context_t *ctx, bool board_fetched, bool script_f
 
     pb_istream_t stream = pb_istream_from_buffer(resp.data, resp.len);
     if (!pb_decode(&stream, subway_DeviceState_fields, s_state_buf)) {
-        DLOG_E(TAG, "Failed to decode DeviceState (len=%d)", resp.len);
+        DLOG_E(TAG, "Failed to decode DeviceState (len=%d): %s", resp.len, PB_GET_ERROR(&stream));
         return false;
     }
     subway_DeviceState *state = s_state_buf;
