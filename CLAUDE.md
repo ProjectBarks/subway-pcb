@@ -48,7 +48,7 @@ service/
   cmd/
     subway-server/         — entry point
     generate-site/         — static site generator
-    gen-ui-exports/        — barrel export generator
+    generate-exports/      — barrel export generator
   internal/
     api/                   — HTTP handlers, pixel rendering
     plugin/                — mode interface + registry
