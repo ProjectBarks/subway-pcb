@@ -24,9 +24,6 @@ static const char *TAG = "state_client";
 
 static render_context_t *s_ctx = NULL;
 
-/* Persistent decode buffer — avoids 17KB alloc/free every cycle which fragments heap */
-static subway_DeviceState *s_state_buf = NULL;
-
 static void init_http_client(render_context_t *ctx)
 {
     /* Read device MAC */
@@ -107,49 +104,40 @@ static bool fetch_state(render_context_t *ctx, bool board_fetched, bool script_f
     if (http_client_post("/api/v1/device-state", diag_buf, ostream.bytes_written, &resp) != 0)
         return false;
 
-    if (!s_state_buf) {
-        s_state_buf = calloc(1, sizeof(subway_DeviceState));
-        if (!s_state_buf) { ESP_LOGE(TAG, "OOM: DeviceState"); return false; }
-    }
-    memset(s_state_buf, 0, sizeof(subway_DeviceState));
+    /* Temporary decode buffer — allocated per cycle, freed after copy to render context */
+    subway_DeviceState *state = calloc(1, sizeof(subway_DeviceState));
+    if (!state) { DLOG_E(TAG, "OOM: DeviceState"); return false; }
 
     pb_istream_t stream = pb_istream_from_buffer(resp.data, resp.len);
-    if (!pb_decode(&stream, subway_DeviceState_fields, s_state_buf)) {
+    if (!pb_decode(&stream, subway_DeviceState_fields, state)) {
         DLOG_E(TAG, "Failed to decode DeviceState (len=%d): %s", resp.len, PB_GET_ERROR(&stream));
+        free(state);
         return false;
     }
-    subway_DeviceState *state = s_state_buf;
 
-    /* Update render context under mutex */
+    /* Copy decoded state into render context under mutex.
+     * render_context now uses the same nanopb types, so this is a direct memcpy. */
     xSemaphoreTake(s_ctx->mutex, portMAX_DELAY);
 
-    s_ctx->station_count = 0;
-    for (pb_size_t i = 0; i < state->stations_count && i < MAX_STATIONS; i++) {
-        strncpy(s_ctx->stations[i].stop_id, state->stations[i].stop_id, MAX_STOP_ID_LEN - 1);
-        s_ctx->stations[i].train_count = 0;
-        for (pb_size_t j = 0; j < state->stations[i].trains_count && j < MAX_TRAINS_PER_STATION; j++) {
-            strncpy(s_ctx->stations[i].trains[j].route, state->stations[i].trains[j].route, MAX_ROUTE_LEN - 1);
-            s_ctx->stations[i].trains[j].status = (train_status_t)state->stations[i].trains[j].status;
-            s_ctx->stations[i].train_count++;
-        }
-        s_ctx->station_count++;
-    }
+    pb_size_t ns = state->stations_count < PB_MAX_STATIONS ? state->stations_count : PB_MAX_STATIONS;
+    memcpy(s_ctx->stations, state->stations, sizeof(subway_Station) * ns);
+    s_ctx->station_count = ns;
     s_ctx->timestamp = state->timestamp;
 
-    s_ctx->config_count = 0;
-    for (pb_size_t i = 0; i < state->config_count && i < MAX_CONFIG_ENTRIES; i++) {
-        strncpy(s_ctx->config[i].key, state->config[i].key, MAX_CONFIG_KEY_LEN - 1);
-        strncpy(s_ctx->config[i].value, state->config[i].value, MAX_CONFIG_VAL_LEN - 1);
-        s_ctx->config_count++;
-    }
+    pb_size_t nc = state->config_count < PB_MAX_CONFIG ? state->config_count : PB_MAX_CONFIG;
+    memcpy(s_ctx->config, state->config, sizeof(subway_DeviceState_ConfigEntry) * nc);
+    s_ctx->config_count = nc;
 
-    strncpy(s_ctx->script_hash, state->script_hash, MAX_HASH_LEN - 1);
-    strncpy(s_ctx->board_hash, state->board_hash, MAX_HASH_LEN - 1);
+    memcpy(s_ctx->script_hash, state->script_hash, PB_HASH_LEN);
+    memcpy(s_ctx->board_hash, state->board_hash, PB_HASH_LEN);
 
     xSemaphoreGive(s_ctx->mutex);
 
-    DLOG_I(TAG, "State: %d stations, %d config entries",
-             s_ctx->station_count, s_ctx->config_count);
+    pb_size_t log_sc = s_ctx->station_count;
+    pb_size_t log_cc = s_ctx->config_count;
+    free(state);
+
+    DLOG_I(TAG, "State: %d stations, %d config entries", log_sc, log_cc);
     return true;
 }
 
@@ -175,21 +163,21 @@ static bool fetch_board(void)
     strncpy(s_ctx->board.board_id, buf->board_id, sizeof(s_ctx->board.board_id) - 1);
     s_ctx->board.led_count = buf->led_count;
     s_ctx->board.strip_count = buf->strip_sizes_count;
-    for (pb_size_t i = 0; i < buf->strip_sizes_count && i < 16; i++) {
+    for (pb_size_t i = 0; i < buf->strip_sizes_count && i < MAX_STRIPS; i++) {
         s_ctx->board.strip_sizes[i] = buf->strip_sizes[i];
     }
-    strncpy(s_ctx->board.hash, buf->hash, MAX_HASH_LEN - 1);
+    strncpy(s_ctx->board.hash, buf->hash, PB_HASH_LEN - 1);
     memset(s_ctx->board.led_map, 0, sizeof(s_ctx->board.led_map));
     for (pb_size_t i = 0; i < buf->led_map_count; i++) {
         uint32_t idx = buf->led_map[i].key;
         if (idx < MAX_LEDS) {
-            strncpy(s_ctx->board.led_map[idx], buf->led_map[i].value, MAX_STOP_ID_LEN - 1);
+            strncpy(s_ctx->board.led_map[idx], buf->led_map[i].value, PB_STOP_ID_LEN - 1);
         }
     }
     s_ctx->board_loaded = true;
 
     render_context_build_station_leds(s_ctx);
-    strncpy(s_ctx->cached_board_hash, buf->hash, MAX_HASH_LEN - 1);
+    strncpy(s_ctx->cached_board_hash, buf->hash, PB_HASH_LEN - 1);
     xSemaphoreGive(s_ctx->mutex);
 
     DLOG_I(TAG, "Board loaded: %lu LEDs, %d strips",
@@ -219,7 +207,7 @@ static bool fetch_script(void)
     char *src = strdup(script_buf->lua_source);
 
     xSemaphoreTake(s_ctx->mutex, portMAX_DELAY);
-    strncpy(s_ctx->cached_script_hash, script_buf->hash, MAX_HASH_LEN - 1);
+    strncpy(s_ctx->cached_script_hash, script_buf->hash, PB_HASH_LEN - 1);
     free(s_ctx->lua_source);
     s_ctx->lua_source = src;
     s_ctx->script_changed = true;

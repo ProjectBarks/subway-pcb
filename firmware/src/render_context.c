@@ -26,13 +26,13 @@ void render_context_build_station_leds(render_context_t *ctx)
         }
 
         if (found < 0) {
-            if (ctx->station_leds_count >= MAX_STATIONS) continue;
+            if (ctx->station_leds_count >= PB_MAX_STATIONS) continue;
             found = ctx->station_leds_count++;
-            strncpy(ctx->station_leds[found].station_id, ctx->board.led_map[i], MAX_STOP_ID_LEN - 1);
+            strncpy(ctx->station_leds[found].station_id, ctx->board.led_map[i], PB_STOP_ID_LEN - 1);
             ctx->station_leds[found].count = 0;
         }
 
-        if (ctx->station_leds[found].count < 32) {
+        if (ctx->station_leds[found].count < MAX_LEDS_PER_STATION) {
             ctx->station_leds[found].led_indices[ctx->station_leds[found].count++] = i;
         }
     }

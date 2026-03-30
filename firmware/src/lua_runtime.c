@@ -36,16 +36,16 @@ static uint32_t s_led_count = MAX_LEDS;
 
 /* Strip layout snapshot — safe to read from Lua without mutex */
 static uint8_t s_snap_strip_count = 0;
-static uint32_t s_snap_strip_sizes[16];
+static uint32_t s_snap_strip_sizes[MAX_STRIPS];
 
 /* Snapshot of render context for current frame.
  * Only fast-changing data (stations, config) is copied each frame.
  * Board and station_leds are read directly from render context since they
  * only change on board hash updates (rare) and are never partially written. */
-static station_t s_snap_stations[MAX_STATIONS];
-static uint16_t s_snap_station_count;
-static config_entry_t s_snap_config[MAX_CONFIG_ENTRIES];
-static uint8_t s_snap_config_count;
+static subway_Station s_snap_stations[PB_MAX_STATIONS];
+static pb_size_t s_snap_station_count;
+static subway_DeviceState_ConfigEntry s_snap_config[PB_MAX_CONFIG];
+static pb_size_t s_snap_config_count;
 
 /* Custom allocator to cap memory. Uses int32_t to avoid unsigned underflow. */
 static int32_t s_lua_mem_used = 0;
@@ -92,7 +92,7 @@ static int find_station(const char *stop_id)
 /* ─── Helper: find config value by key ─── */
 static const char *find_config(const char *key)
 {
-    for (uint8_t i = 0; i < s_snap_config_count; i++) {
+    for (pb_size_t i = 0; i < s_snap_config_count; i++) {
         if (strcmp(s_snap_config[i].key, key) == 0) {
             return s_snap_config[i].value;
         }
@@ -142,7 +142,7 @@ static int l_has_train(lua_State *L)
         return 1;
     }
     int idx = find_station(sid);
-    lua_pushboolean(L, idx >= 0 && s_snap_stations[idx].train_count > 0);
+    lua_pushboolean(L, idx >= 0 && s_snap_stations[idx].trains_count > 0);
     return 1;
 }
 
@@ -162,16 +162,16 @@ static int l_has_status(lua_State *L)
         return 1;
     }
 
-    train_status_t target;
-    if (strcmp(status_str, "STOPPED_AT") == 0) target = TRAIN_STATUS_STOPPED_AT;
-    else if (strcmp(status_str, "INCOMING_AT") == 0) target = TRAIN_STATUS_INCOMING_AT;
-    else if (strcmp(status_str, "IN_TRANSIT_TO") == 0) target = TRAIN_STATUS_IN_TRANSIT_TO;
+    subway_TrainStatus target;
+    if (strcmp(status_str, "STOPPED_AT") == 0) target = subway_TrainStatus_STOPPED_AT;
+    else if (strcmp(status_str, "INCOMING_AT") == 0) target = subway_TrainStatus_INCOMING_AT;
+    else if (strcmp(status_str, "IN_TRANSIT_TO") == 0) target = subway_TrainStatus_IN_TRANSIT_TO;
     else { lua_pushboolean(L, 0); return 1; }
 
     int idx = find_station(sid);
     if (idx < 0) { lua_pushboolean(L, 0); return 1; }
 
-    for (uint8_t t = 0; t < s_snap_stations[idx].train_count; t++) {
+    for (uint8_t t = 0; t < s_snap_stations[idx].trains_count; t++) {
         if (s_snap_stations[idx].trains[t].status == target) {
             lua_pushboolean(L, 1);
             return 1;
@@ -192,7 +192,7 @@ static int l_get_route(lua_State *L)
     if (sid[0] == '\0') { lua_pushnil(L); return 1; }
 
     int idx = find_station(sid);
-    if (idx < 0 || s_snap_stations[idx].train_count == 0) {
+    if (idx < 0 || s_snap_stations[idx].trains_count == 0) {
         lua_pushnil(L);
         return 1;
     }
@@ -212,7 +212,7 @@ static int l_get_routes(lua_State *L)
     int idx = find_station(sid);
     if (idx < 0) return 1;
 
-    for (uint8_t t = 0; t < s_snap_stations[idx].train_count; t++) {
+    for (uint8_t t = 0; t < s_snap_stations[idx].trains_count; t++) {
         lua_pushstring(L, s_snap_stations[idx].trains[t].route);
         lua_rawseti(L, -2, t + 1);
     }
@@ -519,13 +519,13 @@ static void render_task(void *arg)
 
         /* Snapshot shared data under mutex each frame */
         xSemaphoreTake(ctx->mutex, portMAX_DELAY);
-        memcpy(s_snap_stations, ctx->stations, sizeof(station_t) * ctx->station_count);
+        memcpy(s_snap_stations, ctx->stations, sizeof(subway_Station) * ctx->station_count);
         s_snap_station_count = ctx->station_count;
-        memcpy(s_snap_config, ctx->config, sizeof(config_entry_t) * ctx->config_count);
+        memcpy(s_snap_config, ctx->config, sizeof(subway_DeviceState_ConfigEntry) * ctx->config_count);
         s_snap_config_count = ctx->config_count;
         s_led_count = ctx->board.led_count > 0 ? ctx->board.led_count : MAX_LEDS;
         s_snap_strip_count = ctx->board.strip_count;
-        for (uint8_t si = 0; si < s_snap_strip_count && si < 16; si++) {
+        for (uint8_t si = 0; si < s_snap_strip_count && si < MAX_STRIPS; si++) {
             s_snap_strip_sizes[si] = ctx->board.strip_sizes[si];
         }
         xSemaphoreGive(ctx->mutex);
