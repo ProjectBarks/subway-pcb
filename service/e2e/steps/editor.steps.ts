@@ -79,6 +79,8 @@ When("I create a new plugin", async function (this: PlaywrightWorld) {
       ctaButton.click(),
     ]);
     expect(response.ok()).toBeTruthy();
+    const body = await response.json().catch(() => null);
+    if (body?.id) this.createdPluginId = body.id;
   } else {
     await openSidebarIfMobile(this);
     const newBtn = this.page.getByRole("button", { name: /New Plugin/i });
@@ -92,6 +94,8 @@ When("I create a new plugin", async function (this: PlaywrightWorld) {
       newBtn.first().click(),
     ]);
     expect(response.ok()).toBeTruthy();
+    const body = await response.json().catch(() => null);
+    if (body?.id) this.createdPluginId = body.id;
   }
 
   // Wait for the plugin to be selected (toolbar renders name input)
@@ -229,11 +233,13 @@ When("I delete the plugin", async function (this: PlaywrightWorld) {
     '.fixed button:has-text("Delete")',
   );
 
+  const pluginId = this.createdPluginId;
   const [response] = await Promise.all([
     this.page.waitForResponse(
       (r) =>
         r.url().includes("/api/v1/plugins/") &&
-        r.request().method() === "DELETE",
+        r.request().method() === "DELETE" &&
+        (!pluginId || r.url().includes(pluginId)),
       { timeout: 15000 },
     ),
     confirmDeleteBtn.last().click(),

@@ -11,6 +11,7 @@ export class PlaywrightWorld extends World {
   context!: BrowserContext;
   page!: Page;
   viewport: string = "desktop";
+  createdPluginId?: string;
 
   constructor(options: IWorldOptions) {
     super(options);
