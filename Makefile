@@ -95,6 +95,21 @@ tools/debugger:                        ## Start click-to-light web debugger → 
 tools/viewer:                          ## Start standalone board viewer → http://localhost:8888
 	cd tools/board-viewer && uv run serve.py
 
+# ─── Unit Tests ─────────────────────────────────────────
+
+.PHONY: test test/go test/frontend test/firmware
+
+test: test/go test/frontend test/firmware  ## Run all unit tests
+
+test/go:                                   ## Run Go unit tests
+	cd service && go test ./...
+
+test/frontend: frontend/install            ## Run frontend unit tests (Lua conformance)
+	cd service && npx vitest run
+
+test/firmware:                             ## Run firmware Lua conformance tests (host)
+	cd firmware/test && make test
+
 # ─── E2E Tests ──────────────────────────────────────────
 
 .PHONY: e2e/install e2e/test e2e/test-headed

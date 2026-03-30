@@ -10,6 +10,60 @@ export interface StationState {
 	trains?: Train[];
 }
 
+/* Runtime type guards — mirrors C-side luaL_checkinteger / luaL_checkstring.
+ * Usage: eng.global.set("fn", typed([int, str], (i, s) => { ... })); */
+type Check<T> = (v: unknown, arg: number) => T;
+
+/* luaL_checkinteger: integers, integer-valued floats, numeric strings.
+ * Errors on non-integer floats ("number has no integer representation"). */
+const int: Check<number> = (v, a) => {
+	if (typeof v === "string") {
+		const n = Number(v);
+		if (!Number.isNaN(n) && Number.isInteger(n)) return n;
+	}
+	if (typeof v === "number") {
+		if (Number.isInteger(v)) return v;
+		throw new Error(
+			`bad argument #${a} (number has no integer representation)`,
+		);
+	}
+	throw new Error(`bad argument #${a} (number expected, got ${typeof v})`);
+};
+
+/* luaL_checknumber: all numbers, numeric strings. */
+const num: Check<number> = (v, a) => {
+	if (typeof v === "string") {
+		const n = Number(v);
+		if (!Number.isNaN(n)) return n;
+	}
+	if (typeof v === "number") return v;
+	throw new Error(`bad argument #${a} (number expected, got ${typeof v})`);
+};
+
+/* luaL_checkstring: strings, numbers coerced to string. */
+const str: Check<string> = (v, a) => {
+	if (typeof v === "number") return String(v);
+	if (typeof v !== "string")
+		throw new Error(`bad argument #${a} (string expected, got ${typeof v})`);
+	return v;
+};
+
+// biome-ignore lint/suspicious/noExplicitAny: generic type inference requires any
+type Infer<C extends Check<any>[]> = {
+	[K in keyof C]: C[K] extends Check<infer T> ? T : never;
+};
+
+// biome-ignore lint/suspicious/noExplicitAny: generic type inference requires any
+function typed<C extends Check<any>[]>(
+	checks: [...C],
+	fn: (...args: Infer<C>) => unknown,
+): (...args: unknown[]) => unknown {
+	return (...args: unknown[]) => {
+		const checked = checks.map((c, i) => c(args[i], i + 1));
+		return (fn as (...a: unknown[]) => unknown)(...checked);
+	};
+}
+
 export class LuaRunner {
 	private engine: LuaEngine | null = null;
 	private pixelBuffer: Uint8Array;
@@ -55,13 +109,13 @@ export class LuaRunner {
 		// LED Control
 		eng.global.set(
 			"set_led",
-			(index: number, r: number, g: number, b: number) => {
+			typed([int, int, int, int], (index, r, g, b) => {
 				if (index >= 0 && index < this._ledCount) {
 					this.pixelBuffer[index * 3] = Math.max(0, Math.min(255, r));
 					this.pixelBuffer[index * 3 + 1] = Math.max(0, Math.min(255, g));
 					this.pixelBuffer[index * 3 + 2] = Math.max(0, Math.min(255, b));
 				}
-			},
+			}),
 		);
 
 		eng.global.set("clear_leds", () => {
@@ -71,67 +125,94 @@ export class LuaRunner {
 		eng.global.set("led_count", () => this._ledCount);
 
 		// MTA State Queries
-		eng.global.set("has_train", (ledIndex: number) => {
-			const sid = this.ledMap[ledIndex];
-			if (!sid) return false;
-			const trains = this.stationTrains.get(sid);
-			return trains !== undefined && trains.length > 0;
-		});
+		eng.global.set(
+			"has_train",
+			typed([int], (ledIndex) => {
+				const sid = this.ledMap[ledIndex];
+				if (!sid) return false;
+				const trains = this.stationTrains.get(sid);
+				return trains !== undefined && trains.length > 0;
+			}),
+		);
 
-		eng.global.set("has_status", (ledIndex: number, status: string) => {
-			const sid = this.ledMap[ledIndex];
-			if (!sid) return false;
-			const trains = this.stationTrains.get(sid);
-			if (!trains) return false;
-			return trains.some((t) => t.status === status);
-		});
+		eng.global.set(
+			"has_status",
+			typed([int, str], (ledIndex, status) => {
+				const sid = this.ledMap[ledIndex];
+				if (!sid) return false;
+				const trains = this.stationTrains.get(sid);
+				if (!trains) return false;
+				return trains.some((t) => t.status === status);
+			}),
+		);
 
-		eng.global.set("get_route", (ledIndex: number) => {
-			const sid = this.ledMap[ledIndex];
-			if (!sid) return null;
-			const trains = this.stationTrains.get(sid);
-			if (!trains || trains.length === 0) return null;
-			return trains[0].route;
-		});
+		eng.global.set(
+			"get_route",
+			typed([int], (ledIndex) => {
+				const sid = this.ledMap[ledIndex];
+				if (!sid) return undefined;
+				const trains = this.stationTrains.get(sid);
+				if (!trains || trains.length === 0) return undefined;
+				return trains[0].route;
+			}),
+		);
 
-		eng.global.set("get_routes", (ledIndex: number) => {
-			const sid = this.ledMap[ledIndex];
-			if (!sid) return [];
-			const trains = this.stationTrains.get(sid);
-			if (!trains) return [];
-			return trains.map((t) => t.route);
-		});
+		eng.global.set(
+			"get_routes",
+			typed([int], (ledIndex) => {
+				const sid = this.ledMap[ledIndex];
+				if (!sid) return [];
+				const trains = this.stationTrains.get(sid);
+				if (!trains) return [];
+				return trains.map((t) => t.route);
+			}),
+		);
 
-		eng.global.set("get_station", (ledIndex: number) => {
-			if (ledIndex < 0 || ledIndex >= this.ledMap.length) return null;
-			return this.ledMap[ledIndex] || null;
-		});
+		eng.global.set(
+			"get_station",
+			typed([int], (ledIndex) => {
+				if (ledIndex < 0 || ledIndex >= this.ledMap.length) return undefined;
+				return this.ledMap[ledIndex] || undefined;
+			}),
+		);
 
-		eng.global.set("get_leds_for_station", (stationId: string) => {
-			const leds = this.stationLeds.get(stationId);
-			return leds || [];
-		});
+		eng.global.set(
+			"get_leds_for_station",
+			typed([str], (stationId) => {
+				const leds = this.stationLeds.get(stationId);
+				return leds || [];
+			}),
+		);
 
 		// Config Queries
-		eng.global.set("get_string_config", (key: string) => {
-			return this.config[key] ?? null;
-		});
+		eng.global.set(
+			"get_string_config",
+			typed([str], (key) => {
+				return this.config[key] ?? undefined;
+			}),
+		);
 
-		eng.global.set("get_int_config", (key: string) => {
-			const v = this.config[key];
-			if (v === undefined) return null;
-			const n = parseInt(v, 10);
-			return Number.isNaN(n) ? null : n;
-		});
+		eng.global.set(
+			"get_int_config",
+			typed([str], (key) => {
+				const v = this.config[key];
+				if (v === undefined) return undefined;
+				const n = parseInt(v, 10);
+				return Number.isNaN(n) ? 0 : n;
+			}),
+		);
 
-		eng.global.set("get_rgb_config", (key: string) => {
-			const hex = this.config[key];
-			if (!hex || hex.length < 7 || hex[0] !== "#") return null;
-			const r = parseInt(hex.slice(1, 3), 16);
-			const g = parseInt(hex.slice(3, 5), 16);
-			const b = parseInt(hex.slice(5, 7), 16);
-			return LuaMultiReturn.of(r, g, b);
-		});
+		eng.global.set(
+			"get_rgb_config",
+			typed([str], (key) => {
+				const hex = this.config[key];
+				if (!hex || hex.length < 7 || hex[0] !== "#") return undefined;
+				const r = parseInt(hex.slice(1, 3), 16);
+				const g = parseInt(hex.slice(3, 5), 16);
+				const b = parseInt(hex.slice(5, 7), 16);
+				return LuaMultiReturn.of(r, g, b);
+			}),
+		);
 
 		// Timing
 		eng.global.set("get_time", () => {
@@ -139,82 +220,94 @@ export class LuaRunner {
 		});
 
 		// Color Utilities
-		eng.global.set("hsv_to_rgb", (h: number, s: number, v: number) => {
-			const i = Math.floor(h * 6);
-			const f = h * 6 - i;
-			const p = v * (1 - s);
-			const q = v * (1 - f * s);
-			const t = v * (1 - (1 - f) * s);
-			let r: number;
-			let g: number;
-			let b: number;
-			switch (i % 6) {
-				case 0:
-					r = v;
-					g = t;
-					b = p;
-					break;
-				case 1:
-					r = q;
-					g = v;
-					b = p;
-					break;
-				case 2:
-					r = p;
-					g = v;
-					b = t;
-					break;
-				case 3:
-					r = p;
-					g = q;
-					b = v;
-					break;
-				case 4:
-					r = t;
-					g = p;
-					b = v;
-					break;
-				default:
-					r = v;
-					g = p;
-					b = q;
-					break;
-			}
-			return LuaMultiReturn.of(
-				Math.round(r * 255),
-				Math.round(g * 255),
-				Math.round(b * 255),
-			);
-		});
+		eng.global.set(
+			"hsv_to_rgb",
+			typed([num, num, num], (h, s, v) => {
+				const i = Math.floor(h * 6);
+				const f = h * 6 - i;
+				const p = v * (1 - s);
+				const q = v * (1 - f * s);
+				const t = v * (1 - (1 - f) * s);
+				let r: number;
+				let g: number;
+				let b: number;
+				switch (i % 6) {
+					case 0:
+						r = v;
+						g = t;
+						b = p;
+						break;
+					case 1:
+						r = q;
+						g = v;
+						b = p;
+						break;
+					case 2:
+						r = p;
+						g = v;
+						b = t;
+						break;
+					case 3:
+						r = p;
+						g = q;
+						b = v;
+						break;
+					case 4:
+						r = t;
+						g = p;
+						b = v;
+						break;
+					default:
+						r = v;
+						g = p;
+						b = q;
+						break;
+				}
+				return LuaMultiReturn.of(
+					Math.round(r * 255),
+					Math.round(g * 255),
+					Math.round(b * 255),
+				);
+			}),
+		);
 
-		eng.global.set("hex_to_rgb", (hex: string) => {
-			if (!hex || hex.length < 7 || hex[0] !== "#") return null;
-			const r = parseInt(hex.slice(1, 3), 16);
-			const g = parseInt(hex.slice(3, 5), 16);
-			const b = parseInt(hex.slice(5, 7), 16);
-			return LuaMultiReturn.of(r, g, b);
-		});
+		eng.global.set(
+			"hex_to_rgb",
+			typed([str], (hex) => {
+				if (hex.length < 7 || hex[0] !== "#") return undefined;
+				const r = parseInt(hex.slice(1, 3), 16);
+				const g = parseInt(hex.slice(3, 5), 16);
+				const b = parseInt(hex.slice(5, 7), 16);
+				return LuaMultiReturn.of(r, g, b);
+			}),
+		);
 
 		// Board Info
 		eng.global.set("get_strip_info", () => {
 			return this.stripSizes;
 		});
 
-		eng.global.set("led_to_strip", (index: number) => {
-			let offset = 0;
-			for (let s = 0; s < this.stripSizes.length; s++) {
-				if (index < offset + this.stripSizes[s]) {
-					return LuaMultiReturn.of(s + 1, index - offset);
+		eng.global.set(
+			"led_to_strip",
+			typed([int], (index) => {
+				let offset = 0;
+				for (let s = 0; s < this.stripSizes.length; s++) {
+					if (index < offset + this.stripSizes[s]) {
+						return LuaMultiReturn.of(s + 1, index - offset);
+					}
+					offset += this.stripSizes[s];
 				}
-				offset += this.stripSizes[s];
-			}
-			return LuaMultiReturn.of(null, null);
-		});
+				return LuaMultiReturn.of(undefined, undefined);
+			}),
+		);
 
 		// Logging
-		eng.global.set("log", (msg: string) => {
-			if (this.onLog) this.onLog(String(msg));
-		});
+		eng.global.set(
+			"log",
+			typed([str], (msg) => {
+				if (this.onLog) this.onLog(msg);
+			}),
+		);
 
 		// Status Constants
 		eng.global.set("STOPPED_AT", "STOPPED_AT");

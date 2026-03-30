@@ -1,0 +1,42 @@
+-- test_mta_state.lua — has_train, has_status, get_route, get_routes, get_station, get_leds_for_station
+
+expect(has_train(0), true, "has_train LED 0 (A01 has trains)")
+expect(has_train(1), true, "has_train LED 1 (A01 has trains)")
+expect(has_train(2), true, "has_train LED 2 (B02 has trains)")
+expect(has_train(3), false, "has_train LED 3 (unmapped)")
+expect(has_train(4), false, "has_train LED 4 (C03 no trains)")
+expect(has_train(-1), false, "has_train negative index")
+expect(has_train(99), false, "has_train out of bounds")
+
+expect(has_status(0, STOPPED_AT), true, "has_status A01 STOPPED_AT")
+expect(has_status(0, INCOMING_AT), false, "has_status A01 not INCOMING_AT")
+expect(has_status(0, IN_TRANSIT_TO), false, "has_status A01 not IN_TRANSIT_TO")
+expect(has_status(2, IN_TRANSIT_TO), true, "has_status B02 IN_TRANSIT_TO")
+expect(has_status(2, STOPPED_AT), false, "has_status B02 not STOPPED_AT")
+expect(has_status(3, STOPPED_AT), false, "has_status unmapped LED")
+expect(has_status(-1, STOPPED_AT), false, "has_status negative index")
+
+expect(get_route(0), "1", "get_route A01 first train")
+expect(get_route(1), "1", "get_route A01 via LED 1")
+expect(get_route(2), "A", "get_route B02 first train")
+expect_nil(get_route(3), "get_route unmapped LED")
+expect_nil(get_route(4), "get_route C03 no trains")
+expect_nil(get_route(-1), "get_route negative index")
+expect_nil(get_route(99), "get_route out of bounds")
+
+expect_table_eq(get_routes(0), {"1"}, "get_routes A01")
+expect_table_eq(get_routes(2), {"A"}, "get_routes B02")
+expect_table_eq(get_routes(3), {}, "get_routes unmapped")
+expect_table_eq(get_routes(99), {}, "get_routes out of bounds")
+
+expect(get_station(0), "A01", "get_station LED 0")
+expect(get_station(1), "A01", "get_station LED 1")
+expect(get_station(2), "B02", "get_station LED 2")
+expect_nil(get_station(3), "get_station unmapped LED")
+expect(get_station(4), "C03", "get_station LED 4")
+expect_nil(get_station(-1), "get_station negative index")
+expect_nil(get_station(99), "get_station out of bounds")
+
+expect_table_eq(get_leds_for_station("A01"), {0, 1}, "get_leds_for_station A01")
+expect_table_eq(get_leds_for_station("B02"), {2}, "get_leds_for_station B02")
+expect_table_eq(get_leds_for_station("ZZZ"), {}, "get_leds_for_station unknown")
