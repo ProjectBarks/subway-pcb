@@ -59,7 +59,7 @@ static void cb_wifi_got_ip(void *pvParameter)
 
 void app_main(void)
 {
-    ESP_LOGW(TAG, "=== NYC Subway PCB v0.6.0 ===");
+    ESP_LOGW(TAG, "=== NYC Subway PCB v0.6.0 === reset_reason=%d", (int)esp_reset_reason());
     ESP_LOGW(TAG, "HEAP: %lu free, %lu min, %lu largest block",
              (unsigned long)esp_get_free_heap_size(),
              (unsigned long)esp_get_minimum_free_heap_size(),

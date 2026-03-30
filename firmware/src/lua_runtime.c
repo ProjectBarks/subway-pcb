@@ -20,8 +20,8 @@ static const char *TAG = "lua_runtime";
 /* Maximum Lua memory (40KB) */
 #define LUA_MAX_MEM (40 * 1024)
 
-/* Maximum instructions per render call */
-#define LUA_MAX_INSTRUCTIONS 500000
+/* Maximum instructions per render call — 0 disables the limit */
+#define LUA_MAX_INSTRUCTIONS 0
 
 /* Consecutive failure limit before fallback */
 #define MAX_CONSECUTIVE_FAILURES 5
@@ -437,7 +437,9 @@ static lua_State *create_lua_state(void)
     luaL_requiref(L, "utf8", luaopen_utf8, 1);
     lua_pop(L, 5);
 
-    lua_sethook(L, lua_instruction_hook, LUA_MASKCOUNT, LUA_MAX_INSTRUCTIONS);
+    if (LUA_MAX_INSTRUCTIONS > 0) {
+        lua_sethook(L, lua_instruction_hook, LUA_MASKCOUNT, LUA_MAX_INSTRUCTIONS);
+    }
     register_lua_functions(L);
     return L;
 }
@@ -590,7 +592,11 @@ static void render_task(void *arg)
             }
         }
 
-        led_driver_refresh();
+        /* Skip SPI refresh during HTTP — TLS + SPI DMA concurrent current draw causes brownout */
+        extern volatile bool g_http_active;
+        if (!g_http_active) {
+            led_driver_refresh();
+        }
 
         /* Write render diagnostics to shared context (read by state_client) */
         extern int g_led_strip_ok, g_led_strip_fail;

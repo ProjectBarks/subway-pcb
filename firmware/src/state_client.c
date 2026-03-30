@@ -81,8 +81,12 @@ static void read_nvs_config(void)
  * nanopb generates static arrays for all repeated fields (via .options max_count),
  * so no callbacks are needed — pb_decode fills the structs directly. */
 
+/* Flag to pause SPI LED refresh during HTTP — TLS + SPI DMA draws too much current */
+volatile bool g_http_active = false;
+
 static int http_fetch(const char *path, const char *diag)
 {
+    g_http_active = true;
     char url[384];
     snprintf(url, sizeof(url), "%s%s%s", s_server_url, path, diag ? diag : "");
 
@@ -106,6 +110,8 @@ static int http_fetch(const char *path, const char *diag)
     esp_err_t err = esp_http_client_perform(client);
     int status = esp_http_client_get_status_code(client);
     esp_http_client_cleanup(client);
+
+    g_http_active = false;
 
     if (err != ESP_OK || status != 200) {
         ESP_LOGE(TAG, "HTTP FAILED %s: err=%d(%s) status=%d", path, err, esp_err_to_name(err), status);
@@ -220,7 +226,7 @@ static bool fetch_board(void)
 
     /* Step 6: free + done */
     free(buf);
-    s_ctx->diag_fetch_err[0] = '\0';  /* clear so lua errors show through */
+    snprintf(s_ctx->diag_fetch_err, sizeof(s_ctx->diag_fetch_err), "board:OK_leds%lu", (unsigned long)s_ctx->board.led_count);
     return true;
 }
 
@@ -293,7 +299,8 @@ static void state_task(void *arg)
         /* Update diag for NEXT cycle — includes this cycle's results */
         int sh_match = (strcmp(ctx->script_hash, ctx->cached_script_hash) == 0) ? 1 : 0;
         snprintf(diag, sizeof(diag),
-                 "?d=st%d,bf%d,sf%d,shm%d,px%lu,lerr%d,lmem%lu,heap%lu,maxblk%lu,rld%d,first%lu",
+                 "?d=rst%d,st%d,bf%d,sf%d,shm%d,px%lu,lerr%d,lmem%lu,heap%lu,maxblk%lu,rld%d,first%lu",
+                 (int)esp_reset_reason(),
                  state_ok ? 1 : 0,
                  board_fetched ? 1 : 0,
                  script_fetched ? 1 : 0,
@@ -305,9 +312,11 @@ static void state_task(void *arg)
                  (unsigned long)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
                  ctx->diag_last_reload,
                  (unsigned long)ctx->diag_first_lit_led);
-        /* Append errors if any (URL-safe: replace bad chars) */
+        /* Append errors if any — show fetch error OR lua error (URL-safe) */
         {
-            const char *err_src = ctx->diag_fetch_err[0] ? ctx->diag_fetch_err : ctx->diag_last_lua_err;
+            /* Prefer lua error over fetch success marker */
+            const char *err_src = ctx->diag_last_lua_err[0] ? ctx->diag_last_lua_err :
+                                  ctx->diag_fetch_err[0] ? ctx->diag_fetch_err : "";
             if (err_src[0]) {
                 char err_safe[50];
                 strncpy(err_safe, err_src, sizeof(err_safe) - 1);
