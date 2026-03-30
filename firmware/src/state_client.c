@@ -118,7 +118,10 @@ static bool fetch_state(render_context_t *ctx, bool board_fetched, bool script_f
 
     /* Copy decoded state into render context under mutex.
      * render_context now uses the same nanopb types, so this is a direct memcpy. */
-    xSemaphoreTake(s_ctx->mutex, portMAX_DELAY);
+    if (xSemaphoreTake(s_ctx->mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        DLOG_E(TAG, "Mutex timeout (state copy)");
+        return false;
+    }
 
     pb_size_t ns = state->stations_count < PB_MAX_STATIONS ? state->stations_count : PB_MAX_STATIONS;
     memcpy(s_ctx->stations, state->stations, sizeof(subway_Station) * ns);
@@ -157,7 +160,11 @@ static bool fetch_board(void)
         return false;
     }
 
-    xSemaphoreTake(s_ctx->mutex, portMAX_DELAY);
+    if (xSemaphoreTake(s_ctx->mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        DLOG_E(TAG, "Mutex timeout (board copy)");
+        free(buf);
+        return false;
+    }
     strncpy(s_ctx->board.board_id, buf->board_id, sizeof(s_ctx->board.board_id) - 1);
     s_ctx->board.led_count = buf->led_count;
     s_ctx->board.strip_count = buf->strip_sizes_count;
@@ -203,8 +210,18 @@ static bool fetch_script(void)
     }
 
     char *src = strdup(script_buf->lua_source);
+    if (!src) {
+        DLOG_E(TAG, "OOM: strdup lua_source");
+        free(script_buf);
+        return false;
+    }
 
-    xSemaphoreTake(s_ctx->mutex, portMAX_DELAY);
+    if (xSemaphoreTake(s_ctx->mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        DLOG_E(TAG, "Mutex timeout (script copy)");
+        free(src);
+        free(script_buf);
+        return false;
+    }
     strncpy(s_ctx->cached_script_hash, script_buf->hash, PB_HASH_LEN - 1);
     free(s_ctx->lua_source);
     s_ctx->lua_source = src;
@@ -229,7 +246,7 @@ static void state_task(void *arg)
 
     while (1) {
         if (ctx->ota_active) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
+            vTaskDelay(pdMS_TO_TICKS(POLL_INTERVAL_MS));
             continue;
         }
 
@@ -241,16 +258,31 @@ static void state_task(void *arg)
             }
         }
 
-        bool state_ok = fetch_state(ctx, board_fetched, script_fetched);
+        bool state_ok = false;
+        for (int attempt = 0; attempt < HTTP_MAX_RETRIES; attempt++) {
+            state_ok = fetch_state(ctx, board_fetched, script_fetched);
+            if (state_ok) break;
+            if (attempt < HTTP_MAX_RETRIES - 1) {
+                int backoff_ms = (1 << attempt) * 1000;
+                DLOG_W(TAG, "State fetch failed, retry in %dms (%d/%d)",
+                         backoff_ms, attempt + 1, HTTP_MAX_RETRIES);
+                vTaskDelay(pdMS_TO_TICKS(backoff_ms));
+            }
+        }
         s_last_state_ok = state_ok;
 
         if (state_ok) {
-            xSemaphoreTake(ctx->mutex, portMAX_DELAY);
-            bool board_changed = !board_fetched ||
-                                 strcmp(ctx->board_hash, ctx->cached_board_hash) != 0;
-            bool script_changed = !script_fetched ||
-                                  strcmp(ctx->script_hash, ctx->cached_script_hash) != 0;
-            xSemaphoreGive(ctx->mutex);
+            bool board_changed = false;
+            bool script_changed = false;
+            if (xSemaphoreTake(ctx->mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                board_changed = !board_fetched ||
+                                strcmp(ctx->board_hash, ctx->cached_board_hash) != 0;
+                script_changed = !script_fetched ||
+                                 strcmp(ctx->script_hash, ctx->cached_script_hash) != 0;
+                xSemaphoreGive(ctx->mutex);
+            } else {
+                DLOG_W(TAG, "Mutex timeout (hash check)");
+            }
 
             if (board_changed) {
                 DLOG_W(TAG, "Fetching board... heap=%lu", (unsigned long)esp_get_free_heap_size());

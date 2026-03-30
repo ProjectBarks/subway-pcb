@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite build && vite build --watch",
+    "dev": "vite build --watch",
     "build": "tsc --noEmit && vite build",
     "lint": "biome check",
     "lint:fix": "biome check --fix",

@@ -99,7 +99,10 @@ func (s *Server) buildBoardCards(ctx context.Context, user *model.User, boards [
 			if err != nil {
 				return err
 			}
-			configBytes, _ := json.Marshal(config)
+			configBytes, err := json.Marshal(config)
+			if err != nil {
+				log.Printf("api: config marshal error for %s: %v", d.MAC, err)
+			}
 			cards[i].ConfigJSON = string(configBytes)
 			return nil
 		})
@@ -157,7 +160,9 @@ func (s *Server) buildBoardData(ctx context.Context, user *model.User, device *m
 	// Config fields + values from the fetched plugin
 	var configFields []plugin.ConfigField
 	if dbPlugin != nil && len(dbPlugin.ConfigFields) > 0 {
-		json.Unmarshal(dbPlugin.ConfigFields, &configFields)
+		if err := json.Unmarshal(dbPlugin.ConfigFields, &configFields); err != nil {
+			log.Printf("api: config fields unmarshal error for plugin %s: %v", pluginName, err)
+		}
 	}
 	configGroups := plugin.GroupedFields(configFields)
 

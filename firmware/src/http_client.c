@@ -25,6 +25,9 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt)
         if (s_http_buf_len + evt->data_len <= HTTP_BUF_SIZE) {
             memcpy(s_http_buf + s_http_buf_len, evt->data, evt->data_len);
             s_http_buf_len += evt->data_len;
+        } else {
+            ESP_LOGW(TAG, "Response truncated: %d + %d > %d",
+                     s_http_buf_len, (int)evt->data_len, HTTP_BUF_SIZE);
         }
         break;
     default:

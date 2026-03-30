@@ -5,6 +5,7 @@ void render_context_init(render_context_t *ctx)
 {
     memset(ctx, 0, sizeof(render_context_t));
     ctx->mutex = xSemaphoreCreateMutex();
+    configASSERT(ctx->mutex != NULL);
 }
 
 void render_context_build_station_leds(render_context_t *ctx)

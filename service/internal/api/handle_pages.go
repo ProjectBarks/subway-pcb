@@ -53,10 +53,16 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleBoardListPartial(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 	var boards []model.Device
+	var err error
 	if user.IsAdmin() {
-		boards, _ = s.store.ListDevices()
+		boards, err = s.store.ListDevices()
 	} else {
-		boards, _ = s.store.ListDevicesByUser(user.Email)
+		boards, err = s.store.ListDevicesByUser(user.Email)
+	}
+	if err != nil {
+		log.Printf("api: board list partial error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 
 	cards, err := s.buildBoardCards(r.Context(), user, boards)

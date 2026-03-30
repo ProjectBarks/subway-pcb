@@ -18,6 +18,15 @@
 /* Polling interval in milliseconds */
 #define POLL_INTERVAL_MS 1000
 
+/* Render loop interval in milliseconds (~33fps) */
+#define RENDER_INTERVAL_MS 30
+
+/* Mutex acquire timeout in milliseconds */
+#define MUTEX_TIMEOUT_MS 500
+
+/* HTTP request retry limit */
+#define HTTP_MAX_RETRIES 3
+
 /* Default LED brightness (0-255) */
 #define DEFAULT_BRIGHTNESS 10
 

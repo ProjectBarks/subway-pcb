@@ -82,6 +82,20 @@ static esp_err_t refresh_strip_spi(int strip_idx)
     return ret;
 }
 
+bool led_driver_map_pixel(uint32_t global_index, uint8_t *out_strip, uint16_t *out_pixel)
+{
+    if (!s_hw) return false;
+    for (uint8_t i = 0; i < s_hw->num_strips; i++) {
+        uint16_t offset = s_strip_offsets[i];
+        if (global_index >= offset && global_index < offset + s_hw->strip_led_counts[i]) {
+            *out_strip = i;
+            *out_pixel = (uint16_t)(global_index - offset);
+            return true;
+        }
+    }
+    return false;
+}
+
 esp_err_t led_driver_refresh(void)
 {
     if (!s_hw) return ESP_ERR_INVALID_STATE;
@@ -90,6 +104,7 @@ esp_err_t led_driver_refresh(void)
     for (int i = 0; i < s_hw->num_strips; i++) {
         esp_err_t ret = refresh_strip_spi(i);
         if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "Strip %d SPI refresh failed: %s", i, esp_err_to_name(ret));
             fail++;
         } else {
             ok++;

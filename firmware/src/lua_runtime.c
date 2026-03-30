@@ -473,18 +473,22 @@ static void render_task(void *arg)
     while (1) {
 
         /* Check for script changes */
-        xSemaphoreTake(ctx->mutex, portMAX_DELAY);
-        bool need_reload = ctx->script_changed;
-        if (need_reload) {
-            ctx->script_changed = false;
+        bool need_reload = false;
+        if (xSemaphoreTake(ctx->mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+            need_reload = ctx->script_changed;
+            if (need_reload) {
+                ctx->script_changed = false;
+            }
+            xSemaphoreGive(ctx->mutex);
         }
-        xSemaphoreGive(ctx->mutex);
 
         if (need_reload) {
-            xSemaphoreTake(ctx->mutex, portMAX_DELAY);
-            char *new_source = ctx->lua_source;
-            ctx->lua_source = NULL;
-            xSemaphoreGive(ctx->mutex);
+            char *new_source = NULL;
+            if (xSemaphoreTake(ctx->mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                new_source = ctx->lua_source;
+                ctx->lua_source = NULL;
+                xSemaphoreGive(ctx->mutex);
+            }
 
             if (new_source && new_source[0]) {
                 /* Destroy old VM and create fresh one — prevents memory
@@ -518,7 +522,10 @@ static void render_task(void *arg)
         }
 
         /* Snapshot shared data under mutex each frame */
-        xSemaphoreTake(ctx->mutex, portMAX_DELAY);
+        if (xSemaphoreTake(ctx->mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+            vTaskDelay(pdMS_TO_TICKS(RENDER_INTERVAL_MS));
+            continue;
+        }
         memcpy(s_snap_stations, ctx->stations, sizeof(subway_Station) * ctx->station_count);
         s_snap_station_count = ctx->station_count;
         memcpy(s_snap_config, ctx->config, sizeof(subway_DeviceState_ConfigEntry) * ctx->config_count);
@@ -571,22 +578,12 @@ static void render_task(void *arg)
             }
         }
 
-        /* Push pixels to LED driver (using frame-level strip snapshot) */
+        /* Push pixels to LED driver */
         uint32_t pushed = 0;
         for (uint32_t i = 0; i < s_led_count && i < MAX_LEDS; i++) {
-            uint32_t strip, pixel;
-            uint32_t offset = 0;
-            bool found = false;
-            for (uint8_t si = 0; si < s_snap_strip_count; si++) {
-                if (i < offset + s_snap_strip_sizes[si]) {
-                    strip = si;
-                    pixel = i - offset;
-                    found = true;
-                    break;
-                }
-                offset += s_snap_strip_sizes[si];
-            }
-            if (found) {
+            uint8_t strip;
+            uint16_t pixel;
+            if (led_driver_map_pixel(i, &strip, &pixel)) {
                 led_driver_set_pixel(strip, pixel,
                                      s_pixels[i * 3], s_pixels[i * 3 + 1], s_pixels[i * 3 + 2]);
                 pushed++;
@@ -598,15 +595,18 @@ static void render_task(void *arg)
             led_driver_refresh();
         }
 
-        /* Write render diagnostics to shared context (read by state_client) */
-        s_ctx->diag.nonzero_pixels = nonzero_pixels;
-        s_ctx->diag.pushed_pixels = pushed;
-        s_ctx->diag.lua_errors = consecutive_failures;
-        s_ctx->diag.lua_mem = (uint32_t)s_lua_mem_used;
-        s_ctx->diag.first_lit_led = first_lit;
+        /* Write render diagnostics under mutex (read by state_client) */
+        if (xSemaphoreTake(ctx->mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+            s_ctx->diag.nonzero_pixels = nonzero_pixels;
+            s_ctx->diag.pushed_pixels = pushed;
+            s_ctx->diag.lua_errors = consecutive_failures;
+            s_ctx->diag.lua_mem = (uint32_t)s_lua_mem_used;
+            s_ctx->diag.first_lit_led = first_lit;
+            xSemaphoreGive(ctx->mutex);
+        }
 
         /* Sleep for render interval (~30ms = ~33fps) */
-        vTaskDelay(pdMS_TO_TICKS(30));
+        vTaskDelay(pdMS_TO_TICKS(RENDER_INTERVAL_MS));
     }
 
     lua_close(L);

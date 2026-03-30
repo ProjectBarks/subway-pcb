@@ -1,5 +1,6 @@
 PIO  := $(shell which pio 2>/dev/null || echo "$(HOME)/.platformio/penv/bin/pio")
 PORT := $(shell ls /dev/cu.usbserial-* 2>/dev/null | head -1)
+BOARDS_DIR := public/boards
 
 .DEFAULT_GOAL := help
 
@@ -34,7 +35,7 @@ backend/build: backend/generate        ## Build the Go backend binary
 
 backend/start: backend/build           ## Build and start backend → http://localhost:8080
 	@pkill -9 -f subway-server 2>/dev/null; sleep 1
-	cd service && ./subway-server --port 8080 --boards-dir public/boards --data-dir data --static-dir static &
+	cd service && ./subway-server --port 8080 --boards-dir $(BOARDS_DIR) --data-dir data --static-dir static &
 	@echo "→ http://localhost:8080/"
 
 backend/dev: backend/generate          ## Start backend with auto-reload on file changes
@@ -58,6 +59,18 @@ firmware/erase:                        ## Erase entire ESP32 flash
 
 firmware/clean:                        ## Delete build artifacts
 	rm -rf firmware/.pio/build
+
+# ─── Proto ───────────────────────────────────────────────
+
+.PHONY: proto/generate
+
+proto/generate:                        ## Regenerate protobuf code (Go + nanopb)
+	protoc -I proto --go_out=service/gen \
+		--go_opt=module=github.com/ProjectBarks/subway-pcb/service \
+		proto/subway.proto
+	protoc -I proto --nanopb_out=firmware/proto \
+		--nanopb_opt=-f proto/subway.options \
+		proto/subway.proto
 
 # ─── Firmware (debug) ────────────────────────────────────
 
@@ -87,7 +100,7 @@ tools/viewer:                          ## Start standalone board viewer → http
 .PHONY: e2e/install e2e/test e2e/test-headed
 
 e2e/install:                              ## Install E2E test deps + Chromium browser
-	cd service && npm install
+	cd service && npm ci
 	cd service && npx playwright install chromium --with-deps
 
 E2E_PORT ?= 9199
@@ -95,14 +108,14 @@ E2E_PORT ?= 9199
 e2e/test: frontend/build backend/build   ## Run E2E tests (headless)
 	@mkdir -p service/e2e/screenshots service/e2e/reports
 	@E2E_DATA=$$(mktemp -d); \
-	service/subway-server --port $(E2E_PORT) --boards-dir service/public/boards --data-dir "$$E2E_DATA" --static-dir service/static --dev >>"$$E2E_DATA/server.log" 2>&1 & SERVER_PID=$$!; \
+	service/subway-server --port $(E2E_PORT) --boards-dir service/$(BOARDS_DIR) --data-dir "$$E2E_DATA" --static-dir service/static --dev >>"$$E2E_DATA/server.log" 2>&1 & SERVER_PID=$$!; \
 	trap 'kill $$SERVER_PID 2>/dev/null; rm -rf "$$E2E_DATA"' EXIT; \
 	cd service && BASE_URL=http://localhost:$(E2E_PORT) ./node_modules/.bin/cucumber-js --config e2e/cucumber.mjs
 
 e2e/test-headed: frontend/build backend/build  ## Run E2E tests (visible browser)
 	@mkdir -p service/e2e/screenshots service/e2e/reports
 	@E2E_DATA=$$(mktemp -d); \
-	service/subway-server --port $(E2E_PORT) --boards-dir service/public/boards --data-dir "$$E2E_DATA" --static-dir service/static --dev >>"$$E2E_DATA/server.log" 2>&1 & SERVER_PID=$$!; \
+	service/subway-server --port $(E2E_PORT) --boards-dir service/$(BOARDS_DIR) --data-dir "$$E2E_DATA" --static-dir service/static --dev >>"$$E2E_DATA/server.log" 2>&1 & SERVER_PID=$$!; \
 	trap 'kill $$SERVER_PID 2>/dev/null; rm -rf "$$E2E_DATA"' EXIT; \
 	cd service && BASE_URL=http://localhost:$(E2E_PORT) HEADED=true ./node_modules/.bin/cucumber-js --config e2e/cucumber.mjs
 

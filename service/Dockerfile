@@ -10,7 +10,7 @@ COPY service/go.mod service/go.sum ./
 RUN go mod download
 
 # Install templ
-RUN go install github.com/a-h/templ/cmd/templ@latest
+RUN go install github.com/a-h/templ/cmd/templ@v0.3.1001
 
 # Copy backend source
 COPY service/cmd/ ./cmd/
@@ -32,7 +32,7 @@ RUN npm ci
 COPY service/ui/ ./ui/
 COPY service/public/ ./public/
 COPY service/vite.config.ts service/tsconfig.json service/biome.json ./
-RUN npm run build -- --outDir /frontend-dist
+RUN npm run build
 
 # Run stage
 FROM alpine:latest
@@ -42,7 +42,7 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 
 COPY --from=builder /subway-server /app/subway-server
-COPY --from=frontend /frontend-dist/ /app/static/dist/
+COPY --from=frontend /app/static/dist/ /app/static/dist/
 
 RUN mkdir -p /app/data
 

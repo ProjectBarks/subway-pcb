@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 )
@@ -52,13 +53,15 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(JSONStateResp{
+	if err := json.NewEncoder(w).Encode(JSONStateResp{
 		Timestamp: ts,
 		Stations:  stationList,
-	})
+	}); err != nil {
+		log.Printf("api: state encode error: %v", err)
+	}
 }
 
-type HeathResponse struct {
+type HealthResponse struct {
 	Status        string  `json:"status"`
 	Uptime        string  `json:"uptime"`
 	UptimeSeconds float64 `json:"uptime_seconds"`
@@ -82,11 +85,13 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(HeathResponse{
+	if err := json.NewEncoder(w).Encode(HealthResponse{
 		Status:        "ok",
 		Uptime:        uptime.Round(time.Second).String(),
 		UptimeSeconds: uptime.Seconds(),
 		LastUpdate:    lastUpdateStr,
 		StationCount:  s.aggregator.StationCount(),
-	})
+	}); err != nil {
+		log.Printf("api: health encode error: %v", err)
+	}
 }
