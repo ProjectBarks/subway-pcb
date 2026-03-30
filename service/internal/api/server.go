@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -87,7 +89,7 @@ func (s *Server) buildRouter() {
 		// Serve frontend static assets (JS/CSS bundles) when static-dir is set
 		if s.staticDir != "" {
 			fileServer := http.FileServer(http.Dir(s.staticDir))
-			r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
+			r.Handle("/static/*", http.StripPrefix("/static/", hashedAssetCache(fileServer)))
 		}
 
 		// Authenticated routes
@@ -146,6 +148,18 @@ func (s *Server) buildRouter() {
 // Handler returns the http.Handler for this server.
 func (s *Server) Handler() http.Handler {
 	return s.router
+}
+
+// hashedAssetCache sets immutable cache headers on content-hashed files
+// (filenames matching *-<hash>.js or *-<hash>.css).
+func hashedAssetCache(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		if ext := filepath.Ext(p); (ext == ".js" || ext == ".css") && strings.Count(filepath.Base(p), "-") > 0 {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // --- Helpers ---

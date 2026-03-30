@@ -27,9 +27,9 @@ templ Base(title string, user *model.User, activePath string) {
 		<link rel="preconnect" href="https://fonts.googleapis.com"/>
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-		<link rel="stylesheet" href={ "/static/dist/main.css?v=" + AssetVersion }/>
+		<link rel="stylesheet" href={ Asset("main.css") }/>
 		<script src="https://unpkg.com/htmx.org@2.0.4"></script>
-		<script type="module" src={ "/static/dist/app-shell.js?v=" + AssetVersion }></script>
+		<script type="module" src={ Asset("app-shell.js") }></script>
 	</head>
 	<body class="min-h-screen bg-bg-primary text-text-primary">
 		@nav.Nav(user, activePath)

@@ -27,6 +27,7 @@ export default defineConfig({
   build: {
     outDir: resolve(__dirname, "static/dist"),
     emptyOutDir: true,
+    manifest: true,
     // In watch mode, ignore Go-generated files to prevent rebuild loops with air
     watch: isWatch ? {
       chokidar: {
@@ -44,9 +45,9 @@ export default defineConfig({
         main: resolve(__dirname, "ui/components/layout/global.css"),
       },
       output: {
-        entryFileNames: "[name].js",
-        chunkFileNames: "[name].js",
-        assetFileNames: "[name].[ext]",
+        entryFileNames: isWatch ? "[name].js" : "[name]-[hash].js",
+        chunkFileNames: isWatch ? "[name].js" : "[name]-[hash].js",
+        assetFileNames: isWatch ? "[name].[ext]" : "[name]-[hash].[ext]",
         manualChunks: {
           three: ["three"],
           wasmoon: ["wasmoon"],

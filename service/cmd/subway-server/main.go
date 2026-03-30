@@ -11,7 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"path/filepath"
+
 	"github.com/ProjectBarks/subway-pcb/service/internal/api"
+	"github.com/ProjectBarks/subway-pcb/service/internal/manifest"
 	"github.com/ProjectBarks/subway-pcb/service/internal/middleware"
 	"github.com/ProjectBarks/subway-pcb/service/internal/mta"
 	"github.com/ProjectBarks/subway-pcb/service/internal/plugin"
@@ -55,6 +58,13 @@ func main() {
 	// Seed built-in plugins and their presets into the store
 	if err := seedBuiltinPlugins(db, pluginRegistry); err != nil {
 		log.Fatalf("Failed to seed built-in plugins: %v", err)
+	}
+
+	// Load Vite asset manifest for content-hashed filenames
+	if *staticDir != "" {
+		if err := manifest.Load(filepath.Join(*staticDir, "dist")); err != nil {
+			log.Printf("manifest: %v (using unhashed paths)", err)
+		}
 	}
 
 	// Load all versioned board definitions

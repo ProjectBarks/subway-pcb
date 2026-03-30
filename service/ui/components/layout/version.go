@@ -1,10 +1,9 @@
 package layout
 
-import (
-	"fmt"
-	"time"
-)
+import "github.com/ProjectBarks/subway-pcb/service/internal/manifest"
 
-// AssetVersion is a cache-busting string appended to static asset URLs.
-// It changes on every server restart, forcing CDNs to fetch fresh files.
-var AssetVersion = fmt.Sprintf("%x", time.Now().Unix())
+// Asset resolves a base asset name (e.g. "main.css") to its full
+// content-hashed path (e.g. "/static/dist/main-abc123.css").
+func Asset(name string) string {
+	return manifest.Asset(name)
+}
