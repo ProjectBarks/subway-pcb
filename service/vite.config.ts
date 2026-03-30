@@ -49,6 +49,7 @@ export default defineConfig({
         chunkFileNames: isWatch ? "[name].js" : "[name]-[hash].js",
         assetFileNames: isWatch ? "[name].[ext]" : "[name]-[hash].[ext]",
         manualChunks: {
+          htmx: ["htmx.org"],
           three: ["three"],
           wasmoon: ["wasmoon"],
         },

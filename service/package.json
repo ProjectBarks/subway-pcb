@@ -12,6 +12,7 @@
   "dependencies": {
     "@animxyz/core": "^0.6.6",
     "basecoat-css": "^0.3.11",
+    "htmx.org": "^2.0.4",
     "preact": "^10.0.0",
     "preact-render-to-string": "^6.0.0",
     "prismjs": "^1.30.0",
