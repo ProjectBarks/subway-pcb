@@ -5,6 +5,7 @@
     "dockerfilePath": "service/Dockerfile"
   },
   "deploy": {
+    "startCommand": "/app/subway-server --port 8080 --boards-dir static/dist/boards --data-dir data --static-dir static",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }

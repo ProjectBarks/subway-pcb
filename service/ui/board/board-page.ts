@@ -22,6 +22,17 @@ window.updatePreviewColor = updatePreviewColor;
 window.collectRouteColorsToForm = collectRouteColorsToForm;
 window.collectConfigToPresetForm = collectConfigToPresetForm;
 
+// Sync color swatch divs when their hidden color inputs change
+document.addEventListener("input", (e) => {
+	const el = e.target;
+	if (el instanceof HTMLInputElement && el.type === "color" && el.name) {
+		const swatch = document.querySelector(
+			`[data-swatch="${el.name}"]`,
+		) as HTMLElement | null;
+		if (swatch) swatch.style.backgroundColor = el.value;
+	}
+});
+
 // Initialize WebSerial for board settings
 const boardSerial = new BoardSerial();
 window.boardSerial = boardSerial;
