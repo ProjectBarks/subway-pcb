@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -19,10 +20,23 @@ import (
 )
 
 // handleDeviceState serves the realtime DeviceState protobuf.
-// GET /api/v1/device-state
+// POST /api/v1/device-state — request body is DeviceDiagnostics, response is DeviceState.
 func (s *Server) handleDeviceState(w http.ResponseWriter, r *http.Request) {
 	mac := r.Header.Get(middleware.HeaderDeviceID)
 	hardware := r.Header.Get(middleware.HeaderHardware)
+
+	// Parse diagnostics from POST body
+	if r.Body != nil {
+		body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
+		if err == nil && len(body) > 0 {
+			var diag pb.DeviceDiagnostics
+			if err := proto.Unmarshal(body, &diag); err == nil {
+				s.processDiagnostics(mac, &diag)
+			} else {
+				log.Printf("api: diag decode error from %s: %v", mac, err)
+			}
+		}
+	}
 
 	// Resolve board
 	boardKey := BoardModelKey(hardware)
@@ -239,6 +253,50 @@ func (s *Server) buildDeviceConfig(ctx context.Context, mac, pluginName string) 
 	}
 
 	return config, nil
+}
+
+// processDiagnostics stores and logs device diagnostics.
+func (s *Server) processDiagnostics(mac string, diag *pb.DeviceDiagnostics) {
+	record := &model.DeviceDiagnostic{
+		DeviceID:   mac,
+		Error:      diag.Error,
+		Logs:       diag.Logs,
+		ReportedAt: time.Now(),
+	}
+	if sys := diag.System; sys != nil {
+		record.ResetReason = sys.ResetReason
+		record.FreeHeap = sys.FreeHeap
+		record.LargestBlock = sys.LargestBlock
+	}
+	if f := diag.Fetch; f != nil {
+		record.StateOk = f.StateOk
+		record.BoardFetched = f.BoardFetched
+		record.ScriptFetched = f.ScriptFetched
+		record.ScriptHashMatch = f.ScriptHashMatch
+	}
+	if lua := diag.Lua; lua != nil {
+		record.LuaErrors = lua.Errors
+		record.LuaMem = lua.Mem
+		record.LastReload = lua.LastReload
+	}
+	if r := diag.Render; r != nil {
+		record.NonzeroPixels = r.NonzeroPixels
+		record.FirstLitLed = r.FirstLitLed
+	}
+
+	if err := s.store.SaveDiagnostic(record); err != nil {
+		log.Printf("api: save diagnostic error: %v", err)
+	}
+
+	// Structured log for observability
+	luaErrs := int32(0)
+	if diag.Lua != nil {
+		luaErrs = diag.Lua.Errors
+	}
+	if diag.Error != "" || luaErrs > 0 {
+		log.Printf("diag[%s]: heap=%d lua_mem=%d lua_err=%d reload=%d err=%s",
+			mac, record.FreeHeap, record.LuaMem, luaErrs, record.LastReload, diag.Error)
+	}
 }
 
 // sha256Hex returns the hex-encoded SHA256 of a string.

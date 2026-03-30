@@ -72,7 +72,7 @@ func (s *Server) buildRouter() {
 		}
 		r.Use(middleware.DeviceAutoRegister(s.store, boardDefaults))
 
-		r.Get("/api/v1/device-state", s.handleDeviceState)
+		r.Post("/api/v1/device-state", s.handleDeviceState)
 		r.Get("/api/v1/device-board", s.handleDeviceBoard)
 		r.Get("/api/v1/device-script", s.handleDeviceScript)
 	})

@@ -1,42 +1,44 @@
 #include "led_driver.h"
-#include "config.h"
+#include "render_context.h"
+#include "device_log.h"
 #include "esp_log.h"
 #include "led_strip.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include <string.h>
 
 static const char *TAG = "led_driver";
 
-static led_strip_handle_t s_strips[NUM_STRIPS];
+static render_context_t *s_ctx = NULL;
+static const board_hw_config_t *s_hw = NULL;
 
 /* Time-multiplexed SPI: create SPI device for one strip, send data, destroy it,
- * move to next strip. Uses DMA so each transfer is WiFi-immune.
- * We only update ~1/second so the sequential overhead is negligible. */
+ * move to next strip. Uses DMA so each transfer is WiFi-immune. */
 
-/* Pixel buffer — store all pixel data so we can re-send via SPI on refresh */
-static uint8_t s_pixel_buf[TOTAL_LEDS * 3];
-static uint16_t s_strip_offsets[NUM_STRIPS];
+/* Pixel buffer — sized to compile-time ceiling */
+static uint8_t s_pixel_buf[MAX_LEDS * 3];
+static uint16_t s_strip_offsets[MAX_STRIPS];
 
-esp_err_t led_driver_init(void)
+esp_err_t led_driver_init(render_context_t *ctx, const board_hw_config_t *hw)
 {
+    s_ctx = ctx;
+    s_hw = hw;
+
     /* Compute strip offsets into flat pixel buffer */
     uint16_t offset = 0;
-    for (int i = 0; i < NUM_STRIPS; i++) {
+    for (int i = 0; i < hw->num_strips; i++) {
         s_strip_offsets[i] = offset;
-        offset += STRIP_LED_COUNTS[i];
+        offset += hw->strip_led_counts[i];
     }
 
     memset(s_pixel_buf, 0, sizeof(s_pixel_buf));
-    memset(s_strips, 0, sizeof(s_strips));
 
-    ESP_LOGI(TAG, "LED driver initialized (%d strips, %d LEDs, SPI time-multiplexed)", NUM_STRIPS, TOTAL_LEDS);
+    DLOG_I(TAG, "LED driver initialized (%d strips, %d LEDs, SPI time-multiplexed)",
+             hw->num_strips, hw->total_leds);
     return ESP_OK;
 }
 
 esp_err_t led_driver_set_pixel(uint8_t strip, uint16_t pixel, uint8_t r, uint8_t g, uint8_t b)
 {
-    if (strip >= NUM_STRIPS || pixel >= STRIP_LED_COUNTS[strip]) {
+    if (!s_hw || strip >= s_hw->num_strips || pixel >= s_hw->strip_led_counts[strip]) {
         return ESP_ERR_INVALID_ARG;
     }
     int idx = (s_strip_offsets[strip] + pixel) * 3;
@@ -51,8 +53,8 @@ esp_err_t led_driver_set_pixel(uint8_t strip, uint16_t pixel, uint8_t r, uint8_t
 static esp_err_t refresh_strip_spi(int strip_idx)
 {
     led_strip_config_t cfg = {
-        .strip_gpio_num = STRIP_GPIOS[strip_idx],
-        .max_leds = STRIP_LED_COUNTS[strip_idx],
+        .strip_gpio_num = s_hw->strip_gpios[strip_idx],
+        .max_leds = s_hw->strip_led_counts[strip_idx],
         .led_pixel_format = LED_PIXEL_FORMAT_GRB,
         .led_model = LED_MODEL_WS2812,
     };
@@ -67,7 +69,7 @@ static esp_err_t refresh_strip_spi(int strip_idx)
 
     /* Load pixel data */
     int offset = s_strip_offsets[strip_idx];
-    for (uint16_t p = 0; p < STRIP_LED_COUNTS[strip_idx]; p++) {
+    for (uint16_t p = 0; p < s_hw->strip_led_counts[strip_idx]; p++) {
         int idx = (offset + p) * 3;
         led_strip_set_pixel(handle, p, s_pixel_buf[idx], s_pixel_buf[idx+1], s_pixel_buf[idx+2]);
     }
@@ -80,14 +82,12 @@ static esp_err_t refresh_strip_spi(int strip_idx)
     return ret;
 }
 
-/* Last refresh results (read by lua_runtime for diagnostics) */
-int g_led_strip_ok = 0;
-int g_led_strip_fail = 0;
-
 esp_err_t led_driver_refresh(void)
 {
+    if (!s_hw) return ESP_ERR_INVALID_STATE;
+
     int ok = 0, fail = 0;
-    for (int i = 0; i < NUM_STRIPS; i++) {
+    for (int i = 0; i < s_hw->num_strips; i++) {
         esp_err_t ret = refresh_strip_spi(i);
         if (ret != ESP_OK) {
             fail++;
@@ -95,44 +95,16 @@ esp_err_t led_driver_refresh(void)
             ok++;
         }
     }
-    g_led_strip_ok = ok;
-    g_led_strip_fail = fail;
+    if (s_ctx) {
+        s_ctx->diag.strip_ok = ok;
+        s_ctx->diag.strip_fail = fail;
+    }
     return ESP_OK;
 }
 
-void led_driver_start_refresh_task(void) { /* unused */ }
-
 esp_err_t led_driver_clear(void)
 {
-    memset(s_pixel_buf, 0, sizeof(s_pixel_buf));
+    if (!s_hw) return ESP_ERR_INVALID_STATE;
+    memset(s_pixel_buf, 0, s_hw->total_leds * 3);
     return led_driver_refresh();
-}
-
-void led_driver_boot_animation(void)
-{
-    ESP_LOGI(TAG, "Playing boot animation");
-    const uint8_t brightness = DEFAULT_BRIGHTNESS;
-
-    /* Sweep a window of 5 lit pixels across each strip sequentially */
-    const int window = 5;
-    for (int i = 0; i < NUM_STRIPS; i++) {
-        uint16_t count = STRIP_LED_COUNTS[i];
-        for (uint16_t p = 0; p < count + window; p++) {
-            /* Light leading edge */
-            if (p < count) {
-                led_strip_set_pixel(s_strips[i], p, brightness, brightness, brightness);
-            }
-            /* Clear trailing edge */
-            if (p >= window && (p - window) < count) {
-                led_strip_set_pixel(s_strips[i], p - window, 0, 0, 0);
-            }
-            led_strip_refresh(s_strips[i]);
-            vTaskDelay(pdMS_TO_TICKS(8));
-        }
-        /* Ensure strip is fully cleared */
-        led_strip_clear(s_strips[i]);
-        led_strip_refresh(s_strips[i]);
-    }
-
-    ESP_LOGI(TAG, "Boot animation complete");
 }

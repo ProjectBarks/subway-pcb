@@ -1,5 +1,6 @@
 #include "lua_runtime.h"
 #include "led_driver.h"
+#include "device_log.h"
 #include "config.h"
 
 #include <string.h>
@@ -364,7 +365,7 @@ static int l_led_to_strip(lua_State *L)
 static int l_log(lua_State *L)
 {
     const char *msg = luaL_checkstring(L, 1);
-    ESP_LOGI(TAG, "Lua: %s", msg);
+    DLOG_I(TAG, "Lua: %s", msg);
     return 0;
 }
 
@@ -449,11 +450,11 @@ static void render_task(void *arg)
     render_context_t *ctx = (render_context_t *)arg;
     s_ctx = ctx;
 
-    ESP_LOGI(TAG, "Render task started");
+    DLOG_I(TAG, "Render task started");
 
     lua_State *L = create_lua_state();
     if (!L) {
-        ESP_LOGE(TAG, "Failed to create Lua state!");
+        DLOG_E(TAG, "Failed to create Lua state!");
         vTaskDelete(NULL);
         return;
     }
@@ -462,7 +463,7 @@ static void render_task(void *arg)
     int consecutive_failures = 0;
 
     if (luaL_dostring(L, FALLBACK_SCRIPT) != LUA_OK) {
-        ESP_LOGE(TAG, "Failed to load fallback: %s", lua_tostring(L, -1));
+        DLOG_E(TAG, "Failed to load fallback: %s", lua_tostring(L, -1));
         lua_pop(L, 1);
     } else {
         script_loaded = true;
@@ -494,15 +495,15 @@ static void render_task(void *arg)
                 if (L && luaL_dostring(L, new_source) == LUA_OK) {
                     script_loaded = true;
                     consecutive_failures = 0;
-                    s_ctx->diag_last_reload = 1;
-                    ESP_LOGI(TAG, "Loaded new script (%d bytes)", (int)strlen(new_source));
+                    s_ctx->diag.last_reload = 1;
+                    DLOG_I(TAG, "Loaded new script (%d bytes)", (int)strlen(new_source));
                 } else {
-                    s_ctx->diag_last_reload = -1;
+                    s_ctx->diag.last_reload = -1;
                     if (L) {
-                        ESP_LOGW(TAG, "Script load failed: %s", lua_tostring(L, -1));
+                        DLOG_W(TAG, "Script load failed: %s", lua_tostring(L, -1));
                         lua_pop(L, 1);
                     } else {
-                        ESP_LOGE(TAG, "Failed to recreate Lua state");
+                        DLOG_E(TAG, "Failed to recreate Lua state");
                         L = create_lua_state();
                     }
                     if (L) {
@@ -541,16 +542,16 @@ static void render_task(void *arg)
             lua_getglobal(L, "render");
             if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
                 const char *err = lua_tostring(L, -1);
-                ESP_LOGW(TAG, "Lua render error: %s", err ? err : "unknown");
+                DLOG_W(TAG, "Lua render error: %s", err ? err : "unknown");
                 /* Store error for remote diagnostics */
                 if (err) {
-                    strncpy(s_ctx->diag_last_lua_err, err, sizeof(s_ctx->diag_last_lua_err) - 1);
+                    strncpy(s_ctx->diag.last_lua_err, err, sizeof(s_ctx->diag.last_lua_err) - 1);
                 }
                 lua_pop(L, 1);
                 consecutive_failures++;
 
                 if (consecutive_failures >= MAX_CONSECUTIVE_FAILURES) {
-                    ESP_LOGW(TAG, "Too many failures, loading fallback script");
+                    DLOG_W(TAG, "Too many failures, loading fallback script");
                     if (luaL_dostring(L, FALLBACK_SCRIPT) == LUA_OK) {
                         consecutive_failures = 0;
                     }
@@ -593,20 +594,16 @@ static void render_task(void *arg)
         }
 
         /* Skip SPI refresh during HTTP — TLS + SPI DMA concurrent current draw causes brownout */
-        extern volatile bool g_http_active;
-        if (!g_http_active) {
+        if (!ctx->http_active) {
             led_driver_refresh();
         }
 
         /* Write render diagnostics to shared context (read by state_client) */
-        extern int g_led_strip_ok, g_led_strip_fail;
-        s_ctx->diag_nonzero_pixels = nonzero_pixels;
-        s_ctx->diag_pushed_pixels = pushed;
-        s_ctx->diag_lua_errors = consecutive_failures;
-        s_ctx->diag_strip_ok = g_led_strip_ok;
-        s_ctx->diag_strip_fail = g_led_strip_fail;
-        s_ctx->diag_lua_mem = (uint32_t)s_lua_mem_used;
-        s_ctx->diag_first_lit_led = first_lit;
+        s_ctx->diag.nonzero_pixels = nonzero_pixels;
+        s_ctx->diag.pushed_pixels = pushed;
+        s_ctx->diag.lua_errors = consecutive_failures;
+        s_ctx->diag.lua_mem = (uint32_t)s_lua_mem_used;
+        s_ctx->diag.first_lit_led = first_lit;
 
         /* Sleep for render interval (~30ms = ~33fps) */
         vTaskDelay(pdMS_TO_TICKS(30));

@@ -24,12 +24,25 @@ PB_BIND(subway_DeviceBoard, subway_DeviceBoard, 4)
 PB_BIND(subway_DeviceBoard_LedMapEntry, subway_DeviceBoard_LedMapEntry, AUTO)
 
 
+PB_BIND(subway_DeviceDiagnostics, subway_DeviceDiagnostics, 2)
+
+
+PB_BIND(subway_DeviceDiagnostics_System, subway_DeviceDiagnostics_System, AUTO)
+
+
+PB_BIND(subway_DeviceDiagnostics_Fetch, subway_DeviceDiagnostics_Fetch, AUTO)
+
+
+PB_BIND(subway_DeviceDiagnostics_Lua, subway_DeviceDiagnostics_Lua, AUTO)
+
+
+PB_BIND(subway_DeviceDiagnostics_Render, subway_DeviceDiagnostics_Render, AUTO)
+
+
 PB_BIND(subway_DeviceScript, subway_DeviceScript, 4)
 
 
 PB_BIND(subway_DeviceScript_ConfigEntry, subway_DeviceScript_ConfigEntry, AUTO)
-
-
 
 
 

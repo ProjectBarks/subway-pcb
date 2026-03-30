@@ -3,17 +3,16 @@
 
 #include <stdint.h>
 #include "esp_err.h"
+#include "board_config.h"
+
+/* Forward declaration — avoid circular include */
+struct render_context;
 
 /**
- * Initialize strip 0 only (for status indicator during boot).
+ * Initialize LED driver with board hardware config.
+ * Stores ctx pointer for writing diagnostics (strip_ok/strip_fail).
  */
-esp_err_t led_driver_init(void);
-
-/**
- * Initialize remaining strips 1-7 (call after WiFi is connected).
- * Strip 8 (SPI) is skipped.
- */
-esp_err_t led_driver_init_remaining(void);
+esp_err_t led_driver_init(struct render_context *ctx, const board_hw_config_t *hw);
 
 /**
  * Set a single pixel on the given strip.
@@ -31,11 +30,5 @@ esp_err_t led_driver_refresh(void);
  * Calls refresh internally.
  */
 esp_err_t led_driver_clear(void);
-
-/**
- * Start a background task that refreshes all strips every 50ms.
- * Fixes WS2812B signal corruption (cyan glitch) by re-pushing data continuously.
- */
-void led_driver_start_refresh_task(void);
 
 #endif /* LED_DRIVER_H */

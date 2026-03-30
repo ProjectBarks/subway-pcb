@@ -414,7 +414,8 @@ def import_components(scene, glb_path, board_bounds):
         return
 
     print(f"Importing components from {glb_path}...")
-    src: trimesh.Scene = trimesh.load(glb_path)
+    src = trimesh.load(glb_path)
+    assert isinstance(src, trimesh.Scene)
 
     bmin_x, bmin_y, bmax_x, bmax_y = board_bounds
     board_cx = (bmin_x + bmax_x) / 2

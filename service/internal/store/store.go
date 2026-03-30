@@ -47,6 +47,10 @@ type Store interface {
 	ListInstalledPlugins(userEmail string) ([]model.Plugin, error)
 	IsPluginInstalled(userEmail, pluginID string) (bool, error)
 
+	// Diagnostics
+	SaveDiagnostic(d *model.DeviceDiagnostic) error
+	GetLatestDiagnostic(deviceID string) (*model.DeviceDiagnostic, error)
+
 	// Lifecycle
 	Close() error
 }

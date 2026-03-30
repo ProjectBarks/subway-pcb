@@ -75,6 +75,28 @@ type UserPlugin struct {
 	InstalledAt time.Time `gorm:"column:installed_at;autoCreateTime"`
 }
 
+type Diagnostic struct {
+	ID              uint      `gorm:"column:id;primaryKey;autoIncrement"`
+	DeviceID        string    `gorm:"column:device_id;size:17;index"`
+	ResetReason     int32     `gorm:"column:reset_reason"`
+	StateOk         bool      `gorm:"column:state_ok"`
+	BoardFetched    bool      `gorm:"column:board_fetched"`
+	ScriptFetched   bool      `gorm:"column:script_fetched"`
+	ScriptHashMatch bool      `gorm:"column:script_hash_match"`
+	NonzeroPixels   uint32    `gorm:"column:nonzero_pixels"`
+	LuaErrors       int32     `gorm:"column:lua_errors"`
+	LuaMem          uint32    `gorm:"column:lua_mem"`
+	FreeHeap        uint32    `gorm:"column:free_heap"`
+	LargestBlock    uint32    `gorm:"column:largest_block"`
+	LastReload      int32     `gorm:"column:last_reload"`
+	FirstLitLed     uint32    `gorm:"column:first_lit_led"`
+	Error           string    `gorm:"column:error;size:255"`
+	Logs            string    `gorm:"column:logs;type:text"`
+	ReportedAt      time.Time `gorm:"column:reported_at;index"`
+}
+
+func (Diagnostic) TableName() string { return "device_diagnostics" }
+
 // ---------- MySQLStore ----------
 
 // MySQLStore implements store.Store backed by MySQL via GORM.
@@ -90,7 +112,7 @@ func New(dsn string) (*MySQLStore, error) {
 		return nil, err
 	}
 
-	if err := db.AutoMigrate(&Device{}, &DeviceAccess{}, &Preset{}, &User{}, &Plugin{}, &UserPlugin{}); err != nil {
+	if err := db.AutoMigrate(&Device{}, &DeviceAccess{}, &Preset{}, &User{}, &Plugin{}, &UserPlugin{}, &Diagnostic{}); err != nil {
 		return nil, err
 	}
 
@@ -357,6 +379,25 @@ func (s *MySQLStore) IsPluginInstalled(userEmail, pluginID string) (bool, error)
 	return count > 0, nil
 }
 
+// ---------- Diagnostics ----------
+
+func (s *MySQLStore) SaveDiagnostic(d *model.DeviceDiagnostic) error {
+	row := fromModelDiagnostic(d)
+	return s.db.Create(&row).Error
+}
+
+func (s *MySQLStore) GetLatestDiagnostic(deviceID string) (*model.DeviceDiagnostic, error) {
+	var row Diagnostic
+	if err := s.db.Where("device_id = ?", deviceID).Order("reported_at DESC").First(&row).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	out := toModelDiagnostic(&row)
+	return &out, nil
+}
+
 // ---------- Lifecycle ----------
 
 func (s *MySQLStore) Close() error {
@@ -564,5 +605,47 @@ func fromModelPlugin(p *model.Plugin) Plugin {
 		IsPublished:      p.IsPublished,
 		CreatedAt:        p.CreatedAt,
 		UpdatedAt:        p.UpdatedAt,
+	}
+}
+
+func toModelDiagnostic(d *Diagnostic) model.DeviceDiagnostic {
+	return model.DeviceDiagnostic{
+		DeviceID:        d.DeviceID,
+		ResetReason:     d.ResetReason,
+		StateOk:         d.StateOk,
+		BoardFetched:    d.BoardFetched,
+		ScriptFetched:   d.ScriptFetched,
+		ScriptHashMatch: d.ScriptHashMatch,
+		NonzeroPixels:   d.NonzeroPixels,
+		LuaErrors:       d.LuaErrors,
+		LuaMem:          d.LuaMem,
+		FreeHeap:        d.FreeHeap,
+		LargestBlock:    d.LargestBlock,
+		LastReload:      d.LastReload,
+		FirstLitLed:     d.FirstLitLed,
+		Error:           d.Error,
+		Logs:            d.Logs,
+		ReportedAt:      d.ReportedAt,
+	}
+}
+
+func fromModelDiagnostic(d *model.DeviceDiagnostic) Diagnostic {
+	return Diagnostic{
+		DeviceID:        d.DeviceID,
+		ResetReason:     d.ResetReason,
+		StateOk:         d.StateOk,
+		BoardFetched:    d.BoardFetched,
+		ScriptFetched:   d.ScriptFetched,
+		ScriptHashMatch: d.ScriptHashMatch,
+		NonzeroPixels:   d.NonzeroPixels,
+		LuaErrors:       d.LuaErrors,
+		LuaMem:          d.LuaMem,
+		FreeHeap:        d.FreeHeap,
+		LargestBlock:    d.LargestBlock,
+		LastReload:      d.LastReload,
+		FirstLitLed:     d.FirstLitLed,
+		Error:           d.Error,
+		Logs:            d.Logs,
+		ReportedAt:      d.ReportedAt,
 	}
 }

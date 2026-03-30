@@ -18,6 +18,10 @@ subway.DeviceBoard.strip_sizes             max_count:16
 subway.DeviceBoard.led_map                 max_count:500
 subway.DeviceBoard.LedMapEntry.value       max_size:8
 
+# DeviceDiagnostics (sent as POST body)
+subway.DeviceDiagnostics.error                     max_size:128
+subway.DeviceDiagnostics.logs                      max_size:2048
+
 # DeviceScript (large, rare)
 subway.DeviceScript.hash                   max_size:65
 subway.DeviceScript.lua_source             max_size:16384

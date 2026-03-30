@@ -70,6 +70,26 @@ type Plugin struct {
 	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
+// DeviceDiagnostic stores a diagnostic report from a device.
+type DeviceDiagnostic struct {
+	DeviceID        string    `json:"device_id"`
+	ResetReason     int32     `json:"reset_reason"`
+	StateOk         bool      `json:"state_ok"`
+	BoardFetched    bool      `json:"board_fetched"`
+	ScriptFetched   bool      `json:"script_fetched"`
+	ScriptHashMatch bool      `json:"script_hash_match"`
+	NonzeroPixels   uint32    `json:"nonzero_pixels"`
+	LuaErrors       int32     `json:"lua_errors"`
+	LuaMem          uint32    `json:"lua_mem"`
+	FreeHeap        uint32    `json:"free_heap"`
+	LargestBlock    uint32    `json:"largest_block"`
+	LastReload      int32     `json:"last_reload"`
+	FirstLitLed     uint32    `json:"first_lit_led"`
+	Error           string    `json:"error,omitempty"`
+	Logs            string    `json:"logs,omitempty"`
+	ReportedAt      time.Time `json:"reported_at"`
+}
+
 // UserPlugin tracks which plugins a user has installed.
 type UserPlugin struct {
 	UserEmail   string    `json:"user_email"`

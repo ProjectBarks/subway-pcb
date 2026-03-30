@@ -62,8 +62,22 @@ typedef struct {
     uint8_t count;
 } station_leds_entry_t;
 
-/* Render context shared between tasks */
+/* Device diagnostics (written by lua_runtime + led_driver, read by state_client) */
 typedef struct {
+    uint32_t nonzero_pixels;   /* non-zero pixels after Lua render() */
+    uint32_t pushed_pixels;    /* pixels mapped to strips */
+    int strip_ok;              /* strips refreshed successfully */
+    int strip_fail;            /* strips that failed refresh */
+    int lua_errors;            /* consecutive Lua errors */
+    uint32_t lua_mem;          /* Lua VM memory usage in bytes */
+    uint32_t first_lit_led;    /* index of first non-zero LED */
+    int last_reload;           /* 0=none, 1=ok, -1=failed */
+    char last_lua_err[64];     /* last Lua error (truncated) */
+    char fetch_err[64];        /* last fetch error info */
+} device_diag_t;
+
+/* Render context shared between tasks */
+typedef struct render_context {
     SemaphoreHandle_t mutex;
 
     /* MTA state (updated every cycle by state_task) */
@@ -89,21 +103,16 @@ typedef struct {
     bool script_changed;
     char *lua_source;  /* heap-allocated, set by state_client, consumed by lua_runtime */
 
-    /* Lua source (stored in SPIFFS, hash for change detection) */
+    /* Hash for change detection */
     char cached_script_hash[MAX_HASH_LEN];
     char cached_board_hash[MAX_HASH_LEN];
 
-    /* Render diagnostics (written by lua_runtime, read by state_client) */
-    uint32_t diag_nonzero_pixels;  /* non-zero pixels after Lua render() */
-    uint32_t diag_pushed_pixels;   /* pixels mapped to strips */
-    int diag_strip_ok;             /* strips refreshed successfully */
-    int diag_strip_fail;           /* strips that failed refresh */
-    int diag_lua_errors;           /* consecutive Lua errors */
-    uint32_t diag_lua_mem;         /* Lua VM memory usage in bytes */
-    uint32_t diag_first_lit_led;   /* index of first non-zero LED */
-    int diag_last_reload;          /* 0=none, 1=ok, -1=failed */
-    char diag_last_lua_err[64];    /* last Lua error (truncated) */
-    char diag_fetch_err[64];       /* last fetch_board/script error info */
+    /* Cross-task flags */
+    volatile bool ota_active;   /* set by OTA handler, read by state_client */
+    volatile bool http_active;  /* set by http_client, read by lua_runtime */
+
+    /* Diagnostics */
+    device_diag_t diag;
 } render_context_t;
 
 /* Initialize the render context (call once at startup) */

@@ -18,6 +18,7 @@ var (
 	bucketUsers        = []byte("users")
 	bucketPlugins      = []byte("plugins")
 	bucketUserPlugins  = []byte("user_plugins")
+	bucketDiagnostics  = []byte("diagnostics")
 )
 
 // BoltStore implements store.Store using an embedded bbolt database.
@@ -34,7 +35,7 @@ func New(path string) (*BoltStore, error) {
 	}
 
 	err = db.Update(func(tx *bbolt.Tx) error {
-		for _, b := range [][]byte{bucketDevices, bucketDeviceAccess, bucketPresets, bucketUsers, bucketPlugins, bucketUserPlugins} {
+		for _, b := range [][]byte{bucketDevices, bucketDeviceAccess, bucketPresets, bucketUsers, bucketPlugins, bucketUserPlugins, bucketDiagnostics} {
 			if _, err := tx.CreateBucketIfNotExists(b); err != nil {
 				return fmt.Errorf("bolt: create bucket %s: %w", b, err)
 			}
@@ -462,6 +463,24 @@ func (s *BoltStore) IsPluginInstalled(userEmail, pluginID string) (bool, error) 
 		return nil
 	})
 	return found, err
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostics
+// ---------------------------------------------------------------------------
+
+func (s *BoltStore) SaveDiagnostic(d *model.DeviceDiagnostic) error {
+	// Key by device ID — only keep latest per device
+	return s.put(bucketDiagnostics, d.DeviceID, d)
+}
+
+func (s *BoltStore) GetLatestDiagnostic(deviceID string) (*model.DeviceDiagnostic, error) {
+	var d model.DeviceDiagnostic
+	found, err := s.get(bucketDiagnostics, deviceID, &d)
+	if err != nil || !found {
+		return nil, err
+	}
+	return &d, nil
 }
 
 // ---------------------------------------------------------------------------

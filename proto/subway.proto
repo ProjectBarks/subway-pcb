@@ -41,6 +41,40 @@ message DeviceBoard {
     map<uint32, string>     led_map     = 5;
 }
 
+// Sent by device as POST body on /api/v1/device-state.
+message DeviceDiagnostics {
+    message System {
+        int32  reset_reason  = 1;
+        uint32 free_heap     = 2;
+        uint32 largest_block = 3;
+    }
+
+    message Fetch {
+        bool state_ok          = 1;
+        bool board_fetched     = 2;
+        bool script_fetched    = 3;
+        bool script_hash_match = 4;
+    }
+
+    message Lua {
+        int32  errors      = 1;
+        uint32 mem         = 2;
+        int32  last_reload = 3;
+    }
+
+    message Render {
+        uint32 nonzero_pixels = 1;
+        uint32 first_lit_led  = 2;
+    }
+
+    System system = 1;
+    Fetch  fetch  = 2;
+    Lua    lua    = 3;
+    Render render = 4;
+    string error  = 5;
+    string logs   = 6;
+}
+
 // Fetched on boot and when script_hash changes.
 // GET /api/v1/script
 message DeviceScript {

@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.0
-// source: subway.proto
+// source: proto/subway.proto
 
 package subwaypb
 
@@ -58,11 +58,11 @@ func (x TrainStatus) String() string {
 }
 
 func (TrainStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_subway_proto_enumTypes[0].Descriptor()
+	return file_proto_subway_proto_enumTypes[0].Descriptor()
 }
 
 func (TrainStatus) Type() protoreflect.EnumType {
-	return &file_subway_proto_enumTypes[0]
+	return &file_proto_subway_proto_enumTypes[0]
 }
 
 func (x TrainStatus) Number() protoreflect.EnumNumber {
@@ -71,60 +71,7 @@ func (x TrainStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TrainStatus.Descriptor instead.
 func (TrainStatus) EnumDescriptor() ([]byte, []int) {
-	return file_subway_proto_rawDescGZIP(), []int{0}
-}
-
-// ConfigFieldType controls how the frontend renders a config input.
-type ConfigFieldType int32
-
-const (
-	ConfigFieldType_FIELD_TYPE_UNKNOWN ConfigFieldType = 0
-	ConfigFieldType_FIELD_COLOR        ConfigFieldType = 1
-	ConfigFieldType_FIELD_NUMBER       ConfigFieldType = 2
-	ConfigFieldType_FIELD_SELECT       ConfigFieldType = 3
-)
-
-// Enum value maps for ConfigFieldType.
-var (
-	ConfigFieldType_name = map[int32]string{
-		0: "FIELD_TYPE_UNKNOWN",
-		1: "FIELD_COLOR",
-		2: "FIELD_NUMBER",
-		3: "FIELD_SELECT",
-	}
-	ConfigFieldType_value = map[string]int32{
-		"FIELD_TYPE_UNKNOWN": 0,
-		"FIELD_COLOR":        1,
-		"FIELD_NUMBER":       2,
-		"FIELD_SELECT":       3,
-	}
-)
-
-func (x ConfigFieldType) Enum() *ConfigFieldType {
-	p := new(ConfigFieldType)
-	*p = x
-	return p
-}
-
-func (x ConfigFieldType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (ConfigFieldType) Descriptor() protoreflect.EnumDescriptor {
-	return file_subway_proto_enumTypes[1].Descriptor()
-}
-
-func (ConfigFieldType) Type() protoreflect.EnumType {
-	return &file_subway_proto_enumTypes[1]
-}
-
-func (x ConfigFieldType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use ConfigFieldType.Descriptor instead.
-func (ConfigFieldType) EnumDescriptor() ([]byte, []int) {
-	return file_subway_proto_rawDescGZIP(), []int{1}
+	return file_proto_subway_proto_rawDescGZIP(), []int{0}
 }
 
 type Train struct {
@@ -137,7 +84,7 @@ type Train struct {
 
 func (x *Train) Reset() {
 	*x = Train{}
-	mi := &file_subway_proto_msgTypes[0]
+	mi := &file_proto_subway_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -149,7 +96,7 @@ func (x *Train) String() string {
 func (*Train) ProtoMessage() {}
 
 func (x *Train) ProtoReflect() protoreflect.Message {
-	mi := &file_subway_proto_msgTypes[0]
+	mi := &file_proto_subway_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -162,7 +109,7 @@ func (x *Train) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Train.ProtoReflect.Descriptor instead.
 func (*Train) Descriptor() ([]byte, []int) {
-	return file_subway_proto_rawDescGZIP(), []int{0}
+	return file_proto_subway_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Train) GetRoute() string {
@@ -189,7 +136,7 @@ type Station struct {
 
 func (x *Station) Reset() {
 	*x = Station{}
-	mi := &file_subway_proto_msgTypes[1]
+	mi := &file_proto_subway_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -201,7 +148,7 @@ func (x *Station) String() string {
 func (*Station) ProtoMessage() {}
 
 func (x *Station) ProtoReflect() protoreflect.Message {
-	mi := &file_subway_proto_msgTypes[1]
+	mi := &file_proto_subway_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -214,7 +161,7 @@ func (x *Station) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Station.ProtoReflect.Descriptor instead.
 func (*Station) Descriptor() ([]byte, []int) {
-	return file_subway_proto_rawDescGZIP(), []int{1}
+	return file_proto_subway_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Station) GetStopId() string {
@@ -246,7 +193,7 @@ type DeviceState struct {
 
 func (x *DeviceState) Reset() {
 	*x = DeviceState{}
-	mi := &file_subway_proto_msgTypes[2]
+	mi := &file_proto_subway_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -258,7 +205,7 @@ func (x *DeviceState) String() string {
 func (*DeviceState) ProtoMessage() {}
 
 func (x *DeviceState) ProtoReflect() protoreflect.Message {
-	mi := &file_subway_proto_msgTypes[2]
+	mi := &file_proto_subway_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -271,7 +218,7 @@ func (x *DeviceState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeviceState.ProtoReflect.Descriptor instead.
 func (*DeviceState) Descriptor() ([]byte, []int) {
-	return file_subway_proto_rawDescGZIP(), []int{2}
+	return file_proto_subway_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *DeviceState) GetScriptHash() string {
@@ -324,7 +271,7 @@ type DeviceBoard struct {
 
 func (x *DeviceBoard) Reset() {
 	*x = DeviceBoard{}
-	mi := &file_subway_proto_msgTypes[3]
+	mi := &file_proto_subway_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -336,7 +283,7 @@ func (x *DeviceBoard) String() string {
 func (*DeviceBoard) ProtoMessage() {}
 
 func (x *DeviceBoard) ProtoReflect() protoreflect.Message {
-	mi := &file_subway_proto_msgTypes[3]
+	mi := &file_proto_subway_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -349,7 +296,7 @@ func (x *DeviceBoard) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeviceBoard.ProtoReflect.Descriptor instead.
 func (*DeviceBoard) Descriptor() ([]byte, []int) {
-	return file_subway_proto_rawDescGZIP(), []int{3}
+	return file_proto_subway_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *DeviceBoard) GetHash() string {
@@ -387,6 +334,91 @@ func (x *DeviceBoard) GetLedMap() map[uint32]string {
 	return nil
 }
 
+// Sent by device as POST body on /api/v1/device-state.
+type DeviceDiagnostics struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	System        *DeviceDiagnostics_System `protobuf:"bytes,1,opt,name=system,proto3" json:"system,omitempty"`
+	Fetch         *DeviceDiagnostics_Fetch  `protobuf:"bytes,2,opt,name=fetch,proto3" json:"fetch,omitempty"`
+	Lua           *DeviceDiagnostics_Lua    `protobuf:"bytes,3,opt,name=lua,proto3" json:"lua,omitempty"`
+	Render        *DeviceDiagnostics_Render `protobuf:"bytes,4,opt,name=render,proto3" json:"render,omitempty"`
+	Error         string                    `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	Logs          string                    `protobuf:"bytes,6,opt,name=logs,proto3" json:"logs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeviceDiagnostics) Reset() {
+	*x = DeviceDiagnostics{}
+	mi := &file_proto_subway_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeviceDiagnostics) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeviceDiagnostics) ProtoMessage() {}
+
+func (x *DeviceDiagnostics) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_subway_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeviceDiagnostics.ProtoReflect.Descriptor instead.
+func (*DeviceDiagnostics) Descriptor() ([]byte, []int) {
+	return file_proto_subway_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *DeviceDiagnostics) GetSystem() *DeviceDiagnostics_System {
+	if x != nil {
+		return x.System
+	}
+	return nil
+}
+
+func (x *DeviceDiagnostics) GetFetch() *DeviceDiagnostics_Fetch {
+	if x != nil {
+		return x.Fetch
+	}
+	return nil
+}
+
+func (x *DeviceDiagnostics) GetLua() *DeviceDiagnostics_Lua {
+	if x != nil {
+		return x.Lua
+	}
+	return nil
+}
+
+func (x *DeviceDiagnostics) GetRender() *DeviceDiagnostics_Render {
+	if x != nil {
+		return x.Render
+	}
+	return nil
+}
+
+func (x *DeviceDiagnostics) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *DeviceDiagnostics) GetLogs() string {
+	if x != nil {
+		return x.Logs
+	}
+	return ""
+}
+
 // Fetched on boot and when script_hash changes.
 // GET /api/v1/script
 type DeviceScript struct {
@@ -402,7 +434,7 @@ type DeviceScript struct {
 
 func (x *DeviceScript) Reset() {
 	*x = DeviceScript{}
-	mi := &file_subway_proto_msgTypes[4]
+	mi := &file_proto_subway_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -414,7 +446,7 @@ func (x *DeviceScript) String() string {
 func (*DeviceScript) ProtoMessage() {}
 
 func (x *DeviceScript) ProtoReflect() protoreflect.Message {
-	mi := &file_subway_proto_msgTypes[4]
+	mi := &file_proto_subway_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -427,7 +459,7 @@ func (x *DeviceScript) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeviceScript.ProtoReflect.Descriptor instead.
 func (*DeviceScript) Descriptor() ([]byte, []int) {
-	return file_subway_proto_rawDescGZIP(), []int{4}
+	return file_proto_subway_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DeviceScript) GetHash() string {
@@ -465,11 +497,251 @@ func (x *DeviceScript) GetConfig() map[string]string {
 	return nil
 }
 
-var File_subway_proto protoreflect.FileDescriptor
+type DeviceDiagnostics_System struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ResetReason   int32                  `protobuf:"varint,1,opt,name=reset_reason,json=resetReason,proto3" json:"reset_reason,omitempty"`
+	FreeHeap      uint32                 `protobuf:"varint,2,opt,name=free_heap,json=freeHeap,proto3" json:"free_heap,omitempty"`
+	LargestBlock  uint32                 `protobuf:"varint,3,opt,name=largest_block,json=largestBlock,proto3" json:"largest_block,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
 
-const file_subway_proto_rawDesc = "" +
+func (x *DeviceDiagnostics_System) Reset() {
+	*x = DeviceDiagnostics_System{}
+	mi := &file_proto_subway_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeviceDiagnostics_System) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeviceDiagnostics_System) ProtoMessage() {}
+
+func (x *DeviceDiagnostics_System) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_subway_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeviceDiagnostics_System.ProtoReflect.Descriptor instead.
+func (*DeviceDiagnostics_System) Descriptor() ([]byte, []int) {
+	return file_proto_subway_proto_rawDescGZIP(), []int{4, 0}
+}
+
+func (x *DeviceDiagnostics_System) GetResetReason() int32 {
+	if x != nil {
+		return x.ResetReason
+	}
+	return 0
+}
+
+func (x *DeviceDiagnostics_System) GetFreeHeap() uint32 {
+	if x != nil {
+		return x.FreeHeap
+	}
+	return 0
+}
+
+func (x *DeviceDiagnostics_System) GetLargestBlock() uint32 {
+	if x != nil {
+		return x.LargestBlock
+	}
+	return 0
+}
+
+type DeviceDiagnostics_Fetch struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	StateOk         bool                   `protobuf:"varint,1,opt,name=state_ok,json=stateOk,proto3" json:"state_ok,omitempty"`
+	BoardFetched    bool                   `protobuf:"varint,2,opt,name=board_fetched,json=boardFetched,proto3" json:"board_fetched,omitempty"`
+	ScriptFetched   bool                   `protobuf:"varint,3,opt,name=script_fetched,json=scriptFetched,proto3" json:"script_fetched,omitempty"`
+	ScriptHashMatch bool                   `protobuf:"varint,4,opt,name=script_hash_match,json=scriptHashMatch,proto3" json:"script_hash_match,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *DeviceDiagnostics_Fetch) Reset() {
+	*x = DeviceDiagnostics_Fetch{}
+	mi := &file_proto_subway_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeviceDiagnostics_Fetch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeviceDiagnostics_Fetch) ProtoMessage() {}
+
+func (x *DeviceDiagnostics_Fetch) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_subway_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeviceDiagnostics_Fetch.ProtoReflect.Descriptor instead.
+func (*DeviceDiagnostics_Fetch) Descriptor() ([]byte, []int) {
+	return file_proto_subway_proto_rawDescGZIP(), []int{4, 1}
+}
+
+func (x *DeviceDiagnostics_Fetch) GetStateOk() bool {
+	if x != nil {
+		return x.StateOk
+	}
+	return false
+}
+
+func (x *DeviceDiagnostics_Fetch) GetBoardFetched() bool {
+	if x != nil {
+		return x.BoardFetched
+	}
+	return false
+}
+
+func (x *DeviceDiagnostics_Fetch) GetScriptFetched() bool {
+	if x != nil {
+		return x.ScriptFetched
+	}
+	return false
+}
+
+func (x *DeviceDiagnostics_Fetch) GetScriptHashMatch() bool {
+	if x != nil {
+		return x.ScriptHashMatch
+	}
+	return false
+}
+
+type DeviceDiagnostics_Lua struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Errors        int32                  `protobuf:"varint,1,opt,name=errors,proto3" json:"errors,omitempty"`
+	Mem           uint32                 `protobuf:"varint,2,opt,name=mem,proto3" json:"mem,omitempty"`
+	LastReload    int32                  `protobuf:"varint,3,opt,name=last_reload,json=lastReload,proto3" json:"last_reload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeviceDiagnostics_Lua) Reset() {
+	*x = DeviceDiagnostics_Lua{}
+	mi := &file_proto_subway_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeviceDiagnostics_Lua) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeviceDiagnostics_Lua) ProtoMessage() {}
+
+func (x *DeviceDiagnostics_Lua) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_subway_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeviceDiagnostics_Lua.ProtoReflect.Descriptor instead.
+func (*DeviceDiagnostics_Lua) Descriptor() ([]byte, []int) {
+	return file_proto_subway_proto_rawDescGZIP(), []int{4, 2}
+}
+
+func (x *DeviceDiagnostics_Lua) GetErrors() int32 {
+	if x != nil {
+		return x.Errors
+	}
+	return 0
+}
+
+func (x *DeviceDiagnostics_Lua) GetMem() uint32 {
+	if x != nil {
+		return x.Mem
+	}
+	return 0
+}
+
+func (x *DeviceDiagnostics_Lua) GetLastReload() int32 {
+	if x != nil {
+		return x.LastReload
+	}
+	return 0
+}
+
+type DeviceDiagnostics_Render struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NonzeroPixels uint32                 `protobuf:"varint,1,opt,name=nonzero_pixels,json=nonzeroPixels,proto3" json:"nonzero_pixels,omitempty"`
+	FirstLitLed   uint32                 `protobuf:"varint,2,opt,name=first_lit_led,json=firstLitLed,proto3" json:"first_lit_led,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeviceDiagnostics_Render) Reset() {
+	*x = DeviceDiagnostics_Render{}
+	mi := &file_proto_subway_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeviceDiagnostics_Render) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeviceDiagnostics_Render) ProtoMessage() {}
+
+func (x *DeviceDiagnostics_Render) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_subway_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeviceDiagnostics_Render.ProtoReflect.Descriptor instead.
+func (*DeviceDiagnostics_Render) Descriptor() ([]byte, []int) {
+	return file_proto_subway_proto_rawDescGZIP(), []int{4, 3}
+}
+
+func (x *DeviceDiagnostics_Render) GetNonzeroPixels() uint32 {
+	if x != nil {
+		return x.NonzeroPixels
+	}
+	return 0
+}
+
+func (x *DeviceDiagnostics_Render) GetFirstLitLed() uint32 {
+	if x != nil {
+		return x.FirstLitLed
+	}
+	return 0
+}
+
+var File_proto_subway_proto protoreflect.FileDescriptor
+
+const file_proto_subway_proto_rawDesc = "" +
 	"\n" +
-	"\fsubway.proto\x12\x06subway\"J\n" +
+	"\x12proto/subway.proto\x12\x06subway\"J\n" +
 	"\x05Train\x12\x14\n" +
 	"\x05route\x18\x01 \x01(\tR\x05route\x12+\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x13.subway.TrainStatusR\x06status\"I\n" +
@@ -496,7 +768,31 @@ const file_subway_proto_rawDesc = "" +
 	"\aled_map\x18\x05 \x03(\v2\x1f.subway.DeviceBoard.LedMapEntryR\x06ledMap\x1a9\n" +
 	"\vLedMapEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\rR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x86\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xcc\x05\n" +
+	"\x11DeviceDiagnostics\x128\n" +
+	"\x06system\x18\x01 \x01(\v2 .subway.DeviceDiagnostics.SystemR\x06system\x125\n" +
+	"\x05fetch\x18\x02 \x01(\v2\x1f.subway.DeviceDiagnostics.FetchR\x05fetch\x12/\n" +
+	"\x03lua\x18\x03 \x01(\v2\x1d.subway.DeviceDiagnostics.LuaR\x03lua\x128\n" +
+	"\x06render\x18\x04 \x01(\v2 .subway.DeviceDiagnostics.RenderR\x06render\x12\x14\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\x12\x12\n" +
+	"\x04logs\x18\x06 \x01(\tR\x04logs\x1am\n" +
+	"\x06System\x12!\n" +
+	"\freset_reason\x18\x01 \x01(\x05R\vresetReason\x12\x1b\n" +
+	"\tfree_heap\x18\x02 \x01(\rR\bfreeHeap\x12#\n" +
+	"\rlargest_block\x18\x03 \x01(\rR\flargestBlock\x1a\x9a\x01\n" +
+	"\x05Fetch\x12\x19\n" +
+	"\bstate_ok\x18\x01 \x01(\bR\astateOk\x12#\n" +
+	"\rboard_fetched\x18\x02 \x01(\bR\fboardFetched\x12%\n" +
+	"\x0escript_fetched\x18\x03 \x01(\bR\rscriptFetched\x12*\n" +
+	"\x11script_hash_match\x18\x04 \x01(\bR\x0fscriptHashMatch\x1aP\n" +
+	"\x03Lua\x12\x16\n" +
+	"\x06errors\x18\x01 \x01(\x05R\x06errors\x12\x10\n" +
+	"\x03mem\x18\x02 \x01(\rR\x03mem\x12\x1f\n" +
+	"\vlast_reload\x18\x03 \x01(\x05R\n" +
+	"lastReload\x1aS\n" +
+	"\x06Render\x12%\n" +
+	"\x0enonzero_pixels\x18\x01 \x01(\rR\rnonzeroPixels\x12\"\n" +
+	"\rfirst_lit_led\x18\x02 \x01(\rR\vfirstLitLed\"\x86\x02\n" +
 	"\fDeviceScript\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\tR\x04hash\x12\x1d\n" +
 	"\n" +
@@ -513,74 +809,77 @@ const file_subway_proto_rawDesc = "" +
 	"\n" +
 	"STOPPED_AT\x10\x01\x12\x0f\n" +
 	"\vINCOMING_AT\x10\x02\x12\x11\n" +
-	"\rIN_TRANSIT_TO\x10\x03*^\n" +
-	"\x0fConfigFieldType\x12\x16\n" +
-	"\x12FIELD_TYPE_UNKNOWN\x10\x00\x12\x0f\n" +
-	"\vFIELD_COLOR\x10\x01\x12\x10\n" +
-	"\fFIELD_NUMBER\x10\x02\x12\x10\n" +
-	"\fFIELD_SELECT\x10\x03B9Z7github.com/ProjectBarks/subway-pcb/service/gen/subwaypbb\x06proto3"
+	"\rIN_TRANSIT_TO\x10\x03B9Z7github.com/ProjectBarks/subway-pcb/service/gen/subwaypbb\x06proto3"
 
 var (
-	file_subway_proto_rawDescOnce sync.Once
-	file_subway_proto_rawDescData []byte
+	file_proto_subway_proto_rawDescOnce sync.Once
+	file_proto_subway_proto_rawDescData []byte
 )
 
-func file_subway_proto_rawDescGZIP() []byte {
-	file_subway_proto_rawDescOnce.Do(func() {
-		file_subway_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_subway_proto_rawDesc), len(file_subway_proto_rawDesc)))
+func file_proto_subway_proto_rawDescGZIP() []byte {
+	file_proto_subway_proto_rawDescOnce.Do(func() {
+		file_proto_subway_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_subway_proto_rawDesc), len(file_proto_subway_proto_rawDesc)))
 	})
-	return file_subway_proto_rawDescData
+	return file_proto_subway_proto_rawDescData
 }
 
-var file_subway_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_subway_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
-var file_subway_proto_goTypes = []any{
-	(TrainStatus)(0),     // 0: subway.TrainStatus
-	(ConfigFieldType)(0), // 1: subway.ConfigFieldType
-	(*Train)(nil),        // 2: subway.Train
-	(*Station)(nil),      // 3: subway.Station
-	(*DeviceState)(nil),  // 4: subway.DeviceState
-	(*DeviceBoard)(nil),  // 5: subway.DeviceBoard
-	(*DeviceScript)(nil), // 6: subway.DeviceScript
-	nil,                  // 7: subway.DeviceState.ConfigEntry
-	nil,                  // 8: subway.DeviceBoard.LedMapEntry
-	nil,                  // 9: subway.DeviceScript.ConfigEntry
+var file_proto_subway_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_proto_subway_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_proto_subway_proto_goTypes = []any{
+	(TrainStatus)(0),                 // 0: subway.TrainStatus
+	(*Train)(nil),                    // 1: subway.Train
+	(*Station)(nil),                  // 2: subway.Station
+	(*DeviceState)(nil),              // 3: subway.DeviceState
+	(*DeviceBoard)(nil),              // 4: subway.DeviceBoard
+	(*DeviceDiagnostics)(nil),        // 5: subway.DeviceDiagnostics
+	(*DeviceScript)(nil),             // 6: subway.DeviceScript
+	nil,                              // 7: subway.DeviceState.ConfigEntry
+	nil,                              // 8: subway.DeviceBoard.LedMapEntry
+	(*DeviceDiagnostics_System)(nil), // 9: subway.DeviceDiagnostics.System
+	(*DeviceDiagnostics_Fetch)(nil),  // 10: subway.DeviceDiagnostics.Fetch
+	(*DeviceDiagnostics_Lua)(nil),    // 11: subway.DeviceDiagnostics.Lua
+	(*DeviceDiagnostics_Render)(nil), // 12: subway.DeviceDiagnostics.Render
+	nil,                              // 13: subway.DeviceScript.ConfigEntry
 }
-var file_subway_proto_depIdxs = []int32{
-	0, // 0: subway.Train.status:type_name -> subway.TrainStatus
-	2, // 1: subway.Station.trains:type_name -> subway.Train
-	3, // 2: subway.DeviceState.stations:type_name -> subway.Station
-	7, // 3: subway.DeviceState.config:type_name -> subway.DeviceState.ConfigEntry
-	8, // 4: subway.DeviceBoard.led_map:type_name -> subway.DeviceBoard.LedMapEntry
-	9, // 5: subway.DeviceScript.config:type_name -> subway.DeviceScript.ConfigEntry
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+var file_proto_subway_proto_depIdxs = []int32{
+	0,  // 0: subway.Train.status:type_name -> subway.TrainStatus
+	1,  // 1: subway.Station.trains:type_name -> subway.Train
+	2,  // 2: subway.DeviceState.stations:type_name -> subway.Station
+	7,  // 3: subway.DeviceState.config:type_name -> subway.DeviceState.ConfigEntry
+	8,  // 4: subway.DeviceBoard.led_map:type_name -> subway.DeviceBoard.LedMapEntry
+	9,  // 5: subway.DeviceDiagnostics.system:type_name -> subway.DeviceDiagnostics.System
+	10, // 6: subway.DeviceDiagnostics.fetch:type_name -> subway.DeviceDiagnostics.Fetch
+	11, // 7: subway.DeviceDiagnostics.lua:type_name -> subway.DeviceDiagnostics.Lua
+	12, // 8: subway.DeviceDiagnostics.render:type_name -> subway.DeviceDiagnostics.Render
+	13, // 9: subway.DeviceScript.config:type_name -> subway.DeviceScript.ConfigEntry
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
-func init() { file_subway_proto_init() }
-func file_subway_proto_init() {
-	if File_subway_proto != nil {
+func init() { file_proto_subway_proto_init() }
+func file_proto_subway_proto_init() {
+	if File_proto_subway_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_subway_proto_rawDesc), len(file_subway_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   8,
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_subway_proto_rawDesc), len(file_proto_subway_proto_rawDesc)),
+			NumEnums:      1,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_subway_proto_goTypes,
-		DependencyIndexes: file_subway_proto_depIdxs,
-		EnumInfos:         file_subway_proto_enumTypes,
-		MessageInfos:      file_subway_proto_msgTypes,
+		GoTypes:           file_proto_subway_proto_goTypes,
+		DependencyIndexes: file_proto_subway_proto_depIdxs,
+		EnumInfos:         file_proto_subway_proto_enumTypes,
+		MessageInfos:      file_proto_subway_proto_msgTypes,
 	}.Build()
-	File_subway_proto = out.File
-	file_subway_proto_goTypes = nil
-	file_subway_proto_depIdxs = nil
+	File_proto_subway_proto = out.File
+	file_proto_subway_proto_goTypes = nil
+	file_proto_subway_proto_depIdxs = nil
 }
