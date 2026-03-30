@@ -1,5 +1,7 @@
 package landing
 
+import "github.com/ProjectBarks/subway-pcb/service/ui/components/layout"
+
 templ Landing() {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -20,7 +22,7 @@ templ Landing() {
 		<link rel="preconnect" href="https://fonts.googleapis.com"/>
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet"/>
-		<link rel="stylesheet" href="/static/dist/main.css"/>
+		<link rel="stylesheet" href={ "/static/dist/main.css?v=" + layout.AssetVersion }/>
 	</head>
 	<body>
 		<div class="min-h-screen bg-white text-black overflow-x-hidden" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;">
@@ -30,7 +32,7 @@ templ Landing() {
 			@cta()
 			@landingFooter()
 		</div>
-		<script type="module" src="/static/dist/landing.js"></script>
+		<script type="module" src={ "/static/dist/landing.js?v=" + layout.AssetVersion }></script>
 	</body>
 	</html>
 }

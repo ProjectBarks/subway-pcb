@@ -1,6 +1,9 @@
 package board
 
-import "github.com/ProjectBarks/subway-pcb/service/ui/components"
+import (
+	"github.com/ProjectBarks/subway-pcb/service/ui/components"
+	"github.com/ProjectBarks/subway-pcb/service/ui/components/layout"
+)
 
 templ BoardPage(data BoardData) {
 	@components.Base(deviceTitle(data.Device), data.User, "/boards/"+data.Device.MAC) {
@@ -59,6 +62,6 @@ templ BoardPage(data BoardData) {
 				</div>
 			</div>
 		</div>
-		<script type="module" src="/static/dist/board-page.js"></script>
+		<script type="module" src={ "/static/dist/board-page.js?v=" + layout.AssetVersion }></script>
 	}
 }

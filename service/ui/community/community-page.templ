@@ -3,6 +3,7 @@ package community
 import (
 	"github.com/ProjectBarks/subway-pcb/service/internal/model"
 	"github.com/ProjectBarks/subway-pcb/service/ui/components"
+	"github.com/ProjectBarks/subway-pcb/service/ui/components/layout"
 )
 
 templ CommunityPage(user *model.User, plugins []model.Plugin, installed map[string]bool) {
@@ -50,8 +51,8 @@ templ CommunityPage(user *model.User, plugins []model.Plugin, installed map[stri
 			</div>
 		</div>
 		@communityCodeModal()
-		<link rel="stylesheet" href="/static/dist/prism-lua.css"/>
-		<script type="module" src="/static/dist/community.js"></script>
+		<link rel="stylesheet" href={ "/static/dist/prism-lua.css?v=" + layout.AssetVersion }/>
+		<script type="module" src={ "/static/dist/community.js?v=" + layout.AssetVersion }></script>
 		<script>
 		function showCodeModal(pluginId, name, author) {
 			document.getElementById('modal-plugin-name').textContent = name;

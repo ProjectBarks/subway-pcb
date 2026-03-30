@@ -3,6 +3,7 @@ package dashboard
 import (
 	"github.com/ProjectBarks/subway-pcb/service/internal/model"
 	"github.com/ProjectBarks/subway-pcb/service/ui/components"
+	"github.com/ProjectBarks/subway-pcb/service/ui/components/layout"
 )
 
 templ DashboardPage(user *model.User, boards []model.Device, cards []BoardCard) {
@@ -29,6 +30,6 @@ templ DashboardPage(user *model.User, boards []model.Device, cards []BoardCard) 
 				</div>
 			</div>
 		</div>
-		<script type="module" src="/static/dist/dashboard.js"></script>
+		<script type="module" src={ "/static/dist/dashboard.js?v=" + layout.AssetVersion }></script>
 	}
 }
