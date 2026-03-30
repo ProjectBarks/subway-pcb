@@ -6,7 +6,7 @@ function render()
             if route then
                 local r, g, b = get_rgb_config(route)
                 if r then
-                    set_led(i, r * br, g * br, b * br)
+                    set_led(i, math.floor(r * br), math.floor(g * br), math.floor(b * br))
                 end
             end
         end

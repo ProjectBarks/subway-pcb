@@ -14,7 +14,7 @@ function render()
             local sn_off = math.floor(strip_size * sn / snake_count)
             local start = (step + sn_off) % strip_size
             for px = 0, snake_length - 1 do
-                set_led(offset + (start + px) % strip_size, r * br, g * br, b * br)
+                set_led(offset + (start + px) % strip_size, math.floor(r * br), math.floor(g * br), math.floor(b * br))
             end
         end
         offset = offset + strip_size
