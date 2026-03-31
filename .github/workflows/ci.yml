@@ -41,7 +41,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
           cache: npm
           cache-dependency-path: service/package-lock.json
 
@@ -69,26 +69,20 @@ jobs:
         run: make lint/python
 
   firmware:
-    name: Firmware (Build)
+    name: Firmware
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install PlatformIO
         run: pip install --upgrade platformio
 
       - name: Build
         run: make lint/firmware
-
-  conformance:
-    name: Firmware (Lua Conformance)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
       - name: Test
         run: make test/firmware
