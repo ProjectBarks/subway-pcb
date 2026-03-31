@@ -1,7 +1,7 @@
 CC      ?= gcc
 CFLAGS  := -Wall -Wextra -Wno-unused-parameter -Wno-unused-function \
-           -I../components/lua54 -I../src -I../proto -Ihost_stubs \
-           -I../.pio/libdeps/esp32dev/Nanopb -DHOST_BUILD
+           -Ihost_stubs -I../components/lua54 -I../src -I../proto \
+           -DHOST_BUILD
 LUA_SRC := $(wildcard ../components/lua54/l*.c)
 
 .PHONY: test clean

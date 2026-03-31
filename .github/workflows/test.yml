@@ -17,6 +17,12 @@ jobs:
           go-version-file: service/go.mod
           cache-dependency-path: service/go.sum
 
+      - name: Install templ
+        run: go install github.com/a-h/templ/cmd/templ@latest
+
+      - name: Generate
+        run: make backend/generate
+
       - name: Test
         run: make test/go
 

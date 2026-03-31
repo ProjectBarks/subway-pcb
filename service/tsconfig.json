@@ -15,5 +15,6 @@
     "jsx": "react-jsx",
     "jsxImportSource": "preact"
   },
-  "include": ["ui"]
+  "include": ["ui"],
+  "exclude": ["ui/**/*.test.ts"]
 }
