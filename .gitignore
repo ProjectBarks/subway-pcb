@@ -37,6 +37,10 @@ pcb/bottom_texture.png
 pcb/top_metallic_roughness.png
 pcb/bottom_metallic_roughness.png
 
+# Firmware test build artifacts
+firmware/test/build/
+firmware/test/conformance
+
 # Managed components (downloaded at build time)
 **/managed_components/
 **/dependencies.lock

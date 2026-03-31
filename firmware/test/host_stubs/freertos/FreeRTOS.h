@@ -1,6 +1,10 @@
 #ifndef FREERTOS_H
 #define FREERTOS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 typedef void* SemaphoreHandle_t;
@@ -12,5 +16,9 @@ typedef int BaseType_t;
 #define pdTRUE 1
 #define pdFALSE 0
 #define configSTACK_DEPTH_TYPE uint32_t
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

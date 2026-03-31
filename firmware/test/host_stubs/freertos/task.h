@@ -3,11 +3,19 @@
 
 #include "FreeRTOS.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef void* TaskHandle_t;
 typedef void (*TaskFunction_t)(void*);
 
 #define xTaskCreate(fn, name, stack, param, prio, handle) ((void)(fn), (void)(name), (void)(stack), (void)(param), (void)(prio), (void)(handle), pdTRUE)
 #define vTaskDelay(ticks) ((void)(ticks))
 #define vTaskDelete(handle) ((void)(handle))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

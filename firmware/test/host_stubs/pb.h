@@ -4,6 +4,10 @@
 #ifndef PB_H_INCLUDED
 #define PB_H_INCLUDED
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -17,5 +21,9 @@ typedef uint8_t pb_byte_t;
 
 /* Opaque message descriptor — only declared, never used in test */
 typedef struct pb_msgdesc_s pb_msgdesc_t;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PB_H_INCLUDED */
