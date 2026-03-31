@@ -219,7 +219,8 @@ func (s *Server) buildDeviceConfig(ctx context.Context, mac, pluginName string) 
 		return nil, err
 	}
 
-	// Field defaults from DB plugin
+	// Collect valid keys from the plugin's config field definitions.
+	validKeys := make(map[string]bool)
 	if dbPlugin != nil && len(dbPlugin.ConfigFields) > 0 {
 		var fields []struct {
 			Key     string `json:"key"`
@@ -227,6 +228,7 @@ func (s *Server) buildDeviceConfig(ctx context.Context, mac, pluginName string) 
 		}
 		json.Unmarshal(dbPlugin.ConfigFields, &fields)
 		for _, f := range fields {
+			validKeys[f.Key] = true
 			config[f.Key] = f.Default
 		}
 	}
@@ -235,7 +237,7 @@ func (s *Server) buildDeviceConfig(ctx context.Context, mac, pluginName string) 
 		return config, nil
 	}
 
-	// Preset overrides
+	// Preset overrides (filtered to current plugin's keys)
 	if device.PresetID != "" {
 		preset, err := s.store.GetPreset(device.PresetID)
 		if err != nil {
@@ -243,13 +245,17 @@ func (s *Server) buildDeviceConfig(ctx context.Context, mac, pluginName string) 
 		}
 		if preset != nil {
 			for k, v := range preset.Values {
-				config[k] = v
+				if validKeys[k] {
+					config[k] = v
+				}
 			}
 		}
 	}
-	// Device overrides
+	// Device overrides (filtered to current plugin's keys)
 	for k, v := range device.PluginConfig {
-		config[k] = v
+		if validKeys[k] {
+			config[k] = v
+		}
 	}
 
 	return config, nil
