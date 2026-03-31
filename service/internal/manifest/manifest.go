@@ -13,6 +13,7 @@ import (
 
 type entry struct {
 	File string   `json:"file"`
+	Name string   `json:"name,omitempty"`
 	CSS  []string `json:"css,omitempty"`
 }
 
@@ -34,8 +35,16 @@ func Load(distDir string) error {
 	}
 	m := make(map[string]string, len(raw)*2)
 	for _, e := range raw {
-		base := stripHash(e.File)
-		m[base] = e.File
+		// Use the manifest "name" field + extension for the lookup key
+		// when available. This is reliable because Vite's name field
+		// is the unhashed entry name (e.g. "board-page"), avoiding
+		// issues where the hash itself contains dashes.
+		ext := filepath.Ext(e.File)
+		if e.Name != "" {
+			m[e.Name+ext] = e.File
+		} else {
+			m[stripHash(e.File)] = e.File
+		}
 		for _, css := range e.CSS {
 			m[stripHash(css)] = css
 		}
