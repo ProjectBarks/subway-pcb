@@ -306,31 +306,32 @@ static void state_task(void* arg) {
 
             HttpResponse resp{};
             if (http.get("/api/v1/device-script", &resp) == 0) {
-                auto* sb = static_cast<subway_DeviceScript*>(
-                    calloc(1, sizeof(subway_DeviceScript)));
-                if (!sb) {
+                // Use lightweight ScriptInfo (~16.5KB) instead of full
+                // DeviceScript (~20.6KB) to reduce heap pressure
+                auto* si = static_cast<codec::ScriptInfo*>(calloc(1, sizeof(codec::ScriptInfo)));
+                if (!si) {
                     DLOG_E(TAG,
-                           "OOM: DeviceScript (%u bytes, heap=%lu)",
-                           static_cast<unsigned>(sizeof(subway_DeviceScript)),
+                           "OOM: ScriptInfo (%u bytes, heap=%lu)",
+                           static_cast<unsigned>(sizeof(codec::ScriptInfo)),
                            static_cast<unsigned long>(esp_get_free_heap_size()));
-                } else if (codec::decode_script(resp.data, resp.len, *sb)) {
-                    char* src = strdup(sb->lua_source);
+                } else if (codec::decode_script_info(resp.data, resp.len, *si)) {
+                    char* src = strdup(si->lua_source);
                     if (src) {
                         script_chan.send(src); // ownership transfers
-                        std::strncpy(cached_script_hash, sb->hash, kHashLen - 1);
+                        std::strncpy(cached_script_hash, si->hash, kHashLen - 1);
                         cached_script_hash[kHashLen - 1] = '\0';
                         script_fetched = true;
                         DLOG_I(TAG,
                                "Script updated: %s (%d bytes)",
-                               sb->plugin_name,
-                               static_cast<int>(std::strlen(sb->lua_source)));
+                               si->plugin_name,
+                               static_cast<int>(std::strlen(si->lua_source)));
                     } else {
                         DLOG_E(TAG, "OOM: strdup lua_source");
                     }
-                    free(sb);
+                    free(si);
                 } else {
                     DLOG_E(TAG, "Script decode failed (len=%d)", resp.len);
-                    free(sb);
+                    free(si);
                 }
             } else {
                 DLOG_E(TAG, "Script fetch failed");

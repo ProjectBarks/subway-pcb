@@ -159,14 +159,12 @@ lint/python:                           ## Lint and typecheck Python tools
 	uvx ruff check tools/ --exclude '**/.venv'
 	uvx ty check tools/ --config-file tools/ty.toml
 
-CLANG_FMT := $(shell which clang-format 2>/dev/null)
+CLANG_FMT := uvx clang-format==19.1.7
 
 lint/firmware:                         ## Lint firmware (build + format check)
 	cd firmware && $(PIO) run
 	cd tools/debug-firmware && $(PIO) run
-ifdef CLANG_FMT
 	cd firmware && find src -name '*.cpp' -o -name '*.hpp' | xargs $(CLANG_FMT) --dry-run --Werror
-endif
 
 lint/frontend:                         ## Lint frontend with Biome
 	cd service && npx biome check

@@ -52,3 +52,9 @@ CONFIG_ESP_PHY_CALIBRATION_AND_DATA_STORAGE=y
 # Reduce current draw during WiFi PHY init
 #
 CONFIG_ESP_PHY_MAX_WIFI_TX_POWER=10
+
+#
+# TLS memory optimization — reduce heap pressure for concurrent Lua + HTTPS
+#
+CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN=8192
+CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN=4096
