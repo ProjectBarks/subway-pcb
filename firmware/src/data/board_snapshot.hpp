@@ -1,9 +1,9 @@
 #pragma once
-#include <cstdint>
-#include <cstring>
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+
+#include <cstdint>
+#include <cstring>
 
 extern "C" {
 #include "subway.pb.h"
@@ -41,7 +41,8 @@ struct BoardSnapshot {
 class BoardStore {
     BoardSnapshot snapshot_{};
     SemaphoreHandle_t mutex_ = nullptr;
-public:
+
+  public:
     void init() { mutex_ = xSemaphoreCreateMutex(); }
 
     // Writer: lock, modify snapshot directly, unlock.

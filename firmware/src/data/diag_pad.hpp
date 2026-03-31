@@ -1,21 +1,21 @@
 #pragma once
-#include <atomic>
-#include <cstdint>
-#include <climits>
-#include <cstring>
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+
+#include <atomic>
+#include <climits>
+#include <cstdint>
+#include <cstring>
 
 struct DiagPad {
     std::atomic<uint32_t> nonzero_pixels{0};
     std::atomic<uint32_t> pushed_pixels{0};
-    std::atomic<int32_t>  strip_ok{0};
-    std::atomic<int32_t>  strip_fail{0};
-    std::atomic<int32_t>  lua_errors{0};
+    std::atomic<int32_t> strip_ok{0};
+    std::atomic<int32_t> strip_fail{0};
+    std::atomic<int32_t> lua_errors{0};
     std::atomic<uint32_t> lua_mem{0};
     std::atomic<uint32_t> first_lit_led{UINT32_MAX};
-    std::atomic<int32_t>  last_reload{0};
+    std::atomic<int32_t> last_reload{0};
     std::atomic<uint32_t> frame_time_us{0};
     std::atomic<uint32_t> stack_hwm_render{0};
     std::atomic<uint32_t> stack_hwm_state{0};
@@ -25,9 +25,7 @@ struct DiagPad {
     char last_lua_err[64]{};
     char fetch_err[64]{};
 
-    void init() {
-        str_mutex = xSemaphoreCreateMutex();
-    }
+    void init() { str_mutex = xSemaphoreCreateMutex(); }
 
     void set_lua_err(const char* err) {
         if (xSemaphoreTake(str_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {

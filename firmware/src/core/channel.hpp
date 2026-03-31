@@ -1,11 +1,13 @@
 #pragma once
-#include <cstdlib>
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
+#include <cstdlib>
+
 class ScriptChannel {
     QueueHandle_t q_;
-public:
+
+  public:
     ScriptChannel() : q_(xQueueCreate(1, sizeof(char*))) {}
     ~ScriptChannel() {
         char* remaining = nullptr;
@@ -19,7 +21,7 @@ public:
     void send(char* ptr) {
         char* old = nullptr;
         if (xQueueReceive(q_, &old, 0) == pdTRUE) {
-            free(old);  // drain displaced entry to prevent leak
+            free(old); // drain displaced entry to prevent leak
         }
         xQueueSend(q_, &ptr, portMAX_DELAY);
     }

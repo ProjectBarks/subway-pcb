@@ -24,6 +24,6 @@ int device_log_drain(char* buf, int buf_size);
 
 // Convenience macros
 #define DLOG_E(tag, fmt, ...) device_log(LogLevel::Error, tag, fmt, ##__VA_ARGS__)
-#define DLOG_W(tag, fmt, ...) device_log(LogLevel::Warn,  tag, fmt, ##__VA_ARGS__)
-#define DLOG_I(tag, fmt, ...) device_log(LogLevel::Info,  tag, fmt, ##__VA_ARGS__)
+#define DLOG_W(tag, fmt, ...) device_log(LogLevel::Warn, tag, fmt, ##__VA_ARGS__)
+#define DLOG_I(tag, fmt, ...) device_log(LogLevel::Info, tag, fmt, ##__VA_ARGS__)
 #define DLOG_D(tag, fmt, ...) device_log(LogLevel::Debug, tag, fmt, ##__VA_ARGS__)

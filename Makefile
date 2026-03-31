@@ -148,7 +148,7 @@ site/preview: site/build               ## Build and open landing page in browser
 
 # ─── Lint ────────────────────────────────────────────────
 
-.PHONY: lint lint/go lint/python lint/firmware lint/frontend
+.PHONY: lint lint/go lint/python lint/firmware lint/frontend fmt/firmware
 
 lint: lint/go lint/python lint/firmware lint/frontend  ## Run all linters
 
@@ -159,12 +159,20 @@ lint/python:                           ## Lint and typecheck Python tools
 	uvx ruff check tools/ --exclude '**/.venv'
 	uvx ty check tools/ --config-file tools/ty.toml
 
-lint/firmware:                         ## Lint firmware (PlatformIO build)
+CLANG_FMT := $(shell which clang-format 2>/dev/null)
+
+lint/firmware:                         ## Lint firmware (build + format check)
 	cd firmware && $(PIO) run
 	cd tools/debug-firmware && $(PIO) run
+ifdef CLANG_FMT
+	cd firmware && find src -name '*.cpp' -o -name '*.hpp' | xargs $(CLANG_FMT) --dry-run --Werror
+endif
 
 lint/frontend:                         ## Lint frontend with Biome
 	cd service && npx biome check
+
+fmt/firmware:                          ## Format firmware C++ code
+	cd firmware && find src -name '*.cpp' -o -name '*.hpp' | xargs $(CLANG_FMT) -i
 
 # ─── Hooks ───────────────────────────────────────────────
 

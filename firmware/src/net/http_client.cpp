@@ -1,22 +1,22 @@
 #include "net/http_client.hpp"
+
+#include "esp_crt_bundle.h"
+#include "esp_http_client.h"
+#include "esp_log.h"
 #include "log/device_log.hpp"
 
 #include <cstdio>
 #include <cstring>
-
-#include "esp_log.h"
-#include "esp_http_client.h"
-#include "esp_crt_bundle.h"
 
 static const char* TAG = "http_client";
 
 // Static instance pointer for C callback trampoline
 HttpClient* HttpClient::s_instance_ = nullptr;
 
-static esp_err_t http_event_handler(esp_http_client_event_t* evt)
-{
+static esp_err_t http_event_handler(esp_http_client_event_t* evt) {
     auto* self = HttpClient::s_instance_;
-    if (!self) return ESP_OK;
+    if (!self)
+        return ESP_OK;
 
     switch (evt->event_id) {
     case HTTP_EVENT_ON_DATA:
@@ -24,8 +24,10 @@ static esp_err_t http_event_handler(esp_http_client_event_t* evt)
             std::memcpy(self->buf_ + self->buf_len_, evt->data, evt->data_len);
             self->buf_len_ += evt->data_len;
         } else {
-            DLOG_W(TAG, "Response truncated: %d + %d > %u",
-                   self->buf_len_, static_cast<int>(evt->data_len),
+            DLOG_W(TAG,
+                   "Response truncated: %d + %d > %u",
+                   self->buf_len_,
+                   static_cast<int>(evt->data_len),
                    static_cast<unsigned>(kHttpBufSize));
         }
         break;
@@ -35,19 +37,15 @@ static esp_err_t http_event_handler(esp_http_client_event_t* evt)
     return ESP_OK;
 }
 
-void HttpClient::init(const HttpClientConfig& cfg, std::atomic<bool>& http_active)
-{
+void HttpClient::init(const HttpClientConfig& cfg, std::atomic<bool>& http_active) {
     cfg_ = cfg;
     http_active_ = &http_active;
     s_instance_ = this;
-    DLOG_I(TAG, "HTTP client initialized (server=%s, device=%s)",
-           cfg.server_url, cfg.device_id);
+    DLOG_I(TAG, "HTTP client initialized (server=%s, device=%s)", cfg.server_url, cfg.device_id);
 }
 
-int HttpClient::do_request(const char* path, const char* method,
-                           const uint8_t* body, int body_len,
-                           HttpResponse* resp)
-{
+int HttpClient::do_request(
+    const char* path, const char* method, const uint8_t* body, int body_len, HttpResponse* resp) {
     if (http_active_) {
         http_active_->store(true, std::memory_order_release);
     }
@@ -79,9 +77,7 @@ int HttpClient::do_request(const char* path, const char* method,
     if (body && body_len > 0) {
         esp_http_client_set_method(client, HTTP_METHOD_POST);
         esp_http_client_set_header(client, "Content-Type", "application/x-protobuf");
-        esp_http_client_set_post_field(client,
-                                       reinterpret_cast<const char*>(body),
-                                       body_len);
+        esp_http_client_set_post_field(client, reinterpret_cast<const char*>(body), body_len);
     }
 
     esp_err_t err = esp_http_client_perform(client);
@@ -93,8 +89,13 @@ int HttpClient::do_request(const char* path, const char* method,
     }
 
     if (err != ESP_OK || status != 200) {
-        DLOG_E(TAG, "HTTP %s %s: err=%d(%s) status=%d",
-               method, path, err, esp_err_to_name(err), status);
+        DLOG_E(TAG,
+               "HTTP %s %s: err=%d(%s) status=%d",
+               method,
+               path,
+               err,
+               esp_err_to_name(err),
+               status);
         return -1;
     }
 
@@ -105,13 +106,10 @@ int HttpClient::do_request(const char* path, const char* method,
     return 0;
 }
 
-int HttpClient::get(const char* path, HttpResponse* resp)
-{
+int HttpClient::get(const char* path, HttpResponse* resp) {
     return do_request(path, "GET", nullptr, 0, resp);
 }
 
-int HttpClient::post(const char* path, const uint8_t* body, int body_len,
-                     HttpResponse* resp)
-{
+int HttpClient::post(const char* path, const uint8_t* body, int body_len, HttpResponse* resp) {
     return do_request(path, "POST", body, body_len, resp);
 }

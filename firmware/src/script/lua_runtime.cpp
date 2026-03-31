@@ -1,16 +1,16 @@
 #include "script/lua_runtime.hpp"
-#include "script/lua_bindings.hpp"
-#include "core/lua_includes.hpp"
-#include "log/device_log.hpp"
+
 #include "config/constants.hpp"
-
-#include <cstring>
-#include <cstdlib>
-#include <climits>
-
+#include "core/lua_includes.hpp"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_timer.h"
+#include "log/device_log.hpp"
+#include "script/lua_bindings.hpp"
+
+#include <climits>
+#include <cstdlib>
+#include <cstring>
 
 static const char* TAG = "lua_runtime";
 
@@ -33,18 +33,20 @@ static void* lua_custom_alloc(void* ud, void* ptr, size_t osize, size_t nsize) {
     (void)ud;
     if (nsize == 0) {
         s_lua_mem_used -= static_cast<int32_t>(osize);
-        if (s_lua_mem_used < 0) s_lua_mem_used = 0;
+        if (s_lua_mem_used < 0)
+            s_lua_mem_used = 0;
         free(ptr);
         return nullptr;
     }
     int32_t delta = static_cast<int32_t>(nsize) - static_cast<int32_t>(osize);
     if (s_lua_mem_used + delta > static_cast<int32_t>(kLuaMaxMem)) {
-        return nullptr;  // OOM -- Lua will raise error
+        return nullptr; // OOM -- Lua will raise error
     }
     void* new_ptr = realloc(ptr, nsize);
     if (new_ptr) {
         s_lua_mem_used += delta;
-        if (s_lua_mem_used < 0) s_lua_mem_used = 0;
+        if (s_lua_mem_used < 0)
+            s_lua_mem_used = 0;
     }
     return new_ptr;
 }
@@ -58,22 +60,22 @@ static void lua_instruction_hook(lua_State* L, lua_Debug* ar) {
 
 // --- Fallback script: bright chase pattern ---
 
-static const char* FALLBACK_SCRIPT =
-    "function render()\n"
-    "    local t = get_time()\n"
-    "    local n = led_count()\n"
-    "    local pos = math.floor(t * 5) % n\n"
-    "    for i = 0, 9 do\n"
-    "        set_led((pos + i) % n, 0, 0, 255)\n"
-    "    end\n"
-    "end\n";
+static const char* FALLBACK_SCRIPT = "function render()\n"
+                                     "    local t = get_time()\n"
+                                     "    local n = led_count()\n"
+                                     "    local pos = math.floor(t * 5) % n\n"
+                                     "    for i = 0, 9 do\n"
+                                     "        set_led((pos + i) % n, 0, 0, 255)\n"
+                                     "    end\n"
+                                     "end\n";
 
 // --- Create a fresh Lua VM with libraries and C API registered ---
 
 static lua_State* create_lua_state() {
     s_lua_mem_used = 0;
     lua_State* L = lua_newstate(lua_custom_alloc, nullptr);
-    if (!L) return nullptr;
+    if (!L)
+        return nullptr;
 
     luaL_requiref(L, "_G", luaopen_base, 1);
     luaL_requiref(L, "math", luaopen_math, 1);
@@ -128,7 +130,8 @@ static void render_task(void* arg) {
                     script_loaded = true;
                     consecutive_failures = 0;
                     args->diag->last_reload.store(1, std::memory_order_relaxed);
-                    DLOG_I(TAG, "Loaded new script (%d bytes)", static_cast<int>(strlen(new_source)));
+                    DLOG_I(
+                        TAG, "Loaded new script (%d bytes)", static_cast<int>(strlen(new_source)));
                 } else {
                     args->diag->last_reload.store(-1, std::memory_order_relaxed);
                     if (L) {
@@ -171,7 +174,8 @@ static void render_task(void* arg) {
         lua_gc(L, LUA_GCCOLLECT, 0);
 
         // Clear pixel buffer
-        for (auto& px : pixels) px = Rgb{};
+        for (auto& px : pixels)
+            px = Rgb{};
 
         // Call Lua render()
         int64_t frame_start = esp_timer_get_time();
@@ -211,7 +215,8 @@ static void render_task(void* arg) {
         for (uint32_t i = 0; i < led_count; i++) {
             if (pixels[i].r || pixels[i].g || pixels[i].b) {
                 nonzero_pixels++;
-                if (first_lit == UINT32_MAX) first_lit = i;
+                if (first_lit == UINT32_MAX)
+                    first_lit = i;
             }
         }
 
@@ -240,11 +245,11 @@ static void render_task(void* arg) {
 // --- Public API ---
 
 void LuaRuntime::start(DoubleBuffer<TransitSnapshot>& transit_buf,
-                        BoardStore& board_store,
-                        ScriptChannel& script_chan,
-                        DiagPad& diag,
-                        std::atomic<bool>& http_active,
-                        LedDriver& led) {
+                       BoardStore& board_store,
+                       ScriptChannel& script_chan,
+                       DiagPad& diag,
+                       std::atomic<bool>& http_active,
+                       LedDriver& led) {
     static RenderTaskArgs args;
     args.transit_buf = &transit_buf;
     args.board_store = &board_store;

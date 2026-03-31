@@ -1,13 +1,13 @@
 #include "log/device_log.hpp"
 
+#include "esp_log.h"
+#include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
-#include "esp_log.h"
-#include "esp_timer.h"
 
 // Ring buffer size for remote logs
 static constexpr int kLogRingSize = 2048;
@@ -17,26 +17,28 @@ static int s_ring_len = 0;
 static bool s_remote_enabled = false;
 static SemaphoreHandle_t s_mutex = nullptr;
 
-void device_log_init()
-{
+void device_log_init() {
     s_mutex = xSemaphoreCreateMutex();
     s_ring_len = 0;
     s_remote_enabled = false;
 }
 
-static const char* level_char(LogLevel level)
-{
+static const char* level_char(LogLevel level) {
     switch (level) {
-        case LogLevel::Error: return "E";
-        case LogLevel::Warn:  return "W";
-        case LogLevel::Info:  return "I";
-        case LogLevel::Debug: return "D";
-        default:              return "?";
+    case LogLevel::Error:
+        return "E";
+    case LogLevel::Warn:
+        return "W";
+    case LogLevel::Info:
+        return "I";
+    case LogLevel::Debug:
+        return "D";
+    default:
+        return "?";
     }
 }
 
-void device_log(LogLevel level, const char* tag, const char* fmt, ...)
-{
+void device_log(LogLevel level, const char* tag, const char* fmt, ...) {
     char msg[128];
     va_list args;
     va_start(args, fmt);
@@ -45,22 +47,36 @@ void device_log(LogLevel level, const char* tag, const char* fmt, ...)
 
     // Always output to serial via ESP_LOG
     switch (level) {
-        case LogLevel::Error: ESP_LOGE(tag, "%s", msg); break;
-        case LogLevel::Warn:  ESP_LOGW(tag, "%s", msg); break;
-        case LogLevel::Info:  ESP_LOGI(tag, "%s", msg); break;
-        case LogLevel::Debug: ESP_LOGD(tag, "%s", msg); break;
+    case LogLevel::Error:
+        ESP_LOGE(tag, "%s", msg);
+        break;
+    case LogLevel::Warn:
+        ESP_LOGW(tag, "%s", msg);
+        break;
+    case LogLevel::Info:
+        ESP_LOGI(tag, "%s", msg);
+        break;
+    case LogLevel::Debug:
+        ESP_LOGD(tag, "%s", msg);
+        break;
     }
 
     // Buffer for remote if enabled
-    if (!s_remote_enabled || !s_mutex) return;
+    if (!s_remote_enabled || !s_mutex)
+        return;
 
     uint32_t uptime_ms = static_cast<uint32_t>(esp_timer_get_time() / 1000);
 
     char line[160];
-    int line_len = snprintf(line, sizeof(line), "[%lu][%s][%s] %s\n",
+    int line_len = snprintf(line,
+                            sizeof(line),
+                            "[%lu][%s][%s] %s\n",
                             static_cast<unsigned long>(uptime_ms),
-                            level_char(level), tag, msg);
-    if (line_len <= 0) return;
+                            level_char(level),
+                            tag,
+                            msg);
+    if (line_len <= 0)
+        return;
     if (line_len >= static_cast<int>(sizeof(line)))
         line_len = sizeof(line) - 1;
 
@@ -73,8 +89,7 @@ void device_log(LogLevel level, const char* tag, const char* fmt, ...)
     xSemaphoreGive(s_mutex);
 }
 
-void device_log_set_remote(bool enabled)
-{
+void device_log_set_remote(bool enabled) {
     s_remote_enabled = enabled;
     if (!enabled && s_mutex) {
         // Clear buffer when disabling
@@ -84,9 +99,9 @@ void device_log_set_remote(bool enabled)
     }
 }
 
-int device_log_drain(char* buf, int buf_size)
-{
-    if (!s_mutex || !buf || buf_size <= 0) return 0;
+int device_log_drain(char* buf, int buf_size) {
+    if (!s_mutex || !buf || buf_size <= 0)
+        return 0;
 
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     int copy_len = s_ring_len < buf_size ? s_ring_len : buf_size - 1;

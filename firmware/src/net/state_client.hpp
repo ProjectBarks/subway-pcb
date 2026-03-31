@@ -1,15 +1,15 @@
 #pragma once
-#include <atomic>
-
-#include "core/triple_buffer.hpp"
 #include "core/channel.hpp"
-#include "data/transit_snapshot.hpp"
+#include "core/triple_buffer.hpp"
 #include "data/board_snapshot.hpp"
 #include "data/diag_pad.hpp"
+#include "data/transit_snapshot.hpp"
 #include "net/http_client.hpp"
 
+#include <atomic>
+
 class StateClient {
-public:
+  public:
     // Start the state polling task. All references must outlive the task.
     static void start(DoubleBuffer<TransitSnapshot>& transit_buf,
                       BoardStore& board_store,

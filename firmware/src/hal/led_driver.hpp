@@ -1,12 +1,13 @@
 #pragma once
+#include "config/board_config.hpp"
+#include "config/constants.hpp"
+#include "core/types.hpp"
+#include "esp_err.h"
+
 #include <cstdint>
 #include <span>
-#include "esp_err.h"
-#include "core/types.hpp"
-#include "config/constants.hpp"
-#include "config/board_config.hpp"
 
-struct DiagPad;  // forward declaration
+struct DiagPad; // forward declaration
 
 class LedDriver {
     const BoardHwConfig* hw_ = nullptr;
@@ -15,7 +16,7 @@ class LedDriver {
 
     esp_err_t refresh_strip_spi(int strip_idx);
 
-public:
+  public:
     esp_err_t init(const BoardHwConfig* hw);
 
     // Direct access to pixel buffer -- Lua writes here

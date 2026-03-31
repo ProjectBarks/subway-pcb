@@ -1,20 +1,20 @@
 #include "net/state_client.hpp"
-#include "proto/codec.hpp"
-#include "log/device_log.hpp"
+
 #include "config/constants.hpp"
-
-#include <cstring>
-#include <cstdio>
-#include <cstdlib>
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_mac.h"
-#include "nvs_flash.h"
-#include "nvs.h"
 #include "esp_system.h"
-#include "esp_heap_caps.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "log/device_log.hpp"
+#include "nvs.h"
+#include "nvs_flash.h"
+#include "proto/codec.hpp"
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 extern "C" {
 #include "subway.pb.h"
@@ -41,15 +41,20 @@ static subway_DeviceState s_state_decode;
 // Helpers local to the task
 // -----------------------------------------------------------------------
 
-static void init_http_client(HttpClient& http, std::atomic<bool>& http_active)
-{
+static void init_http_client(HttpClient& http, std::atomic<bool>& http_active) {
     // Read device MAC
     static char device_id[18];
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
-    std::snprintf(device_id, sizeof(device_id),
+    std::snprintf(device_id,
+                  sizeof(device_id),
                   "%02x:%02x:%02x:%02x:%02x:%02x",
-                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+                  mac[0],
+                  mac[1],
+                  mac[2],
+                  mac[3],
+                  mac[4],
+                  mac[5]);
 
     // Read NVS config
     static char server_url[kServerUrlMaxLen];
@@ -85,8 +90,8 @@ static int build_diagnostics(DiagPad& diag,
                              bool script_fetched,
                              const char last_server_script_hash[kHashLen],
                              const char cached_script_hash[kHashLen],
-                             uint8_t* out_buf, int out_buf_size)
-{
+                             uint8_t* out_buf,
+                             int out_buf_size) {
     // Static to keep ~2.3KB (mostly logs[2048]) off the 16KB task stack
     static subway_DeviceDiagnostics dd;
     std::memset(&dd, 0, sizeof(dd));
@@ -102,8 +107,8 @@ static int build_diagnostics(DiagPad& diag,
     dd.fetch.board_fetched = board_fetched;
     dd.fetch.script_fetched = script_fetched;
     // Does the server's script hash match our cached (fetched) script hash?
-    dd.fetch.script_hash_match = (std::strncmp(last_server_script_hash,
-                                               cached_script_hash, 64) == 0);
+    dd.fetch.script_hash_match =
+        (std::strncmp(last_server_script_hash, cached_script_hash, 64) == 0);
 
     dd.has_lua = true;
     dd.lua.errors = diag.lua_errors.load(std::memory_order_relaxed);
@@ -116,8 +121,9 @@ static int build_diagnostics(DiagPad& diag,
 
     // Copy error string (prefer lua error, fall back to fetch error)
     if (xSemaphoreTake(diag.str_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-        const char* err_src = diag.last_lua_err[0] ? diag.last_lua_err :
-                              diag.fetch_err[0]    ? diag.fetch_err : "";
+        const char* err_src = diag.last_lua_err[0] ? diag.last_lua_err
+                              : diag.fetch_err[0]  ? diag.fetch_err
+                                                   : "";
         std::strncpy(dd.error, err_src, sizeof(dd.error) - 1);
         dd.error[sizeof(dd.error) - 1] = '\0';
         xSemaphoreGive(diag.str_mutex);
@@ -132,17 +138,16 @@ static int build_diagnostics(DiagPad& diag,
 // -----------------------------------------------------------------------
 // FreeRTOS task function
 // -----------------------------------------------------------------------
-static void state_task(void* arg)
-{
+static void state_task(void* arg) {
     auto* args = static_cast<StateTaskArgs*>(arg);
 
     // Capture references from the heap-allocated args
-    auto& transit_buf  = *args->transit_buf;
-    auto& board_store  = *args->board_store;
-    auto& script_chan   = *args->script_chan;
-    auto& diag_pad      = *args->diag;
-    auto* ota_active    = args->ota_active;
-    auto* http_active   = args->http_active;
+    auto& transit_buf = *args->transit_buf;
+    auto& board_store = *args->board_store;
+    auto& script_chan = *args->script_chan;
+    auto& diag_pad = *args->diag;
+    auto* ota_active = args->ota_active;
+    auto* http_active = args->http_active;
     delete args;
 
     // Init HTTP client — static so the 16KB buffer lives in BSS, not on the task stack
@@ -152,7 +157,7 @@ static void state_task(void* arg)
     // Task-local state
     char cached_board_hash[kHashLen]{};
     char cached_script_hash[kHashLen]{};
-    char last_server_script_hash[kHashLen]{};  // script_hash from last state response
+    char last_server_script_hash[kHashLen]{}; // script_hash from last state response
     uint32_t current_board_gen = 0;
     bool board_fetched = false;
     bool script_fetched = false;
@@ -179,21 +184,26 @@ static void state_task(void* arg)
 
         // ---- Build & send diagnostics, receive state ----
         uint8_t diag_buf[512];
-        int diag_len = build_diagnostics(diag_pad, last_state_ok,
-                                         board_fetched, script_fetched,
+        int diag_len = build_diagnostics(diag_pad,
+                                         last_state_ok,
+                                         board_fetched,
+                                         script_fetched,
                                          last_server_script_hash,
                                          cached_script_hash,
-                                         diag_buf, sizeof(diag_buf));
+                                         diag_buf,
+                                         sizeof(diag_buf));
 
         bool state_ok = false;
         for (uint32_t attempt = 0; attempt < kHttpMaxRetries; attempt++) {
             HttpResponse resp{};
-            if (http.post("/api/v1/device-state",
-                          diag_buf, diag_len, &resp) != 0) {
+            if (http.post("/api/v1/device-state", diag_buf, diag_len, &resp) != 0) {
                 if (attempt < kHttpMaxRetries - 1) {
                     int backoff_ms = static_cast<int>((1u << attempt) * 1000);
-                    DLOG_W(TAG, "State fetch failed, retry in %dms (%lu/%lu)",
-                           backoff_ms, (unsigned long)(attempt + 1), (unsigned long)kHttpMaxRetries);
+                    DLOG_W(TAG,
+                           "State fetch failed, retry in %dms (%lu/%lu)",
+                           backoff_ms,
+                           (unsigned long)(attempt + 1),
+                           (unsigned long)kHttpMaxRetries);
                     vTaskDelay(pdMS_TO_TICKS(backoff_ms));
                 }
                 continue;
@@ -201,40 +211,40 @@ static void state_task(void* arg)
 
             if (!codec::decode_state(resp.data, resp.len, s_state_decode)) {
                 DLOG_E(TAG, "Failed to decode DeviceState (len=%d)", resp.len);
-                break;  // decode error is not retryable
+                break; // decode error is not retryable
             }
 
             // ---- Publish to DoubleBuffer (lock-free) ----
             pb_size_t ns = s_state_decode.stations_count < kMaxStations
                                ? s_state_decode.stations_count
                                : kMaxStations;
-            pb_size_t nc = s_state_decode.config_count < kMaxConfig
-                               ? s_state_decode.config_count
-                               : kMaxConfig;
+            pb_size_t nc =
+                s_state_decode.config_count < kMaxConfig ? s_state_decode.config_count : kMaxConfig;
 
             auto& wb = transit_buf.write_buffer();
-            std::memcpy(wb.stations.data(), s_state_decode.stations,
-                        sizeof(subway_Station) * ns);
+            std::memcpy(wb.stations.data(), s_state_decode.stations, sizeof(subway_Station) * ns);
             wb.station_count = ns;
             wb.timestamp = s_state_decode.timestamp;
-            std::memcpy(wb.config.data(), s_state_decode.config,
+            std::memcpy(wb.config.data(),
+                        s_state_decode.config,
                         sizeof(subway_DeviceState_ConfigEntry) * nc);
             wb.config_count = nc;
             wb.board_generation = current_board_gen;
             transit_buf.publish();
 
             // Cache config for next cycle's remote_log check
-            std::memcpy(last_config, s_state_decode.config,
-                        sizeof(subway_DeviceState_ConfigEntry) * nc);
+            std::memcpy(
+                last_config, s_state_decode.config, sizeof(subway_DeviceState_ConfigEntry) * nc);
             last_config_count = nc;
 
             // Cache server's script hash for next cycle's diagnostics
-            std::strncpy(last_server_script_hash,
-                         s_state_decode.script_hash, kHashLen - 1);
+            std::strncpy(last_server_script_hash, s_state_decode.script_hash, kHashLen - 1);
             last_server_script_hash[kHashLen - 1] = '\0';
 
-            DLOG_I(TAG, "State: %u stations, %u config entries",
-                   static_cast<unsigned>(ns), static_cast<unsigned>(nc));
+            DLOG_I(TAG,
+                   "State: %u stations, %u config entries",
+                   static_cast<unsigned>(ns),
+                   static_cast<unsigned>(nc));
             state_ok = true;
             break;
         }
@@ -246,20 +256,21 @@ static void state_task(void* arg)
         }
 
         // ---- Check hash changes (all task-local, no locks) ----
-        bool board_changed = !board_fetched ||
-            std::strncmp(s_state_decode.board_hash, cached_board_hash, 64) != 0;
+        bool board_changed =
+            !board_fetched || std::strncmp(s_state_decode.board_hash, cached_board_hash, 64) != 0;
         bool script_changed = !script_fetched ||
-            std::strncmp(s_state_decode.script_hash, cached_script_hash, 64) != 0;
+                              std::strncmp(s_state_decode.script_hash, cached_script_hash, 64) != 0;
 
-        // ---- Fetch board if changed (heap-allocated decode buffer) ----
+        // ---- Fetch board if changed ----
         if (board_changed) {
-            DLOG_W(TAG, "Fetching board... heap=%lu",
+            DLOG_W(TAG,
+                   "Fetching board... heap=%lu",
                    static_cast<unsigned long>(esp_get_free_heap_size()));
 
             HttpResponse resp{};
             if (http.get("/api/v1/device-board", &resp) == 0) {
-                auto* board_buf = static_cast<subway_DeviceBoard*>(
-                    calloc(1, sizeof(subway_DeviceBoard)));
+                auto* board_buf =
+                    static_cast<subway_DeviceBoard*>(calloc(1, sizeof(subway_DeviceBoard)));
                 if (board_buf && codec::decode_board(resp.data, resp.len, *board_buf)) {
                     auto& bw = board_store.lock_for_write();
                     BoardSnapshot::from_proto(*board_buf, bw);
@@ -267,53 +278,60 @@ static void state_task(void* arg)
                     bw.generation = current_board_gen;
                     board_store.unlock_write();
 
-                    std::strncpy(cached_board_hash, board_buf->hash,
-                                 kHashLen - 1);
+                    std::strncpy(cached_board_hash, board_buf->hash, kHashLen - 1);
                     cached_board_hash[kHashLen - 1] = '\0';
                     board_fetched = true;
 
-                    DLOG_I(TAG, "Board OK. heap=%lu",
+                    DLOG_I(TAG,
+                           "Board OK. heap=%lu",
                            static_cast<unsigned long>(esp_get_free_heap_size()));
                 } else {
-                    DLOG_E(TAG, "Board FAILED. heap=%lu",
+                    DLOG_E(TAG,
+                           "Board FAILED. heap=%lu",
                            static_cast<unsigned long>(esp_get_free_heap_size()));
                 }
                 free(board_buf);
             } else {
-                DLOG_E(TAG, "Board fetch failed. heap=%lu",
+                DLOG_E(TAG,
+                       "Board fetch failed. heap=%lu",
                        static_cast<unsigned long>(esp_get_free_heap_size()));
             }
         }
 
-        // ---- Fetch script if changed and board is loaded (heap-allocated decode buffer) ----
+        // ---- Fetch script if changed and board is loaded ----
         if (script_changed && board_fetched) {
-            DLOG_W(TAG, "Fetching script... heap=%lu",
+            DLOG_W(TAG,
+                   "Fetching script... heap=%lu",
                    static_cast<unsigned long>(esp_get_free_heap_size()));
 
             HttpResponse resp{};
             if (http.get("/api/v1/device-script", &resp) == 0) {
-                auto* script_buf = static_cast<subway_DeviceScript*>(
+                auto* sb = static_cast<subway_DeviceScript*>(
                     calloc(1, sizeof(subway_DeviceScript)));
-                if (script_buf && codec::decode_script(resp.data, resp.len, *script_buf)) {
-                    char* src = strdup(script_buf->lua_source);
+                if (!sb) {
+                    DLOG_E(TAG,
+                           "OOM: DeviceScript (%u bytes, heap=%lu)",
+                           static_cast<unsigned>(sizeof(subway_DeviceScript)),
+                           static_cast<unsigned long>(esp_get_free_heap_size()));
+                } else if (codec::decode_script(resp.data, resp.len, *sb)) {
+                    char* src = strdup(sb->lua_source);
                     if (src) {
-                        script_chan.send(src);  // ownership transfers
-
-                        std::strncpy(cached_script_hash, script_buf->hash,
-                                     kHashLen - 1);
+                        script_chan.send(src); // ownership transfers
+                        std::strncpy(cached_script_hash, sb->hash, kHashLen - 1);
                         cached_script_hash[kHashLen - 1] = '\0';
                         script_fetched = true;
-
-                        DLOG_I(TAG, "Script updated: %s (%d bytes)",
-                               script_buf->plugin_name,
-                               static_cast<int>(std::strlen(script_buf->lua_source)));
+                        DLOG_I(TAG,
+                               "Script updated: %s (%d bytes)",
+                               sb->plugin_name,
+                               static_cast<int>(std::strlen(sb->lua_source)));
                     } else {
                         DLOG_E(TAG, "OOM: strdup lua_source");
                     }
+                    free(sb);
                 } else {
-                    DLOG_E(TAG, "Script decode failed");
+                    DLOG_E(TAG, "Script decode failed (len=%d)", resp.len);
+                    free(sb);
                 }
-                free(script_buf);
             } else {
                 DLOG_E(TAG, "Script fetch failed");
             }
@@ -331,11 +349,8 @@ void StateClient::start(DoubleBuffer<TransitSnapshot>& transit_buf,
                         ScriptChannel& script_chan,
                         DiagPad& diag,
                         std::atomic<bool>& ota_active,
-                        std::atomic<bool>& http_active)
-{
+                        std::atomic<bool>& http_active) {
     auto* args = new StateTaskArgs{
-        &transit_buf, &board_store, &script_chan,
-        &diag, &ota_active, &http_active
-    };
+        &transit_buf, &board_store, &script_chan, &diag, &ota_active, &http_active};
     xTaskCreate(state_task, "state_task", 16384, args, 3, nullptr);
 }

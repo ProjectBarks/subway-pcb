@@ -1,4 +1,5 @@
 #include "proto/codec.hpp"
+
 #include "log/device_log.hpp"
 
 static const char* TAG = "codec";

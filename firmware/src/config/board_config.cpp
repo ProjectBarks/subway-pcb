@@ -3,8 +3,8 @@
 #include "log/device_log.hpp"
 
 extern "C" {
-#include "nvs_flash.h"
 #include "nvs.h"
+#include "nvs_flash.h"
 }
 
 #include <cstring>
@@ -12,14 +12,13 @@ extern "C" {
 static const char* TAG = "board_config";
 
 // Compile-time defaults (matching original board_config.c values)
-static constexpr uint8_t  kDefaultStripGpios[]    = {16, 17, 18, 19, 21, 22, 23, 25, 26};
+static constexpr uint8_t kDefaultStripGpios[] = {16, 17, 18, 19, 21, 22, 23, 25, 26};
 static constexpr uint16_t kDefaultStripLedCounts[] = {97, 102, 55, 81, 70, 21, 22, 19, 11};
-static constexpr uint8_t  kDefaultNumStrips       = 9;
-static constexpr uint16_t kDefaultTotalLeds       = 478;
-static constexpr uint8_t  kDefaultSpiStripIdx     = 8;
+static constexpr uint8_t kDefaultNumStrips = 9;
+static constexpr uint16_t kDefaultTotalLeds = 478;
+static constexpr uint8_t kDefaultSpiStripIdx = 8;
 
-void BoardHwConfig::load(BoardHwConfig& cfg)
-{
+void BoardHwConfig::load(BoardHwConfig& cfg) {
     cfg = BoardHwConfig{};
 
     // Fill with compile-time defaults
@@ -39,15 +38,14 @@ void BoardHwConfig::load(BoardHwConfig& cfg)
     }
 
     uint8_t num_strips = 0;
-    if (nvs_get_u8(nvs, "hw_num_strips", &num_strips) == ESP_OK &&
-        num_strips > 0 && num_strips <= kMaxStrips) {
+    if (nvs_get_u8(nvs, "hw_num_strips", &num_strips) == ESP_OK && num_strips > 0 &&
+        num_strips <= kMaxStrips) {
         cfg.num_strips = num_strips;
 
         // Read GPIO blob
         size_t len = num_strips;
         uint8_t gpio_buf[kMaxStrips];
-        if (nvs_get_blob(nvs, "hw_strip_gpios", gpio_buf, &len) == ESP_OK &&
-            len == num_strips) {
+        if (nvs_get_blob(nvs, "hw_strip_gpios", gpio_buf, &len) == ESP_OK && len == num_strips) {
             std::memcpy(cfg.strip_gpios, gpio_buf, num_strips);
         }
 
@@ -71,6 +69,9 @@ void BoardHwConfig::load(BoardHwConfig& cfg)
     }
 
     nvs_close(nvs);
-    DLOG_I(TAG, "Board config: %d strips, %d LEDs, SPI strip=%d",
-           cfg.num_strips, cfg.total_leds, cfg.spi_strip_index);
+    DLOG_I(TAG,
+           "Board config: %d strips, %d LEDs, SPI strip=%d",
+           cfg.num_strips,
+           cfg.total_leds,
+           cfg.spi_strip_index);
 }

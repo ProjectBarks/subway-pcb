@@ -1,6 +1,6 @@
 #pragma once
-#include <cstdint>
 #include <climits>
+#include <cstdint>
 
 // Buffer ceilings
 static constexpr uint32_t kMaxStrips = 16;
@@ -36,6 +36,6 @@ static constexpr uint8_t kDefaultBrightness = 10;
 static constexpr uint32_t kOtaCheckIntervalMin = 60;
 
 // Lua
-static constexpr uint32_t kLuaMaxMem = 40 * 1024;
+static constexpr uint32_t kLuaMaxMem = 30 * 1024;
 static constexpr uint32_t kLuaMaxInstructions = 0;
 static constexpr uint32_t kMaxConsecutiveFailures = 5;

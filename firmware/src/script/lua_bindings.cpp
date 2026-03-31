@@ -1,14 +1,14 @@
 #include "script/lua_bindings.hpp"
-#include "core/lua_includes.hpp"
-#include "log/device_log.hpp"
-#include "config/constants.hpp"
 
-#include <cstring>
+#include "config/constants.hpp"
+#include "core/lua_includes.hpp"
+#include "esp_timer.h"
+#include "log/device_log.hpp"
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-
-#include "esp_timer.h"
+#include <cstring>
 
 static const char* TAG = "lua_bindings";
 
@@ -31,14 +31,16 @@ void lua_set_binding_context(lua_State* L, LuaBindingContext* ctx) {
 
 static int find_station(const LuaBindingContext* ctx, const char* stop_id) {
     for (uint16_t i = 0; i < ctx->transit->station_count; i++) {
-        if (strcmp(ctx->transit->stations[i].stop_id, stop_id) == 0) return i;
+        if (strcmp(ctx->transit->stations[i].stop_id, stop_id) == 0)
+            return i;
     }
     return -1;
 }
 
 static const char* find_config(const LuaBindingContext* ctx, const char* key) {
     for (pb_size_t i = 0; i < ctx->transit->config_count; i++) {
-        if (strcmp(ctx->transit->config[i].key, key) == 0) return ctx->transit->config[i].value;
+        if (strcmp(ctx->transit->config[i].key, key) == 0)
+            return ctx->transit->config[i].value;
     }
     return nullptr;
 }
@@ -61,7 +63,8 @@ static int l_set_led(lua_State* L) {
 
 static int l_clear_leds(lua_State* L) {
     auto* ctx = get_ctx(L);
-    for (auto& px : ctx->pixels) px = Rgb{};
+    for (auto& px : ctx->pixels)
+        px = Rgb{};
     return 0;
 }
 
@@ -105,13 +108,22 @@ static int l_has_status(lua_State* L) {
     }
 
     subway_TrainStatus target;
-    if (strcmp(status_str, "STOPPED_AT") == 0) target = subway_TrainStatus_STOPPED_AT;
-    else if (strcmp(status_str, "INCOMING_AT") == 0) target = subway_TrainStatus_INCOMING_AT;
-    else if (strcmp(status_str, "IN_TRANSIT_TO") == 0) target = subway_TrainStatus_IN_TRANSIT_TO;
-    else { lua_pushboolean(L, 0); return 1; }
+    if (strcmp(status_str, "STOPPED_AT") == 0)
+        target = subway_TrainStatus_STOPPED_AT;
+    else if (strcmp(status_str, "INCOMING_AT") == 0)
+        target = subway_TrainStatus_INCOMING_AT;
+    else if (strcmp(status_str, "IN_TRANSIT_TO") == 0)
+        target = subway_TrainStatus_IN_TRANSIT_TO;
+    else {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
 
     int idx = find_station(ctx, sid);
-    if (idx < 0) { lua_pushboolean(L, 0); return 1; }
+    if (idx < 0) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
 
     for (uint8_t t = 0; t < ctx->transit->stations[idx].trains_count; t++) {
         if (ctx->transit->stations[idx].trains[t].status == target) {
@@ -131,7 +143,10 @@ static int l_get_route(lua_State* L) {
         return 1;
     }
     const char* sid = ctx->board->board.led_map[led_index];
-    if (sid[0] == '\0') { lua_pushnil(L); return 1; }
+    if (sid[0] == '\0') {
+        lua_pushnil(L);
+        return 1;
+    }
 
     int idx = find_station(ctx, sid);
     if (idx < 0 || ctx->transit->stations[idx].trains_count == 0) {
@@ -147,12 +162,15 @@ static int l_get_routes(lua_State* L) {
     int led_index = luaL_checkinteger(L, 1);
     lua_newtable(L);
 
-    if (led_index < 0 || static_cast<uint32_t>(led_index) >= ctx->led_count) return 1;
+    if (led_index < 0 || static_cast<uint32_t>(led_index) >= ctx->led_count)
+        return 1;
     const char* sid = ctx->board->board.led_map[led_index];
-    if (sid[0] == '\0') return 1;
+    if (sid[0] == '\0')
+        return 1;
 
     int idx = find_station(ctx, sid);
-    if (idx < 0) return 1;
+    if (idx < 0)
+        return 1;
 
     for (uint8_t t = 0; t < ctx->transit->stations[idx].trains_count; t++) {
         lua_pushstring(L, ctx->transit->stations[idx].trains[t].route);
@@ -198,8 +216,10 @@ static int l_get_string_config(lua_State* L) {
     auto* ctx = get_ctx(L);
     const char* key = luaL_checkstring(L, 1);
     const char* val = find_config(ctx, key);
-    if (val) lua_pushstring(L, val);
-    else lua_pushnil(L);
+    if (val)
+        lua_pushstring(L, val);
+    else
+        lua_pushnil(L);
     return 1;
 }
 
@@ -207,8 +227,10 @@ static int l_get_int_config(lua_State* L) {
     auto* ctx = get_ctx(L);
     const char* key = luaL_checkstring(L, 1);
     const char* val = find_config(ctx, key);
-    if (val) lua_pushinteger(L, atoi(val));
-    else lua_pushnil(L);
+    if (val)
+        lua_pushinteger(L, atoi(val));
+    else
+        lua_pushnil(L);
     return 1;
 }
 
@@ -246,12 +268,36 @@ static int l_hsv_to_rgb(lua_State* L) {
     double r, g, b;
 
     switch (i % 6) {
-        case 0: r = v; g = t; b = p; break;
-        case 1: r = q; g = v; b = p; break;
-        case 2: r = p; g = v; b = t; break;
-        case 3: r = p; g = q; b = v; break;
-        case 4: r = t; g = p; b = v; break;
-        default: r = v; g = p; b = q; break;
+    case 0:
+        r = v;
+        g = t;
+        b = p;
+        break;
+    case 1:
+        r = q;
+        g = v;
+        b = p;
+        break;
+    case 2:
+        r = p;
+        g = v;
+        b = t;
+        break;
+    case 3:
+        r = p;
+        g = q;
+        b = v;
+        break;
+    case 4:
+        r = t;
+        g = p;
+        b = v;
+        break;
+    default:
+        r = v;
+        g = p;
+        b = q;
+        break;
     }
 
     lua_pushinteger(L, static_cast<int>(r * 255.0 + 0.5));
@@ -291,7 +337,7 @@ static int l_led_to_strip(lua_State* L) {
     for (uint8_t s = 0; s < ctx->board->board.strip_count; s++) {
         if (static_cast<uint32_t>(index) < offset + ctx->board->board.strip_sizes[s]) {
             lua_pushinteger(L, s + 1);          // 1-based strip number
-            lua_pushinteger(L, index - offset);  // pixel within strip
+            lua_pushinteger(L, index - offset); // pixel within strip
             return 2;
         }
         offset += ctx->board->board.strip_sizes[s];

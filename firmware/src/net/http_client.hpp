@@ -1,8 +1,8 @@
 #pragma once
+#include "config/constants.hpp"
+
 #include <atomic>
 #include <cstdint>
-
-#include "config/constants.hpp"
 
 struct HttpClientConfig {
     const char* server_url;
@@ -20,10 +20,13 @@ class HttpClient {
     HttpClientConfig cfg_{};
     std::atomic<bool>* http_active_ = nullptr;
 
-    int do_request(const char* path, const char* method,
-                   const uint8_t* body, int body_len, HttpResponse* resp);
+    int do_request(const char* path,
+                   const char* method,
+                   const uint8_t* body,
+                   int body_len,
+                   HttpResponse* resp);
 
-public:
+  public:
     // Static instance pointer for C callback trampoline.
     // Only one HttpClient instance exists (state task owns it).
     static HttpClient* s_instance_;

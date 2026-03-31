@@ -1,8 +1,8 @@
 #include "data/board_snapshot.hpp"
+
 #include <cstring>
 
-void BoardSnapshot::from_proto(const subway_DeviceBoard& pb, BoardSnapshot& out)
-{
+void BoardSnapshot::from_proto(const subway_DeviceBoard& pb, BoardSnapshot& out) {
     // Zero-init the output
     out = BoardSnapshot{};
 
@@ -13,8 +13,8 @@ void BoardSnapshot::from_proto(const subway_DeviceBoard& pb, BoardSnapshot& out)
     out.board.led_count = pb.led_count;
 
     // Copy strip_sizes
-    out.board.strip_count = static_cast<uint8_t>(
-        pb.strip_sizes_count < kMaxStrips ? pb.strip_sizes_count : kMaxStrips);
+    out.board.strip_count =
+        static_cast<uint8_t>(pb.strip_sizes_count < kMaxStrips ? pb.strip_sizes_count : kMaxStrips);
     for (uint8_t i = 0; i < out.board.strip_count; i++) {
         out.board.strip_sizes[i] = pb.strip_sizes[i];
     }
@@ -36,7 +36,8 @@ void BoardSnapshot::from_proto(const subway_DeviceBoard& pb, BoardSnapshot& out)
     // collect all LED indices that map to it
     out.station_leds_count = 0;
     for (uint32_t i = 0; i < out.board.led_count && i < kMaxLeds; i++) {
-        if (out.board.led_map[i][0] == '\0') continue;
+        if (out.board.led_map[i][0] == '\0')
+            continue;
 
         // Find existing entry or create new one
         int found = -1;
@@ -48,10 +49,10 @@ void BoardSnapshot::from_proto(const subway_DeviceBoard& pb, BoardSnapshot& out)
         }
 
         if (found < 0) {
-            if (out.station_leds_count >= kMaxStations) continue;
+            if (out.station_leds_count >= kMaxStations)
+                continue;
             found = out.station_leds_count++;
-            std::strncpy(out.station_leds[found].station_id,
-                         out.board.led_map[i], kStopIdLen - 1);
+            std::strncpy(out.station_leds[found].station_id, out.board.led_map[i], kStopIdLen - 1);
             out.station_leds[found].count = 0;
         }
 

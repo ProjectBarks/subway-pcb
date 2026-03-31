@@ -1,9 +1,10 @@
 #pragma once
+#include "core/types.hpp"
+#include "data/board_snapshot.hpp"
+#include "data/transit_snapshot.hpp"
+
 #include <cstdint>
 #include <span>
-#include "core/types.hpp"
-#include "data/transit_snapshot.hpp"
-#include "data/board_snapshot.hpp"
 
 // Forward declaration
 struct lua_State;
