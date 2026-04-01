@@ -12,11 +12,12 @@
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <conformance-dir>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <conformance-dir> [--junit <path>]\n", argv[0]);
         return 1;
     }
 
     const char* dir = argv[1];
+    const char* junit_path = parse_junit_arg(argc, argv);
     char path[512];
 
     TestFixtures fix;
@@ -60,6 +61,7 @@ int main(int argc, char* argv[]) {
 
     printf("Running %d conformance test files...\n", test_count);
     int total_failures = 0;
+    int file_fails[32]{};
     for (int i = 0; i < test_count; i++) {
         luaL_dostring(L, "_results = { pass = 0, fail = 0, errors = {} }");
         lua_set_binding_context(L, &fix.ctx);
@@ -67,14 +69,24 @@ int main(int argc, char* argv[]) {
         if (luaL_dofile(L, path) != LUA_OK) {
             printf("  ERROR: %s — %s\n", test_files[i], lua_tostring(L, -1));
             lua_pop(L, 1);
+            file_fails[i] = 1;
             total_failures++;
         } else {
-            total_failures += check_lua_results(L, test_files[i]);
+            int f = check_lua_results(L, test_files[i]);
+            file_fails[i] = f;
+            total_failures += f;
         }
     }
 
     lua_close(L);
     printf("\n%s: %d file(s), %d failure(s)\n",
            total_failures > 0 ? "FAILED" : "PASSED", test_count, total_failures);
+
+    if (junit_path) {
+        const char* names[32];
+        for (int i = 0; i < test_count; i++) names[i] = test_files[i];
+        write_junit_xml(junit_path, "conformance", names, file_fails, test_count);
+    }
+
     return total_failures > 0 ? 1 : 0;
 }

@@ -193,15 +193,39 @@ static void test_malformed_script_no_crash() {
     lua_close(L);
 }
 
-int main() {
+struct NamedTest {
+    const char* name;
+    void (*fn)();
+};
+
+int main(int argc, char* argv[]) {
+    const char* junit_path = parse_junit_arg(argc, argv);
+
+    NamedTest tests[] = {
+        {"protobuf_roundtrip_board",    test_protobuf_roundtrip_board},
+        {"protobuf_roundtrip_state",    test_protobuf_roundtrip_state},
+        {"board_snapshot_inverted_index", test_board_snapshot_inverted_index},
+        {"track_lua_e2e",               test_track_lua_e2e},
+        {"empty_state_all_black",       test_empty_state_all_black},
+        {"malformed_script_no_crash",   test_malformed_script_no_crash},
+    };
+    constexpr int n = sizeof(tests) / sizeof(tests[0]);
+
     printf("Running E2E tests...\n");
-    test_protobuf_roundtrip_board();
-    test_protobuf_roundtrip_state();
-    test_board_snapshot_inverted_index();
-    test_track_lua_e2e();
-    test_empty_state_all_black();
-    test_malformed_script_no_crash();
+    const char* names[n];
+    int fails[n];
+    for (int i = 0; i < n; i++) {
+        names[i] = tests[i].name;
+        int before = r.fail;
+        tests[i].fn();
+        fails[i] = r.fail - before;
+    }
+
     printf("\n%s: %d passed, %d failed\n",
            r.fail > 0 ? "FAILED" : "PASSED", r.pass, r.fail);
+
+    if (junit_path)
+        write_junit_xml(junit_path, "e2e", names, fails, n);
+
     return r.fail > 0 ? 1 : 0;
 }

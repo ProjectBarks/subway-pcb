@@ -12,11 +12,26 @@ LUA_OBJ  := $(patsubst ../components/lua54/%.c,build/lua/%.o,$(LUA_SRC))
 NANOPB_OBJ := build/nanopb/pb_common.o build/nanopb/pb_decode.o build/nanopb/pb_encode.o
 PROTO_OBJ  := build/proto/subway.pb.o
 
+ALLURE_RESULTS ?=
+ifdef ALLURE_RESULTS
+JUNIT_CONFORMANCE := --junit $(ALLURE_RESULTS)/firmware-conformance.xml
+JUNIT_E2E         := --junit $(ALLURE_RESULTS)/firmware-e2e.xml
+JUNIT_STRESS      := --junit $(ALLURE_RESULTS)/firmware-stress.xml
+else
+JUNIT_CONFORMANCE :=
+JUNIT_E2E         :=
+JUNIT_STRESS      :=
+endif
+
 .PHONY: test clean
 
-test: conformance e2e
-	./conformance ../../tests/lua-conformance/
-	./e2e
+test: conformance e2e stress
+ifdef ALLURE_RESULTS
+	mkdir -p $(ALLURE_RESULTS)
+endif
+	./conformance ../../tests/lua-conformance/ $(JUNIT_CONFORMANCE)
+	./e2e $(JUNIT_E2E)
+	./stress $(JUNIT_STRESS)
 
 # --- Lua objects ---
 build/lua:
@@ -56,5 +71,11 @@ e2e: test_e2e.cpp stubs.cpp $(LUA_OBJ) $(NANOPB_OBJ) $(PROTO_OBJ) build/board_sn
 		../src/proto/codec.cpp ../src/script/lua_bindings.cpp \
 		$(LUA_OBJ) $(NANOPB_OBJ) $(PROTO_OBJ) build/board_snapshot.o -lm -lpthread
 
+# --- Stress tests (includes lua_bindings.cpp directly for allocator access) ---
+stress: test_stress.cpp stubs.cpp $(LUA_OBJ) $(NANOPB_OBJ) $(PROTO_OBJ) build/board_snapshot.o
+	$(CXX) $(CXXFLAGS) -o $@ test_stress.cpp stubs.cpp \
+		../src/proto/codec.cpp \
+		$(LUA_OBJ) $(NANOPB_OBJ) $(PROTO_OBJ) build/board_snapshot.o -lm -lpthread
+
 clean:
-	rm -rf conformance e2e build
+	rm -rf conformance e2e stress build

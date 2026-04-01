@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 extern "C" {
 #include "lua.h"
@@ -93,4 +94,36 @@ inline int check_lua_results(lua_State* L, const char* test_name) {
 
     lua_pop(L, 1);
     return fail;
+}
+
+// --- JUnit XML writer ---
+
+inline void write_junit_xml(const char* path, const char* suite,
+                            const char* const* names, const int* fails, int count) {
+    FILE* f = fopen(path, "w");
+    if (!f) return;
+    int total_fail = 0;
+    for (int i = 0; i < count; i++) { if (fails[i]) total_fail++; }
+    fprintf(f, "<?xml version=\"1.0\"?>\n<testsuites>\n");
+    fprintf(f, "<testsuite name=\"%s\" tests=\"%d\" failures=\"%d\">\n",
+            suite, count, total_fail);
+    for (int i = 0; i < count; i++) {
+        fprintf(f, "  <testcase name=\"%s\" classname=\"%s\"", names[i], suite);
+        if (fails[i]) {
+            fprintf(f, ">\n    <failure message=\"%d assertion(s) failed\"/>\n  </testcase>\n", fails[i]);
+        } else {
+            fprintf(f, "/>\n");
+        }
+    }
+    fprintf(f, "</testsuite>\n</testsuites>\n");
+    fclose(f);
+}
+
+// --- CLI helper: parse --junit <path> ---
+
+inline const char* parse_junit_arg(int argc, char* argv[]) {
+    for (int i = 1; i < argc - 1; i++) {
+        if (strcmp(argv[i], "--junit") == 0) return argv[i + 1];
+    }
+    return nullptr;
 }

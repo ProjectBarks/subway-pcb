@@ -97,18 +97,26 @@ tools/viewer:                          ## Start standalone board viewer → http
 
 # ─── Unit Tests ─────────────────────────────────────────
 
-.PHONY: test test/go test/frontend test/firmware
+ALLURE_RESULTS := .test-results
+
+.PHONY: test test/go test/frontend test/firmware report
 
 test: test/go test/frontend test/firmware  ## Run all unit tests
 
 test/go:                                   ## Run Go unit tests
-	cd service && go test ./...
+	@mkdir -p $(ALLURE_RESULTS)
+	cd service && go run gotest.tools/gotestsum@latest --junitfile ../$(ALLURE_RESULTS)/go.xml -- ./...
 
 test/frontend: frontend/install            ## Run frontend unit tests (Lua conformance)
+	@mkdir -p $(ALLURE_RESULTS)
 	cd service && npx vitest run
 
-test/firmware:                             ## Run firmware Lua conformance tests (host)
-	cd firmware/test && make test
+test/firmware:                             ## Run firmware Lua conformance + E2E + stress tests (host)
+	cd firmware/test && make test ALLURE_RESULTS=../../$(ALLURE_RESULTS)
+
+test/report: test                               ## Run all tests and open Allure report
+	npx allure generate $(ALLURE_RESULTS) -o .test-report --clean
+	npx allure open .test-report
 
 # ─── E2E Tests ──────────────────────────────────────────
 
