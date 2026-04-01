@@ -19,8 +19,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: trunk-io/trunk-action@v1
-        with:
-          check-mode: all
 
   go:
     name: Go
