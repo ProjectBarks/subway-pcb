@@ -40,6 +40,7 @@ pcb/bottom_metallic_roughness.png
 # Firmware test build artifacts
 firmware/test/build/
 firmware/test/conformance
+firmware/test/e2e
 
 # Managed components (downloaded at build time)
 **/managed_components/
