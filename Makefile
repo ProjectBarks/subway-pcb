@@ -115,7 +115,7 @@ test/firmware:                             ## Run firmware Lua conformance + E2E
 	cd firmware/test && make test ALLURE_RESULTS=../../$(ALLURE_RESULTS)
 
 test/report: test                               ## Run all tests and open Allure report
-	npx allure generate $(ALLURE_RESULTS) -o .test-report --clean
+	npx allure generate -o .test-report .test-results
 	npx allure open .test-report
 
 # ─── E2E Tests ──────────────────────────────────────────
