@@ -14,9 +14,9 @@ PROTO_OBJ  := build/proto/subway.pb.o
 
 ALLURE_RESULTS ?=
 ifdef ALLURE_RESULTS
-JUNIT_CONFORMANCE := --junit $(ALLURE_RESULTS)/firmware-conformance.xml
-JUNIT_E2E         := --junit $(ALLURE_RESULTS)/firmware-e2e.xml
-JUNIT_STRESS      := --junit $(ALLURE_RESULTS)/firmware-stress.xml
+JUNIT_CONFORMANCE := --junit $(ALLURE_RESULTS)/fw-conformance.xml
+JUNIT_E2E         := --junit $(ALLURE_RESULTS)/fw-e2e.xml
+JUNIT_STRESS      := --junit $(ALLURE_RESULTS)/fw-stress.xml
 else
 JUNIT_CONFORMANCE :=
 JUNIT_E2E         :=

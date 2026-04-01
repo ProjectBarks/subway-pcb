@@ -7,7 +7,7 @@ export default defineConfig({
 			"default",
 			[
 				"junit",
-				{ outputFile: "../.test-results/frontend.xml", suiteName: "frontend" },
+				{ outputFile: "../.test/results/frontend.xml", suiteName: "frontend" },
 			],
 		],
 	},

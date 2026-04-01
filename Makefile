@@ -97,26 +97,40 @@ tools/viewer:                          ## Start standalone board viewer → http
 
 # ─── Unit Tests ─────────────────────────────────────────
 
-ALLURE_RESULTS := .test-results
+TEST_RESULTS := .test/results
+TEST_REPORT  := .test/report
 
-.PHONY: test test/go test/frontend test/firmware report
+.PHONY: test test/go test/frontend test/firmware test/report
 
 test: test/go test/frontend test/firmware  ## Run all unit tests
+	@echo ""
+	@echo "─── Test Results ────────────────────────────────"
+	@for f in $(TEST_RESULTS)/*.xml; do \
+		name=$$(basename "$$f" .xml); \
+		tests=$$(grep -o 'tests="[0-9]*"' "$$f" | head -1 | grep -o '[0-9]*'); \
+		fails=$$(grep -o 'failures="[0-9]*"' "$$f" | head -1 | grep -o '[0-9]*'); \
+		if [ "$$fails" = "0" ]; then \
+			printf "  \033[32m✓\033[0m %-20s %s tests\n" "$$name" "$$tests"; \
+		else \
+			printf "  \033[31m✗\033[0m %-20s %s tests, %s failed\n" "$$name" "$$tests" "$$fails"; \
+		fi; \
+	done
+	@echo "────────────────────────────────────────────────"
 
 test/go:                                   ## Run Go unit tests
-	@mkdir -p $(ALLURE_RESULTS)
-	cd service && go run gotest.tools/gotestsum@latest --junitfile ../$(ALLURE_RESULTS)/go.xml -- ./...
+	@mkdir -p $(TEST_RESULTS)
+	cd service && go run gotest.tools/gotestsum@latest --junitfile ../$(TEST_RESULTS)/go.xml -- ./...
 
 test/frontend: frontend/install            ## Run frontend unit tests (Lua conformance)
-	@mkdir -p $(ALLURE_RESULTS)
+	@mkdir -p $(TEST_RESULTS)
 	cd service && npx vitest run
 
 test/firmware:                             ## Run firmware Lua conformance + E2E + stress tests (host)
-	cd firmware/test && make test ALLURE_RESULTS=../../$(ALLURE_RESULTS)
+	cd firmware/test && make test ALLURE_RESULTS=../../$(TEST_RESULTS)
 
-test/report: test                               ## Run all tests and open Allure report
-	npx allure generate -o .test-report .test-results
-	npx allure open .test-report
+test/report: test                          ## Run all tests and open Allure HTML report
+	npx allure generate -o $(TEST_REPORT) $(TEST_RESULTS)
+	npx allure open $(TEST_REPORT)
 
 # ─── E2E Tests ──────────────────────────────────────────
 

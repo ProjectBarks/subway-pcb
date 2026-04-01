@@ -44,8 +44,7 @@ firmware/test/e2e
 firmware/test/stress
 
 # Test reports
-.test-results/
-.test-report/
+.test/
 
 # Managed components (downloaded at build time)
 **/managed_components/
