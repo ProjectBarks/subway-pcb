@@ -35,7 +35,22 @@ templ Base(title string, user *model.User, activePath string) {
 		<main class="pt-16">
 			{ children... }
 		</main>
-		<div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3"></div>
+		<div
+			id="toast-container"
+			class="fixed bottom-6 right-6 z-50 flex flex-col gap-3"
+			x-data
+			@showtoast.window="$store.toast.show($event.detail.message, $event.detail.type || 'success')"
+			@htmx:afterswap.window="(() => { const t = document.querySelector('[data-toast]'); if (t) { $store.toast.show(t.dataset.toast, t.dataset.toastType || 'success'); t.remove(); } })()"
+		>
+			<template x-for="toast in $store.toast.items" :key="toast.id">
+				<div
+					x-transition
+					:class="toast.type === 'error' ? 'alert-destructive' : ''"
+					class="alert shadow-lg xyz-toast"
+					x-text="toast.message"
+				></div>
+			</template>
+		</div>
 	</body>
 	</html>
 }

@@ -50,6 +50,7 @@ export default defineConfig({
         assetFileNames: isWatch ? "[name].[ext]" : "[name]-[hash].[ext]",
         manualChunks: {
           htmx: ["htmx.org"],
+          alpine: ["alpinejs", "@alpinejs/intersect"],
           three: ["three"],
           wasmoon: ["wasmoon"],
         },

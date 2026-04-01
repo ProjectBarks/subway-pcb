@@ -53,34 +53,5 @@ templ CommunityPage(user *model.User, plugins []model.Plugin, installed map[stri
 		@communityCodeModal()
 		<link rel="stylesheet" href={ layout.Asset("prism-lua.css") }/>
 		<script type="module" src={ layout.Asset("community.js") }></script>
-		<script>
-		function showCodeModal(pluginId, name, author) {
-			document.getElementById('modal-plugin-name').textContent = name;
-			document.getElementById('modal-plugin-author').textContent = 'by ' + author;
-			document.getElementById('modal-code-content').textContent = 'Loading...';
-			document.getElementById('code-modal').classList.remove('hidden');
-			fetch('/api/v1/plugins/' + pluginId)
-				.then(function(r) { return r.json(); })
-				.then(function(data) {
-					var p = data.data;
-					var src = p.lua_source || '-- No source available';
-					var el = document.getElementById('modal-code-content');
-					if (window.highlightLua) {
-						el.innerHTML = window.highlightLua(src);
-					} else {
-						el.textContent = src;
-					}
-				})
-				.catch(function() {
-					document.getElementById('modal-code-content').textContent = '-- Failed to load source';
-				});
-		}
-		function copyModalCode() {
-			var code = document.getElementById('modal-code-content').textContent;
-			navigator.clipboard.writeText(code).then(function() {
-				document.body.dispatchEvent(new CustomEvent('showToast', { detail: { message: 'Code copied to clipboard', type: 'success' } }));
-			});
-		}
-		</script>
 	}
 }

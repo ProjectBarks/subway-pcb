@@ -11,28 +11,6 @@ export function collectConfig(): Record<string, string> {
 	return config;
 }
 
-export function updatePreviewColor(_input: HTMLInputElement): void {
-	if (!window._luaRunner) return;
-	window._luaRunner.setConfig(collectConfig());
-}
-
-export function collectRouteColorsToForm(form: HTMLFormElement): void {
-	// Remove any existing color_ hidden inputs
-	form
-		.querySelectorAll<HTMLInputElement>('input[name^="color_"]')
-		.forEach((el) => el.remove());
-	// Add current color values from all pickers
-	document
-		.querySelectorAll<HTMLInputElement>(".route-color-input")
-		.forEach((input) => {
-			const hidden = document.createElement("input");
-			hidden.type = "hidden";
-			hidden.name = input.name;
-			hidden.value = input.value;
-			form.appendChild(hidden);
-		});
-}
-
 export function collectConfigToPresetForm(form: HTMLFormElement): void {
 	// Remove old val_ inputs
 	form

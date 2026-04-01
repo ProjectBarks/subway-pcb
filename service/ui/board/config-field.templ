@@ -1,21 +1,28 @@
 package board
 
-import "github.com/ProjectBarks/subway-pcb/service/internal/plugin"
+import (
+	"fmt"
+
+	"github.com/ProjectBarks/subway-pcb/service/internal/plugin"
+)
 
 // configFieldColor renders a compact color swatch for use inside a grid.
 templ configFieldColor(field plugin.ConfigField, configValues map[string]string) {
-	<label class="color-swatch-cell group flex flex-col gap-1 items-center cursor-pointer">
+	<label
+		x-data={ fmt.Sprintf("{ color: '%s' }", configValues[field.Key]) }
+		class="color-swatch-cell group flex flex-col gap-1 items-center cursor-pointer"
+	>
 		<span class="text-text-secondary text-[11px] font-medium text-center leading-tight truncate w-full transition-colors group-hover:text-text-primary">{ field.Label }</span>
 		<div class="relative w-full h-8 rounded-lg overflow-hidden border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_1px_3px_rgba(0,0,0,0.4)] transition-all duration-150 group-hover:scale-105 group-hover:border-white/20 group-hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_2px_8px_rgba(0,0,0,0.5)]">
 			<input
 				type="color"
 				name={ field.Key }
-				value={ configValues[field.Key] }
+				x-model="color"
 				class="absolute inset-0 w-full h-full cursor-pointer opacity-0 z-10"
 			/>
 			<div
 				class="w-full h-full pointer-events-none"
-				style={ "background-color:" + configValues[field.Key] }
+				:style="'background-color:' + color"
 				data-swatch={ field.Key }
 			></div>
 			<div class="absolute inset-0 pointer-events-none rounded-lg bg-gradient-to-b from-white/15 to-transparent h-1/2"></div>
@@ -37,13 +44,16 @@ templ configField(field plugin.ConfigField, configValues map[string]string) {
 				<span class="text-text-secondary text-xs font-mono">{ configValues[field.Key] }</span>
 			</div>
 		case plugin.FieldNumber:
-			<div class="config-number-field flex flex-col gap-2.5 bg-bg-surface-raised/50 rounded-xl px-4 py-3 border border-white/[0.04]">
+			<div
+				x-data={ fmt.Sprintf("{ val: %s }", configValues[field.Key]) }
+				class="config-number-field flex flex-col gap-2.5 bg-bg-surface-raised/50 rounded-xl px-4 py-3 border border-white/[0.04]"
+			>
 				<div class="flex items-center justify-between">
 					<label class="text-text-secondary text-xs font-medium uppercase tracking-wide">{ field.Label }</label>
 					<input
 						type="number"
 						name={ field.Key }
-						value={ configValues[field.Key] }
+						x-model.number="val"
 						if field.Min != "" {
 							min={ field.Min }
 						}
@@ -51,8 +61,6 @@ templ configField(field plugin.ConfigField, configValues map[string]string) {
 							max={ field.Max }
 						}
 						class="w-16 h-7 text-center text-sm font-mono text-text-primary bg-white/[0.06] border border-white/10 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-gold focus:border-accent-gold"
-						data-slider-input={ field.Key }
-						oninput={ syncSlider(field.Key) }
 					/>
 				</div>
 				if field.Min != "" && field.Max != "" {
@@ -60,12 +68,10 @@ templ configField(field plugin.ConfigField, configValues map[string]string) {
 						<span class="text-text-tertiary text-[10px] font-mono tabular-nums w-5 text-right">{ field.Min }</span>
 						<input
 							type="range"
-							value={ configValues[field.Key] }
+							x-model.number="val"
 							min={ field.Min }
 							max={ field.Max }
 							class="config-slider flex-1"
-							data-slider-range={ field.Key }
-							oninput={ syncInput(field.Key) }
 						/>
 						<span class="text-text-tertiary text-[10px] font-mono tabular-nums w-5">{ field.Max }</span>
 					</div>
@@ -86,16 +92,4 @@ templ configField(field plugin.ConfigField, configValues map[string]string) {
 				</select>
 			</div>
 	}
-}
-
-script syncSlider(key string) {
-	const num = document.querySelector(`[data-slider-input="${key}"]`);
-	const range = document.querySelector(`[data-slider-range="${key}"]`);
-	if (num && range) range.value = num.value;
-}
-
-script syncInput(key string) {
-	const num = document.querySelector(`[data-slider-input="${key}"]`);
-	const range = document.querySelector(`[data-slider-range="${key}"]`);
-	if (num && range) num.value = range.value;
 }

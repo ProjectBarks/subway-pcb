@@ -3,22 +3,31 @@ package community
 import "github.com/ProjectBarks/subway-pcb/service/ui/components"
 
 templ communityCodeModal() {
-	<div id="code-modal" class="fixed inset-0 bg-black/80 z-50 hidden" onclick="if(event.target===this) this.classList.add('hidden')">
+	<div
+		id="code-modal"
+		x-data="codeModal"
+		x-show="open"
+		@click.self="open = false"
+		@show-code.window="show($event.detail.id, $event.detail.name, $event.detail.author)"
+		x-transition
+		x-cloak
+		class="fixed inset-0 bg-black/80 z-50"
+	>
 		<div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl max-h-[80vh] bg-bg-surface border border-border-subtle rounded-xl overflow-hidden flex flex-col">
 			<div class="flex items-center justify-between p-5 border-b border-border-subtle">
 				<div>
-					<h3 class="text-text-primary text-lg font-semibold" id="modal-plugin-name"></h3>
-					<p class="text-text-secondary text-sm mt-1" id="modal-plugin-author"></p>
+					<h3 class="text-text-primary text-lg font-semibold" x-text="name"></h3>
+					<p class="text-text-secondary text-sm mt-1" x-text="'by ' + author"></p>
 				</div>
-				<button onclick="document.getElementById('code-modal').classList.add('hidden')" class="size-8 rounded-lg hover:bg-bg-surface-raised text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center">
+				<button @click="open = false" class="size-8 rounded-lg hover:bg-bg-surface-raised text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center">
 					@components.Icon("x", "size-4")
 				</button>
 			</div>
 			<div class="flex-1 overflow-auto p-5">
-				<pre id="modal-code-content" class="bg-black p-4 rounded-lg text-sm font-mono text-text-primary overflow-x-auto language-lua"></pre>
+				<pre class="bg-black p-4 rounded-lg text-sm font-mono text-text-primary overflow-x-auto language-lua" x-html="codeHtml"></pre>
 			</div>
 			<div class="p-5 border-t border-border-subtle flex gap-3">
-				<button onclick="copyModalCode()" class="flex-1 h-10 bg-bg-surface-raised border border-border-subtle rounded-full text-text-primary hover:border-accent-gold transition-colors">Copy Code</button>
+				<button @click="copyCode()" class="flex-1 h-10 bg-bg-surface-raised border border-border-subtle rounded-full text-text-primary hover:border-accent-gold transition-colors">Copy Code</button>
 				<a href="/editor" class="flex-1 h-10 bg-accent-gold text-black rounded-full transition-all flex items-center justify-center gap-2 font-medium">
 					@components.Icon("code", "size-4")
 					Open in Editor

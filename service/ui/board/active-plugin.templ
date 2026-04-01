@@ -102,7 +102,7 @@ templ ActivePluginContent(data BoardData) {
 				hx-target="#controls"
 				hx-swap="outerHTML"
 				class="space-y-2"
-				onsubmit="collectConfigToPresetForm(this)"
+				data-preset-form
 			>
 				<input type="hidden" name="plugin_name" value={ data.Device.PluginName }/>
 				<input

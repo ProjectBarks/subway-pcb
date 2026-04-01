@@ -19,7 +19,7 @@ var navLinks = []navLink{
 }
 
 templ Nav(user *model.User, activePath string) {
-	<nav class="glass bg-black/40 border-0 border-b border-white/[0.06] fixed top-0 left-0 right-0 z-50">
+	<nav x-data="mobileNav" class="glass bg-black/40 border-0 border-b border-white/[0.06] fixed top-0 left-0 right-0 z-50">
 		<div class="px-5 lg:px-10">
 			<div class="flex items-center justify-between h-16">
 				<!-- Logo -->
@@ -50,13 +50,13 @@ templ Nav(user *model.User, activePath string) {
 					</button>
 					<!-- Mobile Menu Button -->
 					<button
-						id="mobile-menu-toggle"
+						@click="toggle()"
 						class="md:hidden size-8 rounded-md bg-bg-surface-raised border border-border-subtle flex items-center justify-center hover:border-border-hover transition-colors"
 					>
-						<span id="menu-icon-open">
+						<span x-show="!open">
 							@icon.Icon("menu", "size-4 text-text-secondary")
 						</span>
-						<span id="menu-icon-close" class="hidden">
+						<span x-show="open" x-cloak>
 							@icon.Icon("x", "size-4 text-text-secondary")
 						</span>
 					</button>
@@ -64,10 +64,11 @@ templ Nav(user *model.User, activePath string) {
 			</div>
 		</div>
 		<!-- Mobile Menu -->
-		<div id="mobile-menu" class="md:hidden glass border-0 border-t border-border-subtle overflow-hidden transition-all duration-200 ease-out max-h-0 opacity-0">
+		<div x-show="open" x-transition class="md:hidden glass border-0 border-t border-border-subtle overflow-hidden">
 			<div class="px-5 py-4 space-y-1">
 				for _, link := range navLinks {
 					<a
+						@click="close()"
 						href={ templ.URL(link.Path) }
 						class={
 							"block px-4 py-3 rounded-lg text-sm transition-colors",

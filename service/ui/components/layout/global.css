@@ -4,6 +4,11 @@
 @import "./theme.css";
 @import "./animations.css";
 
+/* Alpine.js x-cloak: hide elements until Alpine initialises */
+[x-cloak] {
+	display: none !important;
+}
+
 /* Scan all templ files and TS source for Tailwind class names */
 @source "../../**/*.templ";
 @source "../../lib/**/*.ts";

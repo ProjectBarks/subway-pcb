@@ -1,7 +1,12 @@
 import "htmx.org";
-import "../../lib/types";
-import { initNav } from "../nav/nav";
-import { initToastHandler } from "../toast/toast";
+import intersect from "@alpinejs/intersect";
+import Alpine from "alpinejs";
+import { registerNav } from "../nav/nav";
+import { registerToastStore } from "../toast/toast";
 
-initToastHandler();
-initNav();
+Alpine.plugin(intersect);
+registerToastStore(Alpine);
+registerNav(Alpine);
+
+// Start after all deferred module scripts have registered their components.
+document.addEventListener("DOMContentLoaded", () => Alpine.start());

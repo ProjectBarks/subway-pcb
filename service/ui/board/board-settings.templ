@@ -62,7 +62,7 @@ templ BoardSettingsContent(data BoardData) {
 					@components.Icon("wifi-off", "size-12 text-text-muted mx-auto mb-4")
 					<h3 class="text-lg font-semibold text-text-primary mb-2">Board Not Connected</h3>
 					<p class="text-sm text-text-secondary mb-4">Connect your board via USB to access settings</p>
-					<button onclick="window.boardSerial && window.boardSerial.connect()" class="btn-primary mx-auto flex items-center justify-center gap-2">
+					<button data-serial-connect class="btn-primary mx-auto flex items-center justify-center gap-2">
 						@components.Icon("usb", "size-4")
 						Connect via USB
 					</button>

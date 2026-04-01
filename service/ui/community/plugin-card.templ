@@ -46,9 +46,12 @@ templ communityPluginCard(p model.Plugin, isInstalled bool) {
 				}
 			</div>
 			<!-- Actions -->
-			<div class="flex gap-2 mt-auto">
+			<div class="flex gap-2 mt-auto" x-data>
 				@PluginInstallButton(p.ID, isInstalled)
-				<button onclick={ templ.JSFuncCall("showCodeModal", p.ID, p.Name, p.AuthorEmail) } class="h-10 px-4 border border-border-subtle rounded-full text-text-secondary hover:border-accent-gold hover:text-accent-gold transition-all">
+				<button
+					@click={ fmt.Sprintf("$dispatch('show-code', { id: '%s', name: '%s', author: '%s' })", p.ID, p.Name, p.AuthorEmail) }
+					class="h-10 px-4 border border-border-subtle rounded-full text-text-secondary hover:border-accent-gold hover:text-accent-gold transition-all"
+				>
 					@components.Icon("code", "size-4")
 				</button>
 			</div>

@@ -1,58 +1,25 @@
-interface HtmxAfterSwapEvent extends Event {
-	detail: {
-		target: HTMLElement;
-	};
+import type Alpine from "alpinejs";
+
+interface ToastItem {
+	id: number;
+	message: string;
+	type: string;
 }
 
-interface ShowToastEvent extends Event {
-	detail: {
-		message?: string;
-		type?: string;
-	};
-}
-
-const TOAST_DURATION = 3500;
-const EXIT_ANIMATION_DURATION = 300;
-
-function dismissToast(toast: HTMLElement): void {
-	toast.classList.remove("xyz-in");
-	toast.classList.add("xyz-out");
-	setTimeout(() => toast.remove(), EXIT_ANIMATION_DURATION);
-}
-
-function createToastElement(message: string, type: string): HTMLDivElement {
-	const div = document.createElement("div");
-	div.className =
-		"alert shadow-lg xyz-toast xyz-in" +
-		(type === "error" ? " alert-destructive" : "");
-	div.textContent = message;
-	return div;
-}
-
-export function initToastHandler(): void {
-	document.body.addEventListener("htmx:afterSwap", ((
-		evt: HtmxAfterSwapEvent,
-	) => {
-		const toast = evt.detail.target.querySelector(
-			"[data-toast]",
-		) as HTMLElement | null;
-		if (toast) {
-			const container = document.getElementById("toast-container");
-			if (container) {
-				toast.classList.add("xyz-toast", "xyz-in");
-				container.appendChild(toast);
-				setTimeout(() => dismissToast(toast), TOAST_DURATION);
-			}
-		}
-	}) as EventListener);
-
-	document.body.addEventListener("showToast", ((evt: ShowToastEvent) => {
-		const container = document.getElementById("toast-container");
-		if (!container) return;
-		const msg = evt.detail.message || "";
-		const type = evt.detail.type || "success";
-		const div = createToastElement(msg, type);
-		container.appendChild(div);
-		setTimeout(() => dismissToast(div), TOAST_DURATION);
-	}) as EventListener);
+export function registerToastStore(alpine: typeof Alpine): void {
+	alpine.store("toast", {
+		items: [] as ToastItem[],
+		show(message: string, type = "success") {
+			const id = Date.now();
+			(this as unknown as { items: ToastItem[] }).items.push({
+				id,
+				message,
+				type,
+			});
+			setTimeout(() => {
+				const self = this as unknown as { items: ToastItem[] };
+				self.items = self.items.filter((t) => t.id !== id);
+			}, 3500);
+		},
+	});
 }

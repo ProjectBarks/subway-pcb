@@ -1,4 +1,3 @@
-import "../lib/types";
 import "./board.css";
 import { loadBoardData } from "../lib/board-data";
 import {
@@ -9,34 +8,25 @@ import {
 import { LuaRunner } from "../lib/lua-runner";
 import { pollMtaState } from "../lib/mta-polling";
 import { initPreviews, type PreviewCleanup } from "../lib/preview-controller";
-import { BoardSerial, encodeCommand } from "../lib/serial";
-import {
-	collectConfig,
-	collectConfigToPresetForm,
-	collectRouteColorsToForm,
-	updatePreviewColor,
-} from "./form-helpers";
+import { BoardSerial } from "../lib/serial";
+import { collectConfig, collectConfigToPresetForm } from "./form-helpers";
 
-// Expose form helpers globally for inline event handlers in Go templates
-window.updatePreviewColor = updatePreviewColor;
-window.collectRouteColorsToForm = collectRouteColorsToForm;
-window.collectConfigToPresetForm = collectConfigToPresetForm;
+const boardSerial = new BoardSerial();
 
-// Sync color swatch divs when their hidden color inputs change
-document.addEventListener("input", (e) => {
-	const el = e.target;
-	if (el instanceof HTMLInputElement && el.type === "color" && el.name) {
-		const swatch = document.querySelector(
-			`[data-swatch="${el.name}"]`,
-		) as HTMLElement | null;
-		if (swatch) swatch.style.backgroundColor = el.value;
-	}
+// Event delegation for preset form submission (replaces window.collectConfigToPresetForm)
+document.addEventListener("submit", (e) => {
+	const form = (e.target as HTMLElement).closest(
+		"[data-preset-form]",
+	) as HTMLFormElement | null;
+	if (form) collectConfigToPresetForm(form);
 });
 
-// Initialize WebSerial for board settings
-const boardSerial = new BoardSerial();
-window.boardSerial = boardSerial;
-window.encodeCommand = encodeCommand;
+// Event delegation for USB serial connect (replaces window.boardSerial)
+document.addEventListener("click", (e) => {
+	if ((e.target as HTMLElement).closest("[data-serial-connect]")) {
+		boardSerial.connect();
+	}
+});
 
 const canvasWrap = document.getElementById("canvas-wrap");
 const boardUrl =
@@ -55,7 +45,6 @@ function updateStatus(trains: number, _seq: number): void {
 	const dot = document.getElementById("dot");
 	const statusText = document.getElementById("status-text");
 	const trainCount = document.getElementById("train-count");
-	const frameSeq = document.getElementById("frame-seq");
 	if (lastFetchOk) {
 		if (dot)
 			dot.innerHTML =
@@ -68,7 +57,6 @@ function updateStatus(trains: number, _seq: number): void {
 		if (statusText) statusText.textContent = "Disconnected";
 	}
 	if (trainCount) trainCount.textContent = String(trains);
-	if (frameSeq) frameSeq.textContent = "0";
 }
 
 function onLedHover(info: LedInfo | null): void {
@@ -134,6 +122,19 @@ async function initBrowsePreviews(): Promise<void> {
 	previewCleanup = await initPreviews("#tab-browse [data-preview-card]");
 }
 
+// Update Lua runner config when any color input changes
+document.addEventListener("input", (e) => {
+	const el = e.target;
+	if (
+		el instanceof HTMLInputElement &&
+		el.type === "color" &&
+		el.name &&
+		luaRunner
+	) {
+		luaRunner.setConfig(collectConfig());
+	}
+});
+
 async function init(): Promise<void> {
 	const viewerContainer = document.getElementById("board-viewer");
 	if (!viewerContainer) return;
@@ -166,9 +167,6 @@ async function init(): Promise<void> {
 
 	// Load the active plugin's Lua source
 	await loadActivePlugin();
-
-	// Expose for theme editing
-	window._luaRunner = luaRunner;
 
 	// Fetch state and start rendering
 	pollMtaState(luaRunner, 5000, {
