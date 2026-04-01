@@ -5,6 +5,7 @@
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_system.h"
+#include "esp_task_wdt.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "log/device_log.hpp"
@@ -149,6 +150,9 @@ static void state_task(void* arg) {
     auto* ota_active = args->ota_active;
     auto* http_active = args->http_active;
     delete args;
+
+    // Register with task watchdog
+    esp_task_wdt_add(nullptr);
 
     // Init HTTP client — static so the 16KB buffer lives in BSS, not on the task stack
     static HttpClient http;
@@ -338,6 +342,7 @@ static void state_task(void* arg) {
             }
         }
 
+        esp_task_wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(kPollIntervalMs));
     }
 }

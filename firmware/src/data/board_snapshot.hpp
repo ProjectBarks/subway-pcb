@@ -52,10 +52,8 @@ class BoardStore {
     }
     void unlock_write() { xSemaphoreGive(mutex_); }
 
-    // Reader: lock, read, unlock. Read is fast (microseconds).
-    const BoardSnapshot& lock_for_read() {
-        xSemaphoreTake(mutex_, portMAX_DELAY);
-        return snapshot_;
-    }
+    // Reader: lock, get snapshot ref, unlock.
+    void lock_for_read() { xSemaphoreTake(mutex_, portMAX_DELAY); }
+    const BoardSnapshot& snapshot() const { return snapshot_; }
     void unlock_read() { xSemaphoreGive(mutex_); }
 };

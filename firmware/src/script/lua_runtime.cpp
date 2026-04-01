@@ -2,6 +2,7 @@
 
 #include "config/constants.hpp"
 #include "core/lua_includes.hpp"
+#include "esp_task_wdt.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -98,6 +99,9 @@ static void render_task(void* arg) {
 
     DLOG_I(TAG, "Render task started");
 
+    // Register with task watchdog (30s timeout — generous for ~33fps loop)
+    esp_task_wdt_add(nullptr);
+
     lua_State* L = create_lua_state();
     if (!L) {
         DLOG_E(TAG, "Failed to create Lua state!");
@@ -152,11 +156,27 @@ static void render_task(void* arg) {
             free(new_source);
         }
 
+        // If Lua VM is dead, skip rendering but keep the loop alive
+        // so we can pick up new scripts from the channel
+        if (!L) {
+            L = create_lua_state();
+            if (L && luaL_dostring(L, FALLBACK_SCRIPT) == LUA_OK) {
+                script_loaded = true;
+                DLOG_W(TAG, "Recovered Lua VM with fallback");
+            }
+            if (!L) {
+                vTaskDelay(pdMS_TO_TICKS(1000)); // back off on persistent OOM
+                continue;
+            }
+        }
+
         // Read transit data (lock-free double buffer)
         const auto& transit = args->transit_buf->read();
 
-        // Read board data (mutex, fast — microseconds)
-        const auto& board = args->board_store->lock_for_read();
+        // Lock board data for this frame. Held during Lua render (~1ms).
+        // Board writes are rare (~once per boot) so contention is negligible.
+        args->board_store->lock_for_read();
+        const auto& board = args->board_store->snapshot();
 
         // Set up per-frame binding context
         auto pixels = args->led->pixel_buffer();
@@ -185,7 +205,6 @@ static void render_task(void* arg) {
             if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
                 const char* err = lua_tostring(L, -1);
                 DLOG_W(TAG, "Lua render error: %s", err ? err : "unknown");
-                // Store error for remote diagnostics
                 if (err) {
                     args->diag->set_lua_err(err);
                 }
@@ -203,7 +222,7 @@ static void render_task(void* arg) {
             }
         }
 
-        // Release board mutex — Lua render is done reading board data
+        // Release board mutex after Lua render
         args->board_store->unlock_read();
 
         int64_t frame_end = esp_timer_get_time();
@@ -233,7 +252,8 @@ static void render_task(void* arg) {
         args->diag->first_lit_led.store(first_lit, std::memory_order_relaxed);
         args->diag->frame_time_us.store(frame_us, std::memory_order_relaxed);
 
-        // Sleep for render interval (~30ms = ~33fps)
+        // Feed watchdog + sleep for render interval (~30ms = ~33fps)
+        esp_task_wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(kRenderIntervalMs));
     }
 
