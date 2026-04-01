@@ -29,7 +29,7 @@ esp_err_t LedDriver::init(const BoardHwConfig* hw) {
     return ESP_OK;
 }
 
-esp_err_t LedDriver::refresh_strip_spi(int strip_idx) {
+esp_err_t LedDriver::refresh_strip_spi(int strip_idx) const {
     led_strip_config_t cfg = {
         .strip_gpio_num = hw_->strip_gpios[strip_idx],
         .max_leds = hw_->strip_led_counts[strip_idx],

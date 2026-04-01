@@ -14,7 +14,7 @@ class LedDriver {
     Rgb pixel_buf_[kMaxLeds]{};
     uint16_t strip_offsets_[kMaxStrips]{};
 
-    esp_err_t refresh_strip_spi(int strip_idx);
+    esp_err_t refresh_strip_spi(int strip_idx) const;
 
   public:
     esp_err_t init(const BoardHwConfig* hw);
