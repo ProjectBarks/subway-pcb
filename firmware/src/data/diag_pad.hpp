@@ -1,11 +1,10 @@
 #pragma once
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
-
 #include <atomic>
+#include <chrono>
 #include <climits>
 #include <cstdint>
 #include <cstring>
+#include <mutex>
 
 struct DiagPad {
     std::atomic<uint32_t> nonzero_pixels{0};
@@ -21,25 +20,25 @@ struct DiagPad {
     std::atomic<uint32_t> stack_hwm_state{0};
 
     // String fields: written rarely, read ~1/s
-    SemaphoreHandle_t str_mutex = nullptr;
+    std::timed_mutex str_mutex;
     char last_lua_err[64]{};
     char fetch_err[64]{};
 
-    void init() { str_mutex = xSemaphoreCreateMutex(); }
+    void init() {}
 
     void set_lua_err(const char* err) {
-        if (xSemaphoreTake(str_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        if (str_mutex.try_lock_for(std::chrono::milliseconds(50))) {
             strncpy(last_lua_err, err, sizeof(last_lua_err) - 1);
             last_lua_err[sizeof(last_lua_err) - 1] = '\0';
-            xSemaphoreGive(str_mutex);
+            str_mutex.unlock();
         }
     }
 
     void set_fetch_err(const char* err) {
-        if (xSemaphoreTake(str_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        if (str_mutex.try_lock_for(std::chrono::milliseconds(50))) {
             strncpy(fetch_err, err, sizeof(fetch_err) - 1);
             fetch_err[sizeof(fetch_err) - 1] = '\0';
-            xSemaphoreGive(str_mutex);
+            str_mutex.unlock();
         }
     }
 };

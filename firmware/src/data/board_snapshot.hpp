@@ -1,9 +1,7 @@
 #pragma once
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
-
 #include <cstdint>
 #include <cstring>
+#include <mutex>
 
 extern "C" {
 #include "subway.pb.h"
@@ -40,20 +38,18 @@ struct BoardSnapshot {
 // so mutex contention is negligible. Saves ~26KB vs double-buffered.
 class BoardStore {
     BoardSnapshot snapshot_{};
-    SemaphoreHandle_t mutex_ = nullptr;
+    std::mutex mutex_;
 
   public:
-    void init() { mutex_ = xSemaphoreCreateMutex(); }
+    void init() {}
 
-    // Writer: lock, modify snapshot directly, unlock.
     BoardSnapshot& lock_for_write() {
-        xSemaphoreTake(mutex_, portMAX_DELAY);
+        mutex_.lock();
         return snapshot_;
     }
-    void unlock_write() { xSemaphoreGive(mutex_); }
+    void unlock_write() { mutex_.unlock(); }
 
-    // Reader: lock, get snapshot ref, unlock.
-    void lock_for_read() { xSemaphoreTake(mutex_, portMAX_DELAY); }
+    void lock_for_read() { mutex_.lock(); }
     const BoardSnapshot& snapshot() const { return snapshot_; }
-    void unlock_read() { xSemaphoreGive(mutex_); }
+    void unlock_read() { mutex_.unlock(); }
 };

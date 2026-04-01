@@ -13,6 +13,7 @@
 #include "nvs_flash.h"
 #include "proto/codec.hpp"
 
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -121,13 +122,13 @@ static int build_diagnostics(DiagPad& diag,
     dd.render.first_lit_led = diag.first_lit_led.load(std::memory_order_relaxed);
 
     // Copy error string (prefer lua error, fall back to fetch error)
-    if (xSemaphoreTake(diag.str_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+    if (diag.str_mutex.try_lock_for(std::chrono::milliseconds(50))) {
         const char* err_src = diag.last_lua_err[0] ? diag.last_lua_err
                               : diag.fetch_err[0]  ? diag.fetch_err
                                                    : "";
         std::strncpy(dd.error, err_src, sizeof(dd.error) - 1);
         dd.error[sizeof(dd.error) - 1] = '\0';
-        xSemaphoreGive(diag.str_mutex);
+        diag.str_mutex.unlock();
     }
 
     // Drain remote logs if enabled

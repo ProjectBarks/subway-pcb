@@ -2,12 +2,11 @@
 
 #include "esp_log.h"
 #include "esp_timer.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
 
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 
 // Ring buffer size for remote logs
 static constexpr int kLogRingSize = 2048;
@@ -15,10 +14,9 @@ static constexpr int kLogRingSize = 2048;
 static char s_ring[kLogRingSize];
 static int s_ring_len = 0;
 static bool s_remote_enabled = false;
-static SemaphoreHandle_t s_mutex = nullptr;
+static std::mutex s_mutex;
 
 void device_log_init() {
-    s_mutex = xSemaphoreCreateMutex();
     s_ring_len = 0;
     s_remote_enabled = false;
 }
@@ -62,7 +60,7 @@ void device_log(LogLevel level, const char* tag, const char* fmt, ...) {
     }
 
     // Buffer for remote if enabled
-    if (!s_remote_enabled || !s_mutex)
+    if (!s_remote_enabled)
         return;
 
     uint32_t uptime_ms = static_cast<uint32_t>(esp_timer_get_time() / 1000);
@@ -80,37 +78,31 @@ void device_log(LogLevel level, const char* tag, const char* fmt, ...) {
     if (line_len >= static_cast<int>(sizeof(line)))
         line_len = sizeof(line) - 1;
 
-    xSemaphoreTake(s_mutex, portMAX_DELAY);
+    std::lock_guard lock(s_mutex);
     if (s_ring_len + line_len < kLogRingSize) {
         std::memcpy(s_ring + s_ring_len, line, line_len);
         s_ring_len += line_len;
     }
-    // If buffer is full, silently drop -- oldest logs are preserved
-    xSemaphoreGive(s_mutex);
 }
 
 void device_log_set_remote(bool enabled) {
     s_remote_enabled = enabled;
-    if (!enabled && s_mutex) {
-        // Clear buffer when disabling
-        xSemaphoreTake(s_mutex, portMAX_DELAY);
+    if (!enabled) {
+        std::lock_guard lock(s_mutex);
         s_ring_len = 0;
-        xSemaphoreGive(s_mutex);
     }
 }
 
 int device_log_drain(char* buf, int buf_size) {
-    if (!s_mutex || !buf || buf_size <= 0)
+    if (!buf || buf_size <= 0)
         return 0;
 
-    xSemaphoreTake(s_mutex, portMAX_DELAY);
+    std::lock_guard lock(s_mutex);
     int copy_len = s_ring_len < buf_size ? s_ring_len : buf_size - 1;
     if (copy_len > 0) {
         std::memcpy(buf, s_ring, copy_len);
         buf[copy_len] = '\0';
     }
     s_ring_len = 0;
-    xSemaphoreGive(s_mutex);
-
     return copy_len;
 }

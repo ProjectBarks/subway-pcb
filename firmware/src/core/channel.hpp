@@ -1,36 +1,43 @@
 #pragma once
-#include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
-
+#include <chrono>
+#include <condition_variable>
 #include <cstdlib>
+#include <mutex>
 
 class ScriptChannel {
-    QueueHandle_t q_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    char* pending_ = nullptr;
 
   public:
-    ScriptChannel() : q_(xQueueCreate(1, sizeof(char*))) {}
-    ~ScriptChannel() {
-        char* remaining = nullptr;
-        while (xQueueReceive(q_, &remaining, 0) == pdTRUE) {
-            free(remaining);
-        }
-        vQueueDelete(q_);
-    }
+    ScriptChannel() = default;
+    ~ScriptChannel() { free(pending_); }
 
-    // Takes ownership of ptr (must be malloc/strdup'd)
+    // Takes ownership of ptr (must be malloc/strdup'd).
+    // Frees any previously pending script that hasn't been received.
     void send(char* ptr) {
-        char* old = nullptr;
-        if (xQueueReceive(q_, &old, 0) == pdTRUE) {
-            free(old); // drain displaced entry to prevent leak
+        std::lock_guard lock(mutex_);
+        free(pending_);
+        pending_ = ptr;
+        cv_.notify_one();
+    }
+
+    // Returns true if a script was received. Caller takes ownership of out.
+    // timeout_ms=0 means non-blocking check.
+    bool receive(char*& out, uint32_t timeout_ms = 0) {
+        std::unique_lock lock(mutex_);
+        if (timeout_ms > 0) {
+            cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms), [this] {
+                return pending_ != nullptr;
+            });
         }
-        xQueueSend(q_, &ptr, portMAX_DELAY);
+        if (!pending_)
+            return false;
+        out = pending_;
+        pending_ = nullptr;
+        return true;
     }
 
-    bool receive(char*& out, TickType_t timeout = 0) {
-        return xQueueReceive(q_, &out, timeout) == pdTRUE;
-    }
-
-    // Non-copyable
     ScriptChannel(const ScriptChannel&) = delete;
     ScriptChannel& operator=(const ScriptChannel&) = delete;
 };

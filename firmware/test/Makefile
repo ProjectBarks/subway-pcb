@@ -48,13 +48,13 @@ build:
 
 # --- Conformance test (Lua API) ---
 conformance: test_lua_conformance.cpp stubs.cpp $(LUA_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ test_lua_conformance.cpp stubs.cpp $(LUA_OBJ) -lm
+	$(CXX) $(CXXFLAGS) -o $@ test_lua_conformance.cpp stubs.cpp $(LUA_OBJ) -lm -lpthread
 
 # --- E2E test (protobuf → snapshot → Lua → pixels) ---
 e2e: test_e2e.cpp stubs.cpp $(LUA_OBJ) $(NANOPB_OBJ) $(PROTO_OBJ) build/board_snapshot.o
 	$(CXX) $(CXXFLAGS) -o $@ test_e2e.cpp stubs.cpp \
 		../src/proto/codec.cpp ../src/script/lua_bindings.cpp \
-		$(LUA_OBJ) $(NANOPB_OBJ) $(PROTO_OBJ) build/board_snapshot.o -lm
+		$(LUA_OBJ) $(NANOPB_OBJ) $(PROTO_OBJ) build/board_snapshot.o -lm -lpthread
 
 clean:
 	rm -rf conformance e2e build
