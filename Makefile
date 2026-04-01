@@ -148,20 +148,15 @@ site/preview: site/build               ## Build and open landing page in browser
 
 # ─── Lint ────────────────────────────────────────────────
 
-.PHONY: lint lint/go lint/python lint/firmware lint/frontend fmt/firmware
-
-lint: lint/go lint/python lint/firmware lint/frontend  ## Run all linters
-
-lint/go: backend/generate              ## Lint Go backend
-	cd service && go vet ./...
-
-lint/python:                           ## Lint and typecheck Python tools
-	uvx ruff check tools/ --exclude '**/.venv'
-	uvx ty check tools/ --config-file tools/ty.toml
+.PHONY: lint lint/firmware fmt/firmware
 
 CLANG_FMT := uvx clang-format==19.1.7
 
-lint/firmware:                         ## Lint firmware (build + format + static analysis)
+lint:                                      ## Run all linters (Trunk + firmware build)
+	trunk check --no-fix
+	$(MAKE) lint/firmware
+
+lint/firmware:                             ## Lint firmware (build + format + cppcheck)
 	cd firmware && $(PIO) run
 	cd tools/debug-firmware && $(PIO) run
 	cd firmware && find src -name '*.cpp' -o -name '*.hpp' | xargs $(CLANG_FMT) --dry-run --Werror
@@ -169,18 +164,15 @@ lint/firmware:                         ## Lint firmware (build + format + static
 		--src-filters="+<src/>" \
 		--flags="cppcheck: --suppress=unusedFunction --suppress=*:*components/*"
 
-lint/frontend:                         ## Lint frontend with Biome
-	cd service && npx biome check
-
-fmt/firmware:                          ## Format firmware C++ code
+fmt/firmware:                              ## Format firmware C++ code
 	cd firmware && find src -name '*.cpp' -o -name '*.hpp' | xargs $(CLANG_FMT) -i
 
 # ─── Hooks ───────────────────────────────────────────────
 
 .PHONY: hooks
 
-hooks:                                 ## Install git pre-commit hook
-	@printf '#!/bin/sh\nmake lint\n' > .git/hooks/pre-commit
+hooks:                                 ## Install git pre-commit hook (uses Trunk for speed)
+	@printf '#!/bin/sh\ntrunk check --no-fix\n' > .git/hooks/pre-commit
 	@chmod +x .git/hooks/pre-commit
 	@echo "Installed .git/hooks/pre-commit"
 

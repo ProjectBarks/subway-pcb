@@ -66,3 +66,11 @@ plan.md
 
 # Site
 _site/
+
+# Trunk (cache is local, config is tracked)
+.trunk/actions
+.trunk/logs
+.trunk/notifications
+.trunk/out
+.trunk/plugins
+.trunk/tools

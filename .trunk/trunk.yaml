@@ -1,0 +1,74 @@
+# Trunk Check configuration: https://docs.trunk.io/reference/trunk-yaml
+version: 0.1
+cli:
+  version: 1.25.0
+  sha256:
+    darwin_arm64: 2cff4f1cc63916db290359a058b88167beeac07a496682d9307a1804b498f225
+    darwin_x86_64: d0153b87a7eba4cd7d09a048b97bd60ac3ac15352def2bc3599d548875823ed3
+    linux_arm64: cc210d2185cf95bedbec06384be6ef342bdb7dcf3ff72dd08fe0e69859516887
+    linux_x86_64: 3845ff76a70cebb10e61a267ff719ffdccfa3ef6d877d51870a2c62b79603ab9
+    mingw_x86_64: 739f6aabc91d9ba4bce894314e01ab56d2c11b573c921b6f8caed6393c66c5f1
+    windows_x86_64: d883930b487d12a47e2c42fb83391417db4c4254c7346720c11e6a947c305a2c
+plugins:
+  sources:
+    - id: trunk
+      ref: v1.7.6
+      uri: https://github.com/trunk-io/plugins
+runtimes:
+  enabled:
+    - go@1.21.0
+    - node@22.16.0
+    - python@3.10.8
+lint:
+  enabled:
+    # C++ (firmware) — handled by make lint/firmware (uvx clang-format)
+    # clang-format excluded from trunk; version pinning via uvx is more reliable
+    # Go (service)
+    - gofmt@1.20.4
+    - golangci-lint2@2.11.4
+    # TypeScript (service/ui)
+    - biome@1.9.4
+    # Python (tools)
+    - ruff@0.15.8
+    # Config/CI
+    - actionlint@1.7.12
+    - yamllint@1.38.0
+    # Security
+    - trufflehog@3.94.1
+    - osv-scanner@2.3.5
+    # General
+    - git-diff-check
+  disabled:
+    # Conflicts with Biome (we use Biome for TS/JS)
+    - prettier
+    # Conflicts with ruff (we use ruff for Python)
+    - black
+    - isort
+    - bandit
+    # Overkill for this project
+    - checkov
+    - hadolint
+    - markdownlint
+    - oxipng
+    - svgo
+    - taplo
+  ignore:
+    - linters: [ALL]
+      paths:
+        - firmware/components/**
+        - firmware/proto/subway.pb.*
+        - firmware/test/nanopb/**
+        - service/node_modules/**
+        - "**/.pio/**"
+        - "**/managed_components/**"
+    - linters: [biome]
+      paths:
+        - tools/**
+        - pcb/**
+        - "*.json"
+    - linters: [yamllint]
+      paths:
+        - .github/**
+actions:
+  enabled:
+    - trunk-upgrade-available
