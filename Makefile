@@ -161,10 +161,13 @@ lint/python:                           ## Lint and typecheck Python tools
 
 CLANG_FMT := uvx clang-format==19.1.7
 
-lint/firmware:                         ## Lint firmware (build + format check)
+lint/firmware:                         ## Lint firmware (build + format + static analysis)
 	cd firmware && $(PIO) run
 	cd tools/debug-firmware && $(PIO) run
 	cd firmware && find src -name '*.cpp' -o -name '*.hpp' | xargs $(CLANG_FMT) --dry-run --Werror
+	cd firmware && $(PIO) check --skip-packages --fail-on-defect=high \
+		--src-filters="+<src/>" \
+		--flags="cppcheck: --suppress=unusedFunction --suppress=*:*components/*"
 
 lint/frontend:                         ## Lint frontend with Biome
 	cd service && npx biome check
