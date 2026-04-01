@@ -19,13 +19,13 @@ interface CardState {
 	config: Record<string, string>;
 	board: BoardData | null;
 	rendered: boolean;
+	rendering: boolean;
 	enterHandler: () => void;
 	leaveHandler: () => void;
 }
 
 let sharedRunner: LuaRunner | null = null;
-let mtaState: StationState[] = [];
-let mtaFetched = false;
+let mtaPromise: Promise<StationState[]> | null = null;
 let activeAnimCard: CardState | null = null;
 let animFrameId = 0;
 
@@ -38,18 +38,21 @@ async function ensureRunner(): Promise<LuaRunner> {
 }
 
 async function fetchMtaState(): Promise<StationState[]> {
-	if (mtaFetched) return mtaState;
-	mtaFetched = true;
-	try {
-		const resp = await fetch("/api/v1/state?format=json");
-		if (resp.ok) {
-			const data = await resp.json();
-			mtaState = data.stations ?? [];
-		}
-	} catch {
-		// keep empty array
+	if (!mtaPromise) {
+		mtaPromise = (async () => {
+			try {
+				const resp = await fetch("/api/v1/state?format=json");
+				if (resp.ok) {
+					const data = await resp.json();
+					return (data.stations ?? []) as StationState[];
+				}
+			} catch {
+				// keep empty array
+			}
+			return [] as StationState[];
+		})();
 	}
-	return mtaState;
+	return mtaPromise;
 }
 
 function stopAnimation(): void {
@@ -68,7 +71,7 @@ async function configureRunner(
 
 	runner.setLedMap(card.board.ledMap);
 	runner.setStripSizes(card.board.strips);
-	runner.setConfig(card.config);
+	runner.setConfig({ ...card.config, brightness: "255" });
 
 	const stations = await fetchMtaState();
 	runner.setMtaState(stations);
@@ -116,10 +119,12 @@ async function renderInitialFrame(card: CardState): Promise<void> {
 		return;
 	}
 
+	// Show board outline immediately while Lua initializes
+	drawOffState(card.canvas, card.board);
+	card.el.classList.add("preview-ready");
+
 	if (!card.luaSource) {
-		drawOffState(card.canvas, card.board);
 		card.rendered = true;
-		card.el.classList.add("preview-ready");
 		return;
 	}
 
@@ -128,16 +133,11 @@ async function renderInitialFrame(card: CardState): Promise<void> {
 		const ok = await configureRunner(runner, card);
 		if (ok) {
 			await renderOneFrame(runner, card);
-		} else {
-			drawOffState(card.canvas, card.board);
-			card.rendered = true;
-			card.el.classList.add("preview-ready");
 		}
 	} catch {
-		drawOffState(card.canvas, card.board);
-		card.rendered = true;
-		card.el.classList.add("preview-ready");
+		/* off-state already visible */
 	}
+	card.rendered = true;
 }
 
 function parseConfig(raw: string | null | undefined): Record<string, string> {
@@ -172,6 +172,7 @@ export async function initPreviews(
 			config,
 			board: null,
 			rendered: false,
+			rendering: false,
 			enterHandler: () => {},
 			leaveHandler: () => {},
 		};
@@ -190,14 +191,15 @@ export async function initPreviews(
 		cards.push(card);
 	}
 
-	// Render initial frames using IntersectionObserver for deferred loading
-	const pending = new Set(cards);
+	// Serialize all initial renders through a single queue so the shared
+	// Lua runner is never configured by two cards concurrently.
+	let renderQueue = Promise.resolve();
 
-	const renderVisible = async (visibleCards: CardState[]) => {
+	const renderVisible = (visibleCards: CardState[]) => {
 		for (const card of visibleCards) {
-			if (card.rendered) continue;
-			pending.delete(card);
-			await renderInitialFrame(card);
+			if (card.rendered || card.rendering) continue;
+			card.rendering = true;
+			renderQueue = renderQueue.then(() => renderInitialFrame(card));
 		}
 	};
 
@@ -224,7 +226,7 @@ export async function initPreviews(
 		// where the initial IntersectionObserver callback may not fire).
 		requestAnimationFrame(() => {
 			const eager = cards.filter((c) => {
-				if (c.rendered) return false;
+				if (c.rendered || c.rendering) return false;
 				const rect = c.el.getBoundingClientRect();
 				return rect.top < window.innerHeight + 200 && rect.bottom > -200;
 			});
