@@ -50,6 +50,7 @@ templ Nav(user *model.User, activePath string) {
 					</button>
 					<!-- Mobile Menu Button -->
 					<button
+						data-testid="mobile-menu-toggle"
 						@click="toggle()"
 						class="md:hidden size-8 rounded-md bg-bg-surface-raised border border-border-subtle flex items-center justify-center hover:border-border-hover transition-colors"
 					>
@@ -64,7 +65,7 @@ templ Nav(user *model.User, activePath string) {
 			</div>
 		</div>
 		<!-- Mobile Menu -->
-		<div x-show="open" x-transition class="md:hidden glass border-0 border-t border-border-subtle overflow-hidden">
+		<div data-testid="mobile-menu" x-show="open" x-transition class="md:hidden glass border-0 border-t border-border-subtle overflow-hidden">
 			<div class="px-5 py-4 space-y-1">
 				for _, link := range navLinks {
 					<a

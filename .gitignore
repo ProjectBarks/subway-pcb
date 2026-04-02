@@ -42,6 +42,7 @@ firmware/test/build/
 firmware/test/conformance
 firmware/test/e2e
 firmware/test/stress
+firmware/test/serial_spec
 
 # Test reports
 .test/
