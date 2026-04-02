@@ -14,24 +14,27 @@ PROTO_OBJ  := build/proto/subway.pb.o
 
 ALLURE_RESULTS ?=
 ifdef ALLURE_RESULTS
-JUNIT_CONFORMANCE := --junit $(ALLURE_RESULTS)/fw-conformance.xml
-JUNIT_E2E         := --junit $(ALLURE_RESULTS)/fw-e2e.xml
-JUNIT_STRESS      := --junit $(ALLURE_RESULTS)/fw-stress.xml
+JUNIT_CONFORMANCE   := --junit $(ALLURE_RESULTS)/fw-conformance.xml
+JUNIT_E2E           := --junit $(ALLURE_RESULTS)/fw-e2e.xml
+JUNIT_STRESS        := --junit $(ALLURE_RESULTS)/fw-stress.xml
+JUNIT_SERIAL_SPEC   := --junit $(ALLURE_RESULTS)/fw-serial-spec.xml
 else
-JUNIT_CONFORMANCE :=
-JUNIT_E2E         :=
-JUNIT_STRESS      :=
+JUNIT_CONFORMANCE   :=
+JUNIT_E2E           :=
+JUNIT_STRESS        :=
+JUNIT_SERIAL_SPEC   :=
 endif
 
 .PHONY: test clean
 
-test: conformance e2e stress
+test: conformance e2e stress serial_spec
 ifdef ALLURE_RESULTS
 	mkdir -p $(ALLURE_RESULTS)
 endif
 	./conformance ../../tests/lua-conformance/ $(JUNIT_CONFORMANCE)
 	./e2e $(JUNIT_E2E)
 	./stress $(JUNIT_STRESS)
+	./serial_spec $(JUNIT_SERIAL_SPEC)
 
 # --- Lua objects ---
 build/lua:
@@ -77,5 +80,9 @@ stress: test_stress.cpp stubs.cpp $(LUA_OBJ) $(NANOPB_OBJ) $(PROTO_OBJ) build/bo
 		../src/proto/codec.cpp \
 		$(LUA_OBJ) $(NANOPB_OBJ) $(PROTO_OBJ) build/board_snapshot.o -lm -lpthread
 
+# --- Serial spec parity test (no firmware deps, just JSON parsing) ---
+serial_spec: test_serial_commands.cpp
+	$(CXX) -std=c++20 -Wall -Wextra -o $@ test_serial_commands.cpp
+
 clean:
-	rm -rf conformance e2e stress build
+	rm -rf conformance e2e stress serial_spec build

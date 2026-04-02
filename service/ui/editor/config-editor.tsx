@@ -53,6 +53,7 @@ export function ConfigFieldEditor({
 						stroke="currentColor"
 						stroke-width="2"
 					>
+						<title>Add</title>
 						<path d="M5 12h14" />
 						<path d="M12 5v14" />
 					</svg>
@@ -96,28 +97,32 @@ export function ConfigFieldRow({
 			<div class="flex items-start gap-3">
 				<div class="flex-1 grid grid-cols-2 gap-3">
 					<div>
-						<label class="text-text-muted text-xs block mb-1">Key</label>
-						<input
-							type="text"
-							value={field.key}
-							onInput={(e) =>
-								onChange({ key: (e.target as HTMLInputElement).value })
-							}
-							placeholder="e.g. bg_color"
-							class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
-						/>
+						<label class="text-text-muted text-xs block mb-1">
+							Key
+							<input
+								type="text"
+								value={field.key}
+								onInput={(e) =>
+									onChange({ key: (e.target as HTMLInputElement).value })
+								}
+								placeholder="e.g. bg_color"
+								class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
+							/>
+						</label>
 					</div>
 					<div>
-						<label class="text-text-muted text-xs block mb-1">Label</label>
-						<input
-							type="text"
-							value={field.label}
-							onInput={(e) =>
-								onChange({ label: (e.target as HTMLInputElement).value })
-							}
-							placeholder="e.g. Background"
-							class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
-						/>
+						<label class="text-text-muted text-xs block mb-1">
+							Label
+							<input
+								type="text"
+								value={field.label}
+								onInput={(e) =>
+									onChange({ label: (e.target as HTMLInputElement).value })
+								}
+								placeholder="e.g. Background"
+								class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
+							/>
+						</label>
 					</div>
 				</div>
 				<button
@@ -133,6 +138,7 @@ export function ConfigFieldRow({
 						stroke="currentColor"
 						stroke-width="2"
 					>
+						<title>Delete</title>
 						<path d="M3 6h18" />
 						<path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
 						<path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -141,88 +147,99 @@ export function ConfigFieldRow({
 			</div>
 			<div class="grid grid-cols-3 gap-3">
 				<div>
-					<label class="text-text-muted text-xs block mb-1">Type</label>
-					<select
-						value={field.type}
-						onChange={(e) => {
-							const type = (e.target as HTMLSelectElement)
-								.value as ConfigField["type"];
-							const updates: Partial<ConfigField> = { type };
-							if (type === "color") updates.default = "#ffffff";
-							else if (type === "number") updates.default = "0";
-							else updates.default = "";
-							onChange(updates);
-						}}
-						class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
-					>
-						<option value="color">Color</option>
-						<option value="number">Number</option>
-						<option value="select">Select</option>
-					</select>
+					<label class="text-text-muted text-xs block mb-1">
+						Type
+						<select
+							value={field.type}
+							onChange={(e) => {
+								const type = (e.target as HTMLSelectElement)
+									.value as ConfigField["type"];
+								const updates: Partial<ConfigField> = { type };
+								if (type === "color") updates.default = "#ffffff";
+								else if (type === "number") updates.default = "0";
+								else updates.default = "";
+								onChange(updates);
+							}}
+							class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
+						>
+							<option value="color">Color</option>
+							<option value="number">Number</option>
+							<option value="select">Select</option>
+						</select>
+					</label>
 				</div>
 				<div>
-					<label class="text-text-muted text-xs block mb-1">Default</label>
-					{field.type === "color" ? (
-						<div class="flex items-center gap-2">
+					{/* biome-ignore lint/a11y/noLabelWithoutControl: input is nested inside label via conditional branches */}
+					<label class="text-text-muted text-xs block mb-1">
+						Default
+						{field.type === "color" ? (
+							<div class="flex items-center gap-2">
+								<input
+									type="color"
+									value={field.default}
+									onInput={(e) =>
+										onChange({ default: (e.target as HTMLInputElement).value })
+									}
+									class="h-9 w-9 rounded-lg border border-border-subtle bg-transparent cursor-pointer"
+								/>
+								<span class="text-text-secondary text-xs font-mono">
+									{field.default}
+								</span>
+							</div>
+						) : (
 							<input
-								type="color"
+								type={field.type === "number" ? "number" : "text"}
 								value={field.default}
 								onInput={(e) =>
 									onChange({ default: (e.target as HTMLInputElement).value })
 								}
-								class="h-9 w-9 rounded-lg border border-border-subtle bg-transparent cursor-pointer"
+								class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
 							/>
-							<span class="text-text-secondary text-xs font-mono">
-								{field.default}
-							</span>
-						</div>
-					) : (
-						<input
-							type={field.type === "number" ? "number" : "text"}
-							value={field.default}
-							onInput={(e) =>
-								onChange({ default: (e.target as HTMLInputElement).value })
-							}
-							class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
-						/>
-					)}
+						)}
+					</label>
 				</div>
 				<div>
-					<label class="text-text-muted text-xs block mb-1">Group</label>
-					<input
-						type="text"
-						value={field.group}
-						onInput={(e) =>
-							onChange({ group: (e.target as HTMLInputElement).value })
-						}
-						placeholder="e.g. Colors"
-						class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
-					/>
+					<label class="text-text-muted text-xs block mb-1">
+						Group
+						<input
+							type="text"
+							value={field.group}
+							onInput={(e) =>
+								onChange({ group: (e.target as HTMLInputElement).value })
+							}
+							placeholder="e.g. Colors"
+							class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
+						/>
+					</label>
 				</div>
 			</div>
 			{field.type === "number" && (
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="text-text-muted text-xs block mb-1">Min</label>
-						<input
-							type="number"
-							value={field.min}
-							onInput={(e) =>
-								onChange({ min: (e.target as HTMLInputElement).value })
-							}
-							class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
-						/>
+						<label class="text-text-muted text-xs block mb-1">
+							Min
+							<input
+								type="number"
+								value={field.min}
+								onInput={(e) =>
+									onChange({ min: (e.target as HTMLInputElement).value })
+								}
+								class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
+							/>
+						</label>
 					</div>
 					<div>
-						<label class="text-text-muted text-xs block mb-1">Max</label>
-						<input
-							type="number"
-							value={field.max}
-							onInput={(e) =>
-								onChange({ max: (e.target as HTMLInputElement).value })
-							}
-							class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
-						/>
+						<label class="text-text-muted text-xs block mb-1">
+							Max
+							<input
+								type="number"
+								value={field.max}
+								onInput={(e) =>
+									onChange({ max: (e.target as HTMLInputElement).value })
+								}
+								class="w-full h-9 px-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
+							/>
+						</label>
 					</div>
 				</div>
 			)}
@@ -230,20 +247,20 @@ export function ConfigFieldRow({
 				<div>
 					<label class="text-text-muted text-xs block mb-1">
 						Options (one per line)
+						<textarea
+							value={(field.options || []).join("\n")}
+							onInput={(e) =>
+								onChange({
+									options: (e.target as HTMLTextAreaElement).value
+										.split("\n")
+										.filter(Boolean),
+								})
+							}
+							rows={3}
+							placeholder={"option1\noption2\noption3"}
+							class="w-full p-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent-gold"
+						/>
 					</label>
-					<textarea
-						value={(field.options || []).join("\n")}
-						onInput={(e) =>
-							onChange({
-								options: (e.target as HTMLTextAreaElement).value
-									.split("\n")
-									.filter(Boolean),
-							})
-						}
-						rows={3}
-						placeholder={"option1\noption2\noption3"}
-						class="w-full p-3 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent-gold"
-					/>
 				</div>
 			)}
 		</div>

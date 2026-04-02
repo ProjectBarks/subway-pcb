@@ -4,6 +4,9 @@ import { loadBoardData } from "../lib/board-data";
 import { type BoardViewerHandle, initBoardViewer } from "../lib/board-viewer";
 import { LuaRunner } from "../lib/lua-runner";
 import { pollMtaState } from "../lib/mta-polling";
+import { ping } from "../lib/serial/device";
+import { uploadScript } from "../lib/serial/script";
+import { SerialProtocol } from "../lib/serial/serial-protocol";
 import { pluginsApi } from "./api";
 import { CodeEditor } from "./code-editor";
 import { ConfigFieldEditor } from "./config-editor";
@@ -79,6 +82,7 @@ function EditorPreview({
 						stroke="currentColor"
 						stroke-width="2"
 					>
+						<title>Preview</title>
 						<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
 						<circle cx="12" cy="12" r="3" />
 					</svg>
@@ -113,6 +117,10 @@ function EditorApp() {
 	const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 	const [editingName, setEditingName] = useState<string | null>(null);
 	const [editingNameValue, setEditingNameValue] = useState("");
+	const [serialProtocol, setSerialProtocol] = useState<SerialProtocol | null>(
+		null,
+	);
+	const [pushing, setPushing] = useState(false);
 
 	const luaRunnerRef = useRef<LuaRunner | null>(null);
 	const animFrameRef = useRef<number>(0);
@@ -315,6 +323,36 @@ function EditorApp() {
 		renderLoop();
 	};
 
+	const handlePushToBoard = async () => {
+		if (!selectedPlugin) return;
+
+		setPushing(true);
+		try {
+			let protocol = serialProtocol;
+
+			// Connect if not already connected
+			if (!protocol || !protocol.connected) {
+				protocol = new SerialProtocol();
+				await protocol.connect();
+				await ping(protocol);
+				setSerialProtocol(protocol);
+			}
+
+			// Upload the current script
+			const result = await uploadScript(protocol, selectedPlugin.lua_source);
+
+			addConsoleMessage(
+				"success",
+				`Script pushed to board (${result.size} bytes)`,
+			);
+		} catch (e: unknown) {
+			const msg = e instanceof Error ? e.message : String(e);
+			addConsoleMessage("error", `Push failed: ${msg}`);
+		} finally {
+			setPushing(false);
+		}
+	};
+
 	return (
 		<div class="flex w-full">
 			{/* Mobile sidebar overlay */}
@@ -343,6 +381,7 @@ function EditorApp() {
 							stroke="currentColor"
 							stroke-width="2"
 						>
+							<title>New Plugin</title>
 							<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
 							<polyline points="14 2 14 8 20 8" />
 							<path d="M10 12l-2 2 2 2" />
@@ -446,6 +485,7 @@ function EditorApp() {
 												stroke="currentColor"
 												stroke-width="2"
 											>
+												<title>Rename</title>
 												<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
 											</svg>
 										</button>
@@ -465,6 +505,7 @@ function EditorApp() {
 												stroke="currentColor"
 												stroke-width="2"
 											>
+												<title>Delete</title>
 												<path d="M3 6h18" />
 												<path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
 												<path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -484,6 +525,7 @@ function EditorApp() {
 									stroke="currentColor"
 									stroke-width="2"
 								>
+									<title>Plugin</title>
 									<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
 									<polyline points="14 2 14 8 20 8" />
 									<path d="M10 12l-2 2 2 2" />
@@ -517,6 +559,7 @@ function EditorApp() {
 											stroke="currentColor"
 											stroke-width="2"
 										>
+											<title>Menu</title>
 											<line x1="4" x2="20" y1="12" y2="12" />
 											<line x1="4" x2="20" y1="6" y2="6" />
 											<line x1="4" x2="20" y1="18" y2="18" />
@@ -542,6 +585,7 @@ function EditorApp() {
 													stroke="currentColor"
 													stroke-width="2"
 												>
+													<title>Saved</title>
 													<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
 													<path d="m9 11 3 3L22 4" />
 												</svg>
@@ -557,6 +601,7 @@ function EditorApp() {
 													stroke="currentColor"
 													stroke-width="2"
 												>
+													<title>Unsaved</title>
 													<circle cx="12" cy="12" r="10" />
 													<polyline points="12 6 12 12 16 14" />
 												</svg>
@@ -572,6 +617,7 @@ function EditorApp() {
 													stroke="currentColor"
 													stroke-width="2"
 												>
+													<title>Saving</title>
 													<circle cx="12" cy="12" r="10" />
 													<polyline points="12 6 12 12 16 14" />
 												</svg>
@@ -587,6 +633,7 @@ function EditorApp() {
 													stroke="currentColor"
 													stroke-width="2"
 												>
+													<title>Error</title>
 													<circle cx="12" cy="12" r="10" />
 													<line x1="12" x2="12" y1="8" y2="12" />
 													<line x1="12" x2="12.01" y1="16" y2="16" />
@@ -609,6 +656,7 @@ function EditorApp() {
 												fill="currentColor"
 												stroke="none"
 											>
+												<title>Stop</title>
 												<rect x="6" y="4" width="4" height="16" />
 												<rect x="14" y="4" width="4" height="16" />
 											</svg>
@@ -619,6 +667,7 @@ function EditorApp() {
 												fill="currentColor"
 												stroke="none"
 											>
+												<title>Run</title>
 												<polygon points="6 3 20 12 6 21 6 3" />
 											</svg>
 										)}
@@ -639,12 +688,55 @@ function EditorApp() {
 											stroke="currentColor"
 											stroke-width="2"
 										>
+											<title>Save</title>
 											<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
 											<path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
 											<path d="M7 3v4a1 1 0 0 0 1 1h7" />
 										</svg>
 										<span class="hidden sm:inline">Save</span>
 									</button>
+									{"serial" in navigator && (
+										<button
+											type="button"
+											onClick={handlePushToBoard}
+											disabled={pushing || !selectedPlugin}
+											class="h-10 px-4 md:px-6 bg-bg-surface border border-border-subtle rounded-full text-text-primary hover:border-border-hover transition-colors flex items-center gap-2 disabled:opacity-50 text-sm"
+											title="Push script to board via USB"
+										>
+											{pushing ? (
+												<>
+													<svg
+														class="size-4 animate-spin"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+													>
+														<title>Pushing</title>
+														<path d="M21 12a9 9 0 1 1-6.219-8.56" />
+													</svg>
+													<span class="hidden sm:inline">Pushing...</span>
+												</>
+											) : (
+												<>
+													<svg
+														class="size-4"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+													>
+														<title>Push to Board</title>
+														<path d="M12 5v14M5 12h14" />
+														<rect x="6" y="16" width="12" height="4" rx="1" />
+													</svg>
+													<span class="hidden sm:inline">Push to Board</span>
+												</>
+											)}
+										</button>
+									)}
 									<button
 										type="button"
 										onClick={publishPlugin}
@@ -658,6 +750,7 @@ function EditorApp() {
 											stroke="currentColor"
 											stroke-width="2"
 										>
+											<title>Publish</title>
 											<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
 											<polyline points="16 6 12 2 8 6" />
 											<line x1="12" x2="12" y1="2" y2="15" />
@@ -716,38 +809,38 @@ function EditorApp() {
 											<div>
 												<label class="text-text-muted block mb-2">
 													Description
+													<textarea
+														placeholder="Describe what this plugin does..."
+														rows={4}
+														value={selectedPlugin.description}
+														onInput={(e) =>
+															updatePlugin({
+																description: (e.target as HTMLTextAreaElement)
+																	.value,
+															})
+														}
+														class="w-full p-4 bg-bg-surface border border-border-subtle rounded-lg text-text-primary placeholder:text-text-muted resize-none focus:outline-none focus:ring-1 focus:ring-accent-gold"
+													/>
 												</label>
-												<textarea
-													placeholder="Describe what this plugin does..."
-													rows={4}
-													value={selectedPlugin.description}
-													onInput={(e) =>
-														updatePlugin({
-															description: (e.target as HTMLTextAreaElement)
-																.value,
-														})
-													}
-													class="w-full p-4 bg-bg-surface border border-border-subtle rounded-lg text-text-primary placeholder:text-text-muted resize-none focus:outline-none focus:ring-1 focus:ring-accent-gold"
-												/>
 											</div>
 											<div>
 												<label class="text-text-muted block mb-2">
 													Category
+													<select
+														value={selectedPlugin.category}
+														onChange={(e) =>
+															updatePlugin({
+																category: (e.target as HTMLSelectElement).value,
+															})
+														}
+														class="w-full h-10 px-4 bg-bg-surface border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-gold"
+													>
+														<option value="ambient">Ambient</option>
+														<option value="data-driven">Data-Driven</option>
+														<option value="reactive">Reactive</option>
+														<option value="artistic">Artistic</option>
+													</select>
 												</label>
-												<select
-													value={selectedPlugin.category}
-													onChange={(e) =>
-														updatePlugin({
-															category: (e.target as HTMLSelectElement).value,
-														})
-													}
-													class="w-full h-10 px-4 bg-bg-surface border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-accent-gold"
-												>
-													<option value="ambient">Ambient</option>
-													<option value="data-driven">Data-Driven</option>
-													<option value="reactive">Reactive</option>
-													<option value="artistic">Artistic</option>
-												</select>
 											</div>
 										</div>
 									)}
@@ -818,6 +911,7 @@ function EditorApp() {
 									stroke="currentColor"
 									stroke-width="2"
 								>
+									<title>Code Editor</title>
 									<path d="m18 16 4-4-4-4" />
 									<path d="m6 8-4 4 4 4" />
 									<path d="m14.5 4-5 16" />
@@ -839,6 +933,7 @@ function EditorApp() {
 									stroke="currentColor"
 									stroke-width="2"
 								>
+									<title>Create</title>
 									<path d="M5 12h14" />
 									<path d="M12 5v14" />
 								</svg>

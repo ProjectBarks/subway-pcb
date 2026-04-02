@@ -1,5 +1,6 @@
 #pragma once
 #include <climits>
+#include <cstddef>
 #include <cstdint>
 
 // Buffer ceilings
@@ -39,3 +40,12 @@ static constexpr uint32_t kOtaCheckIntervalMin = 60;
 static constexpr uint32_t kLuaMaxMem = 30 * 1024;
 static constexpr uint32_t kLuaMaxInstructions = 0;
 static constexpr uint32_t kMaxConsecutiveFailures = 5;
+
+// Serial
+static constexpr size_t kSerialLineBufSize = 256;
+static constexpr size_t kSerialResponseBufSize = 512;
+static constexpr size_t kScriptMaxSize = 16384; // 16KB max Lua script
+static constexpr int kScriptTransferTimeoutSec = 30;
+static constexpr int kWifiTimeoutSec = 30;
+static constexpr int kFactoryResetNonceTtlSec = 10;
+static constexpr int kSerialProtocolVersion = 1;

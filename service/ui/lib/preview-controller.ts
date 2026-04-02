@@ -106,6 +106,7 @@ async function startAnimation(card: CardState): Promise<void> {
 		const pixels = await runner.render();
 		if (activeAnimCard !== card) return;
 		const { ctx, w, h } = setupCanvas(card.canvas);
+		// biome-ignore lint/style/noNonNullAssertion: board is guaranteed set before animation starts
 		drawLeds(ctx, pixels, card.board!, w, h);
 		animFrameId = requestAnimationFrame(loop);
 	};

@@ -3,99 +3,593 @@ package board
 import "github.com/ProjectBarks/subway-pcb/service/ui/components"
 
 templ BoardSettingsContent(data BoardData) {
-	<div class="space-y-6">
-		<!-- Board Name -->
-		<div class="glass rounded-2xl overflow-hidden">
-			<div class="p-6 border-b border-border-subtle">
-				<div class="flex items-center gap-3">
-					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center">
-						@components.Icon("settings", "size-5 text-accent-gold")
-					</div>
-					<div>
-						<h3 class="text-base font-semibold text-text-primary">Board Info</h3>
-						<p class="text-xs text-text-muted">Configure your board</p>
-					</div>
-				</div>
+	<!-- Disconnected State -->
+	<div
+		x-show="!$store.serial.connected"
+		x-transition:enter="transition ease-out duration-300 delay-200"
+		x-transition:enter-start="opacity-0 scale-95"
+		x-transition:enter-end="opacity-100 scale-100"
+		class="glass rounded-2xl p-10 text-center"
+	>
+		<div class="mx-auto mb-6 size-20 rounded-2xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center animate-pulse-subtle">
+			@components.Icon("usb", "size-10 text-accent-gold")
+		</div>
+		<h3 class="text-xl font-semibold text-text-primary mb-2">Connect Your Board</h3>
+		<p class="text-sm text-text-secondary mb-6 max-w-sm mx-auto">
+			Plug in your board via USB to configure WiFi, update firmware, and manage settings directly from your browser.
+		</p>
+		<button data-serial-connect class="btn-primary mx-auto inline-flex items-center gap-2 px-6">
+			@components.Icon("usb", "size-4")
+			Connect via USB
+		</button>
+		<p class="text-xs text-text-muted mt-4">Requires Chrome, Edge, or Opera with Web Serial API support.</p>
+	</div>
+	<!-- Connected State -->
+	<div
+		x-show="$store.serial.connected"
+		x-cloak
+		x-transition:enter="transition ease-out duration-500"
+		x-transition:enter-start="opacity-0"
+		x-transition:enter-end="opacity-100"
+		class="space-y-6"
+	>
+		<!-- Connection Bar -->
+		<div class="xyz-in">
+			<div class="glass rounded-2xl px-5 py-3 flex items-center gap-3 flex-wrap">
+				<span class="size-3 rounded-full bg-status-online animate-status-glow shrink-0"></span>
+				<span class="text-sm font-medium text-text-primary">Connected via USB</span>
+				<span class="w-px h-4 bg-border-subtle hidden sm:block"></span>
+				<span class="text-xs font-mono text-text-secondary" x-text="$store.serial.info?.mac || '—'"></span>
+				<button
+					class="ml-auto btn-outline h-8 px-3 text-xs inline-flex items-center gap-1.5"
+					@click="if ($store.serial.protocol) { $store.serial.protocol.disconnect(); $store.serial.connected = false; $store.serial.protocol = null; $store.serial.info = null; }"
+				>
+					@components.Icon("unplug", "size-3.5")
+					Disconnect
+				</button>
 			</div>
-			<div class="p-6 space-y-4">
-				<div>
-					<label class="block text-xs font-medium text-text-secondary mb-2">Board Name</label>
-					<input
-						type="text"
-						value={ data.Device.Name }
-						placeholder="Unnamed board"
-						hx-put={ "/boards/" + data.Device.MAC + "/name" }
-						hx-trigger="blur changed, keyup[keyCode==13]"
-						hx-vals="js:{&quot;name&quot;: event.target.value}"
-						hx-target="#controls"
-						hx-swap="outerHTML"
-						class="input w-full"
-					/>
-				</div>
-				<div class="bg-bg-surface-raised/50 rounded-xl p-4 border border-border-subtle">
-					<div class="flex items-center justify-between mb-2">
-						<span class="text-xs text-text-muted">MAC Address</span>
-						<span class="text-sm font-mono text-text-secondary">{ data.Device.MAC }</span>
+		</div>
+		<!-- Device Info Panel -->
+		<div class="xyz-in" x-data="{ open: true }">
+			<div class="glass rounded-2xl overflow-hidden">
+				<button
+					class="w-full p-6 flex items-center gap-3 text-left"
+					@click="open = !open"
+				>
+					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center shrink-0">
+						@components.Icon("cpu", "size-5 text-accent-gold")
 					</div>
-					<div class="flex items-center justify-between">
-						<span class="text-xs text-text-muted">Active Plugin</span>
-						<span class="text-sm text-text-secondary">{ data.ActivePluginName() }</span>
+					<div class="flex-1 min-w-0">
+						<h3 class="text-base font-semibold text-text-primary">Device Info</h3>
+						<p class="text-xs text-text-muted">Hardware and runtime details</p>
+					</div>
+					<span
+						class="transition-transform duration-200 text-text-muted"
+						:class="open && 'rotate-180'"
+					>
+						@components.Icon("chevron-down", "size-5")
+					</span>
+				</button>
+				<div x-show="open" x-transition>
+					<div class="px-6 pb-6">
+						<div class="grid grid-cols-2 gap-x-6 gap-y-3">
+							<div class="flex items-center justify-between col-span-2 sm:col-span-1">
+								<span class="text-xs text-text-muted">MAC Address</span>
+								<span class="text-sm font-mono text-text-secondary" x-text="$store.serial.info?.mac || '—'"></span>
+							</div>
+							<div class="flex items-center justify-between col-span-2 sm:col-span-1">
+								<span class="text-xs text-text-muted">Firmware</span>
+								<span class="text-sm font-mono font-semibold text-accent-gold" x-text="$store.serial.info?.fw ? 'v' + $store.serial.info.fw : '—'"></span>
+							</div>
+							<div class="flex items-center justify-between col-span-2 sm:col-span-1">
+								<span class="text-xs text-text-muted">Hardware</span>
+								<span class="text-sm text-text-secondary" x-text="$store.serial.info?.hw || '—'"></span>
+							</div>
+							<div class="flex items-center justify-between col-span-2 sm:col-span-1">
+								<span class="text-xs text-text-muted">Free Heap</span>
+								<span class="text-sm font-mono text-text-secondary" x-text="$store.serial.info?.heap ? (($store.serial.info.heap / 1024).toFixed(1) + ' KB') : '—'"></span>
+							</div>
+						</div>
+						<div class="my-4 border-t border-border-subtle"></div>
+						<div class="grid grid-cols-2 gap-x-6 gap-y-3">
+							<div class="flex items-center justify-between col-span-2 sm:col-span-1">
+								<span class="text-xs text-text-muted">WiFi Status</span>
+								<span class="inline-flex items-center gap-1.5">
+									<span
+										class="size-2 rounded-full"
+										:class="$store.serial.info?.wifi ? 'bg-status-online' : 'bg-text-muted'"
+									></span>
+									<span class="text-sm text-text-secondary" x-text="$store.serial.info?.wifi ? 'Connected' : 'Disconnected'"></span>
+								</span>
+							</div>
+							<div class="flex items-center justify-between col-span-2 sm:col-span-1">
+								<span class="text-xs text-text-muted">Active Plugin</span>
+								<span class="text-sm text-text-secondary" x-text="$store.serial.info?.plugin || '—'"></span>
+							</div>
+							<div class="flex items-center justify-between col-span-2 sm:col-span-1">
+								<span class="text-xs text-text-muted">LED Count</span>
+								<span class="text-sm font-mono text-text-secondary" x-text="$store.serial.info?.leds ?? '—'"></span>
+							</div>
+							<div class="flex items-center justify-between col-span-2 sm:col-span-1">
+								<span class="text-xs text-text-muted">Uptime</span>
+								<span class="text-sm font-mono text-text-secondary" x-text="$store.serial.info?.uptime != null ? (Math.floor($store.serial.info.uptime / 60) + 'm ' + ($store.serial.info.uptime % 60) + 's') : '—'"></span>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
 		</div>
-		<!-- WiFi Settings -->
-		<div class="glass rounded-2xl overflow-hidden">
-			<div class="p-6 border-b border-border-subtle">
-				<div class="flex items-center gap-3">
-					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center">
+		<!-- WiFi Panel -->
+		<div class="xyz-in" x-data="wifiPanel">
+			<div class="glass rounded-2xl overflow-hidden">
+				<button
+					class="w-full p-6 flex items-center gap-3 text-left"
+					@click="open = !open"
+				>
+					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center shrink-0">
 						@components.Icon("wifi", "size-5 text-accent-gold")
 					</div>
-					<div>
-						<h3 class="text-base font-semibold text-text-primary">WiFi Settings</h3>
+					<div class="flex-1 min-w-0">
+						<h3 class="text-base font-semibold text-text-primary">WiFi Configuration</h3>
 						<p class="text-xs text-text-muted">Manage wireless connection</p>
 					</div>
-				</div>
-			</div>
-			<div class="p-6">
-				<div id="serial-wifi-panel" class="glass rounded-2xl p-8 text-center">
-					@components.Icon("wifi-off", "size-12 text-text-muted mx-auto mb-4")
-					<h3 class="text-lg font-semibold text-text-primary mb-2">Board Not Connected</h3>
-					<p class="text-sm text-text-secondary mb-4">Connect your board via USB to access settings</p>
-					<button data-serial-connect class="btn-primary mx-auto flex items-center justify-center gap-2">
-						@components.Icon("usb", "size-4")
-						Connect via USB
+					<span
+						class="transition-transform duration-200 text-text-muted"
+						:class="open && 'rotate-180'"
+					>
+						@components.Icon("chevron-down", "size-5")
+					</span>
+				</button>
+				<div x-show="open" x-transition>
+				<div class="px-6 pb-6 space-y-4">
+					<!-- Current WiFi Status -->
+					<div class="bg-bg-surface-raised/50 rounded-xl p-4 border border-border-subtle">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<span
+									class="size-2 rounded-full"
+									:class="wifi.connected ? 'bg-status-online' : 'bg-text-muted'"
+								></span>
+								<span class="text-sm text-text-secondary" x-text="wifi.connected ? wifi.ssid : 'Not connected'"></span>
+							</div>
+							<div class="flex items-center gap-2">
+								<!-- RSSI Bars -->
+								<div class="flex items-end gap-0.5 h-4" x-show="wifi.connected">
+									<div class="w-1 rounded-sm" :class="wifi.rssi > -80 ? 'bg-accent-gold' : 'bg-text-muted/30'" style="height: 25%"></div>
+									<div class="w-1 rounded-sm" :class="wifi.rssi > -70 ? 'bg-accent-gold' : 'bg-text-muted/30'" style="height: 50%"></div>
+									<div class="w-1 rounded-sm" :class="wifi.rssi > -60 ? 'bg-accent-gold' : 'bg-text-muted/30'" style="height: 75%"></div>
+									<div class="w-1 rounded-sm" :class="wifi.rssi > -50 ? 'bg-accent-gold' : 'bg-text-muted/30'" style="height: 100%"></div>
+								</div>
+								<span class="text-xs font-mono text-text-muted" x-show="wifi.connected" x-text="wifi.rssi + ' dBm'"></span>
+							</div>
+						</div>
+						<div class="mt-2 text-xs text-text-muted" x-show="wifi.connected">
+							IP: <span class="font-mono" x-text="wifi.ip"></span>
+						</div>
+					</div>
+					<!-- Scan + Network Select -->
+					<div class="flex gap-2">
+						<button
+							class="btn-outline h-9 px-3 text-xs inline-flex items-center gap-1.5 shrink-0"
+							@click="scan()"
+							:disabled="scanning"
+						>
+							<span :class="scanning && 'animate-spin'">
+								@components.Icon("radar", "size-3.5")
+							</span>
+							Scan
+						</button>
+						<select
+							class="select w-full"
+							x-model="ssid"
+							:disabled="networks.length === 0"
+						>
+							<template x-if="networks.length === 0">
+								<option value="" disabled selected>Select a network</option>
+							</template>
+							<template x-if="networks.length > 0">
+								<option value="">Select a network...</option>
+							</template>
+							<template x-for="net in networks" :key="net.ssid">
+								<option :value="net.ssid" x-text="net.ssid + ' (' + net.rssi + ' dBm)'"></option>
+							</template>
+						</select>
+					</div>
+					<!-- SSID Input -->
+					<div>
+						<label class="block text-xs font-medium text-text-secondary mb-2">SSID</label>
+						<input
+							type="text"
+							class="input w-full"
+							placeholder="Network name"
+							x-model="ssid"
+						/>
+					</div>
+					<!-- Password Input -->
+					<div>
+						<label class="block text-xs font-medium text-text-secondary mb-2">Password</label>
+						<div class="relative">
+							<input
+								:type="show_password ? 'text' : 'password'"
+								class="input w-full pr-10"
+								placeholder="Network password"
+								x-model="password"
+							/>
+							<button
+								type="button"
+								class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-secondary transition-colors"
+								@click="show_password = !show_password"
+							>
+								<template x-if="show_password">
+									@components.Icon("eye-off", "size-4")
+								</template>
+								<template x-if="!show_password">
+									@components.Icon("eye", "size-4")
+								</template>
+							</button>
+						</div>
+					</div>
+					<!-- Save Button -->
+					<button
+						class="btn-primary w-full inline-flex items-center justify-center gap-2"
+						@click="save()"
+						:disabled="!ssid"
+					>
+						@components.Icon("save", "size-4")
+						Save &amp; Reconnect
 					</button>
+				</div>
 				</div>
 			</div>
 		</div>
-		<!-- Firmware Update -->
-		<div class="glass rounded-2xl overflow-hidden">
-			<div class="p-6 border-b border-border-subtle">
-				<div class="flex items-center gap-3">
-					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center">
-						@components.Icon("upload", "size-5 text-accent-gold")
+		<!-- Script Panel -->
+		<div class="xyz-in" x-data="scriptPanel">
+			<div class="glass rounded-2xl overflow-hidden">
+				<button
+					class="w-full p-6 flex items-center gap-3 text-left"
+					@click="open = !open"
+				>
+					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center shrink-0">
+						@components.Icon("file-code", "size-5 text-accent-gold")
 					</div>
-					<div>
-						<h3 class="text-base font-semibold text-text-primary">Firmware Update</h3>
-						<p class="text-xs text-text-muted">Upload new firmware to your board</p>
+					<div class="flex-1 min-w-0">
+						<h3 class="text-base font-semibold text-text-primary">Active Script</h3>
+						<p class="text-xs text-text-muted">Current plugin running on device</p>
 					</div>
+					<span
+						class="transition-transform duration-200 text-text-muted"
+						:class="open && 'rotate-180'"
+					>
+						@components.Icon("chevron-down", "size-5")
+					</span>
+				</button>
+				<div x-show="open" x-transition>
+				<div class="px-6 pb-6 space-y-4">
+					<!-- Local script -->
+					<template x-if="info?.plugin === 'local'">
+						<div class="bg-bg-surface-raised/50 rounded-xl p-4 border border-border-subtle">
+							<div class="flex items-center justify-between">
+								<div class="flex items-center gap-2">
+									@components.Icon("hard-drive", "size-4 text-accent-gold")
+									<span class="text-sm text-text-primary">Local Script</span>
+								</div>
+								<button
+									class="btn-outline h-7 px-3 text-xs inline-flex items-center gap-1.5"
+									@click="clearScript()"
+								>
+									@components.Icon("trash-2", "size-3")
+									Clear
+								</button>
+							</div>
+							<p class="text-xs text-text-muted mt-2">A Lua script is stored directly on the device.</p>
+						</div>
+					</template>
+					<!-- Server plugin -->
+					<template x-if="info?.plugin === 'server'">
+						<div class="bg-bg-surface-raised/50 rounded-xl p-4 border border-border-subtle">
+							<div class="flex items-center gap-2">
+								@components.Icon("cloud", "size-4 text-accent-gold")
+								<span class="text-sm text-text-primary">Server Plugin</span>
+							</div>
+							<p class="text-xs text-text-muted mt-2">Running a plugin assigned from the server dashboard.</p>
+						</div>
+					</template>
+					<!-- Fallback / none -->
+					<template x-if="!info?.plugin || info?.plugin === 'fallback'">
+						<div class="bg-bg-surface-raised/50 rounded-xl p-4 border border-border-subtle">
+							<div class="flex items-center gap-2">
+								@components.Icon("alert-circle", "size-4 text-text-muted")
+								<span class="text-sm text-text-secondary">No active script</span>
+							</div>
+							<p class="text-xs text-text-muted mt-2">The device is running its built-in fallback animation. Assign a plugin from the dashboard or upload one via the editor.</p>
+						</div>
+					</template>
+				</div>
 				</div>
 			</div>
-			<div class="p-6 space-y-4">
-				<div class="bg-bg-surface-raised/50 rounded-xl p-4 border border-border-subtle">
-					<div class="flex items-center justify-between mb-2">
-						<span class="text-xs text-text-muted">Current Version</span>
-						<span class="text-sm font-mono text-text-secondary">
-							if data.Device.FirmwareVer != "" {
-								v{ data.Device.FirmwareVer }
-							} else {
-								Unknown
-							}
-						</span>
+		</div>
+		<!-- Firmware Panel -->
+		<div class="xyz-in" x-data="firmwarePanel">
+			<div class="glass rounded-2xl overflow-hidden">
+				<button
+					class="w-full p-6 flex items-center gap-3 text-left"
+					@click="open = !open"
+				>
+					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center shrink-0">
+						@components.Icon("upload", "size-5 text-accent-gold")
+					</div>
+					<div class="flex-1 min-w-0">
+						<h3 class="text-base font-semibold text-text-primary">Firmware Update</h3>
+						<p class="text-xs text-text-muted">Flash new firmware to your board</p>
+					</div>
+					<span
+						class="transition-transform duration-200 text-text-muted"
+						:class="open && 'rotate-180'"
+					>
+						@components.Icon("chevron-down", "size-5")
+					</span>
+				</button>
+				<div x-show="open" x-transition>
+				<div class="px-6 pb-6 space-y-5">
+					<!-- Current version badge -->
+					<div class="bg-bg-surface-raised/50 rounded-xl p-4 border border-border-subtle text-center">
+						<span class="text-xs text-text-muted block mb-1">Current Version</span>
+						<span class="text-lg font-mono font-semibold text-accent-gold" x-text="$store.serial.info?.fw ? 'v' + $store.serial.info.fw : '—'"></span>
+					</div>
+					<!-- Compatibility indicators -->
+					<div class="flex items-center gap-3" x-show="releases.length > 0">
+						<div class="flex items-center gap-1.5">
+							<span
+								class="size-2 rounded-full"
+								:class="updateAvailable ? 'bg-accent-gold' : 'bg-status-online'"
+							></span>
+							<span class="text-xs text-text-secondary" x-text="updateAvailable ? 'Update available' : 'Up to date'"></span>
+						</div>
+						<template x-if="protocolMismatch">
+							<div class="flex items-center gap-1.5">
+								<span class="size-2 rounded-full bg-red-400"></span>
+								<span class="text-xs text-red-400">Protocol mismatch</span>
+							</div>
+						</template>
+					</div>
+					<!-- Release select -->
+					<div>
+						<label class="block text-xs font-medium text-text-secondary mb-2">Release</label>
+						<select
+							class="select w-full"
+							x-model="selected"
+							:disabled="loading || flashProgress"
+						>
+							<option value="">
+								<span x-text="loading ? 'Loading releases...' : 'Select a version...'"></span>
+							</option>
+							<template x-for="r in releases" :key="r.tag">
+								<option :value="r.tag" x-text="r.name + ' (' + r.tag + ')'"></option>
+							</template>
+						</select>
+					</div>
+					<!-- Flash button -->
+					<button
+						class="btn-primary w-full inline-flex items-center justify-center gap-2"
+						@click="flash()"
+						:disabled="!selected || flashProgress"
+						x-show="!flashProgress || flashProgress.phase === 'error'"
+					>
+						<template x-if="!flashProgress">
+							<span class="contents">
+								@components.Icon("upload", "size-4")
+								Flash Firmware
+							</span>
+						</template>
+						<template x-if="flashProgress?.phase === 'error'">
+							<span class="contents">
+								@components.Icon("rotate-ccw", "size-4")
+								Retry Flash
+							</span>
+						</template>
+					</button>
+					<!-- Progress stepper -->
+					<div x-show="flashProgress && flashProgress.phase !== 'error'" x-transition class="space-y-4">
+						<!-- Phase dots -->
+						<div class="flex items-center justify-center gap-0">
+							<!-- Connecting -->
+							<div
+								class="size-3 rounded-full transition-colors duration-300"
+								:class="phaseIndex(flashProgress?.phase) >= 0 ? 'bg-accent-gold' : 'bg-text-muted/30'"
+							></div>
+							<div class="w-8 h-0.5 transition-colors duration-300" :class="phaseIndex(flashProgress?.phase) >= 1 ? 'bg-accent-gold' : 'bg-text-muted/30'"></div>
+							<!-- Erasing -->
+							<div
+								class="size-3 rounded-full transition-colors duration-300"
+								:class="phaseIndex(flashProgress?.phase) >= 1 ? 'bg-accent-gold' : 'bg-text-muted/30'"
+							></div>
+							<div class="w-8 h-0.5 transition-colors duration-300" :class="phaseIndex(flashProgress?.phase) >= 2 ? 'bg-accent-gold' : 'bg-text-muted/30'"></div>
+							<!-- Writing -->
+							<div
+								class="size-3 rounded-full transition-colors duration-300"
+								:class="phaseIndex(flashProgress?.phase) >= 2 ? 'bg-accent-gold' : 'bg-text-muted/30'"
+							></div>
+							<div class="w-8 h-0.5 transition-colors duration-300" :class="phaseIndex(flashProgress?.phase) >= 3 ? 'bg-accent-gold' : 'bg-text-muted/30'"></div>
+							<!-- Verifying -->
+							<div
+								class="size-3 rounded-full transition-colors duration-300"
+								:class="phaseIndex(flashProgress?.phase) >= 3 ? 'bg-accent-gold' : 'bg-text-muted/30'"
+							></div>
+							<div class="w-8 h-0.5 transition-colors duration-300" :class="phaseIndex(flashProgress?.phase) >= 4 ? 'bg-accent-gold' : 'bg-text-muted/30'"></div>
+							<!-- Done -->
+							<div
+								class="size-3 rounded-full transition-colors duration-300"
+								:class="phaseIndex(flashProgress?.phase) >= 4 ? 'bg-status-online' : 'bg-text-muted/30'"
+							></div>
+						</div>
+						<!-- Phase labels -->
+						<div class="flex justify-between text-[10px] text-text-muted px-0">
+							<span>Connect</span>
+							<span>Erase</span>
+							<span>Write</span>
+							<span>Verify</span>
+							<span>Done</span>
+						</div>
+						<!-- Progress bar (during writing phase) -->
+						<div x-show="flashProgress?.phase === 'writing'" x-transition>
+							<div class="w-full h-2 bg-bg-surface-raised rounded-full overflow-hidden">
+								<div
+									class="h-full rounded-full flash-progress-bar transition-all duration-300"
+									:style="'width: ' + (flashProgress?.percent || 0) + '%'"
+								></div>
+							</div>
+							<p class="text-xs text-text-muted mt-1 text-center" x-text="flashProgress?.message"></p>
+						</div>
+						<!-- Status message (non-writing phases) -->
+						<p
+							x-show="flashProgress?.phase !== 'writing'"
+							class="text-xs text-text-secondary text-center"
+							x-text="flashProgress?.message"
+						></p>
+					</div>
+					<!-- Error message -->
+					<div
+						x-show="flashProgress?.phase === 'error'"
+						x-transition
+						class="bg-red-500/10 border border-red-500/20 rounded-xl p-3"
+					>
+						<p class="text-xs text-red-400" x-text="flashProgress?.message"></p>
 					</div>
 				</div>
-				<p class="text-xs text-text-secondary">Connect via USB to update firmware</p>
+				</div>
+			</div>
+		</div>
+		<!-- Advanced Panel -->
+		<div class="xyz-in" x-data="advancedPanel">
+			<div class="glass rounded-2xl overflow-hidden">
+				<button
+					class="w-full p-6 flex items-center gap-3 text-left"
+					@click="open = !open; if (open && !data) refresh()"
+				>
+					<div class="size-10 rounded-xl bg-accent-gold/10 border border-accent-gold/20 flex items-center justify-center shrink-0">
+						@components.Icon("settings", "size-5 text-accent-gold")
+					</div>
+					<div class="flex-1 min-w-0">
+						<h3 class="text-base font-semibold text-text-primary">Advanced</h3>
+						<p class="text-xs text-text-muted">Diagnostics, actions, and serial log</p>
+					</div>
+					<span
+						class="transition-transform duration-200 text-text-muted"
+						:class="open && 'rotate-180'"
+					>
+						@components.Icon("chevron-down", "size-5")
+					</span>
+				</button>
+				<div x-show="open" x-transition>
+					<div class="px-6 pb-6 space-y-6">
+						<!-- Device Actions -->
+						<div class="space-y-3">
+							<span class="text-xs font-medium text-text-secondary">Device Actions</span>
+							<div class="flex flex-wrap gap-3">
+								<button
+									class="btn-outline inline-flex items-center gap-2 px-4"
+									@click="testLeds()"
+								>
+									@components.Icon("lightbulb", "size-4")
+									LED Test
+								</button>
+								<button
+									class="btn-outline inline-flex items-center gap-2 px-4"
+									@click="reboot()"
+								>
+									@components.Icon("rotate-ccw", "size-4")
+									Reboot
+								</button>
+								<button
+									class="h-9 px-4 rounded-lg text-sm font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors inline-flex items-center gap-2"
+									@click="factoryReset()"
+								>
+									@components.Icon("alert-triangle", "size-4")
+									Factory Reset
+								</button>
+							</div>
+						</div>
+						<div class="border-t border-border-subtle"></div>
+						<!-- Diagnostics -->
+						<div class="space-y-4">
+							<div class="flex items-center justify-between">
+								<span class="text-xs font-medium text-text-secondary">Diagnostics</span>
+								<button
+									class="btn-outline h-7 px-3 text-xs inline-flex items-center gap-1.5"
+									@click="refresh()"
+								>
+									@components.Icon("refresh-cw", "size-3")
+									Refresh
+								</button>
+							</div>
+							<!-- Metric pills -->
+							<div class="grid grid-cols-2 sm:grid-cols-3 gap-3" x-show="data">
+								<div class="bg-bg-surface-raised/50 rounded-xl p-3 border border-border-subtle text-center">
+									<span class="text-[10px] text-text-muted block mb-1">Free Heap</span>
+									<span class="text-sm font-mono font-semibold text-text-primary metric-value" x-text="formatBytes(data?.heap)"></span>
+								</div>
+								<div class="bg-bg-surface-raised/50 rounded-xl p-3 border border-border-subtle text-center">
+									<span class="text-[10px] text-text-muted block mb-1">Min Heap</span>
+									<span class="text-sm font-mono font-semibold text-text-primary metric-value" x-text="formatBytes(data?.heap_min)"></span>
+								</div>
+								<div class="bg-bg-surface-raised/50 rounded-xl p-3 border border-border-subtle text-center">
+									<span class="text-[10px] text-text-muted block mb-1">Lua Memory</span>
+									<span class="text-sm font-mono font-semibold text-text-primary metric-value" x-text="formatBytes(data?.lua_mem)"></span>
+								</div>
+								<div class="bg-bg-surface-raised/50 rounded-xl p-3 border border-border-subtle text-center">
+									<span class="text-[10px] text-text-muted block mb-1">Render FPS</span>
+									<span class="text-sm font-mono font-semibold text-text-primary metric-value" x-text="data?.render_fps ?? '—'"></span>
+								</div>
+								<div class="bg-bg-surface-raised/50 rounded-xl p-3 border border-border-subtle text-center">
+									<span class="text-[10px] text-text-muted block mb-1">Active LEDs</span>
+									<span class="text-sm font-mono font-semibold text-text-primary metric-value" x-text="data?.nonzero_px ?? '—'"></span>
+								</div>
+								<div class="bg-bg-surface-raised/50 rounded-xl p-3 border border-border-subtle text-center">
+									<span class="text-[10px] text-text-muted block mb-1">Lua Errors</span>
+									<span
+										class="text-sm font-mono font-semibold metric-value"
+										:class="(data?.lua_errors ?? 0) > 0 ? 'text-red-400' : 'text-text-primary'"
+										x-text="data?.lua_errors ?? '—'"
+									></span>
+								</div>
+							</div>
+						</div>
+						<div class="border-t border-border-subtle"></div>
+						<!-- Serial Log Console -->
+						<div>
+							<div class="flex items-center justify-between mb-2">
+								<span class="text-xs font-medium text-text-secondary">Serial Log</span>
+								<button
+									class="text-xs text-text-muted hover:text-text-secondary transition-colors"
+									@click="clearLogs()"
+								>
+									Clear
+								</button>
+							</div>
+							<div
+								class="serial-log-console h-48 bg-black/40 rounded-xl border border-border-subtle p-3 font-mono text-[11px] leading-relaxed overflow-y-auto"
+								x-ref="logConsole"
+								x-effect="if ($store.serial.logs.length) $nextTick(() => { $refs.logConsole.scrollTop = $refs.logConsole.scrollHeight })"
+							>
+								<template x-for="(line, i) in $store.serial.logs" :key="i">
+									<div
+										class="whitespace-pre-wrap break-all"
+										:class="
+											line.includes('ERROR') || line.includes('error') ? 'text-red-400' :
+											line.includes('WARN') || line.includes('warn') ? 'text-yellow-400' :
+											line.includes('INFO') || line.includes('info') ? 'text-blue-400' :
+											'text-text-muted'
+										"
+										x-text="line"
+									></div>
+								</template>
+								<div x-show="$store.serial.logs.length === 0" class="text-text-muted/50 italic">
+									No log output yet...
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>

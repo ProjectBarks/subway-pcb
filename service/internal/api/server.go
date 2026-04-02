@@ -89,7 +89,7 @@ func (s *Server) buildRouter() {
 		// Serve frontend static assets (JS/CSS bundles) when static-dir is set
 		if s.staticDir != "" {
 			fileServer := http.FileServer(http.Dir(s.staticDir))
-			r.Handle("/static/*", http.StripPrefix("/static/", hashedAssetCache(fileServer)))
+			r.Handle("/static/*", http.StripPrefix("/static/", staticCache(fileServer, s.devMode)))
 		}
 
 		// Authenticated routes
@@ -150,13 +150,18 @@ func (s *Server) Handler() http.Handler {
 	return s.router
 }
 
-// hashedAssetCache sets immutable cache headers on content-hashed files
-// (filenames matching *-<hash>.js or *-<hash>.css).
-func hashedAssetCache(next http.Handler) http.Handler {
+// staticCache sets cache headers for static assets. In production,
+// content-hashed files get immutable caching. In dev mode, all assets
+// get no-cache so the browser always revalidates after rebuilds.
+func staticCache(next http.Handler, devMode bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		p := r.URL.Path
-		if ext := filepath.Ext(p); (ext == ".js" || ext == ".css") && strings.Count(filepath.Base(p), "-") > 0 {
-			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		if devMode {
+			w.Header().Set("Cache-Control", "no-cache")
+		} else {
+			p := r.URL.Path
+			if ext := filepath.Ext(p); (ext == ".js" || ext == ".css") && strings.Count(filepath.Base(p), "-") > 0 {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			}
 		}
 		next.ServeHTTP(w, r)
 	})

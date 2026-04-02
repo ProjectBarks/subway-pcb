@@ -6,7 +6,7 @@
 
 /* Alpine.js x-cloak: hide elements until Alpine initialises */
 [x-cloak] {
-	display: none !important;
+	display: none;
 }
 
 /* Scan all templ files and TS source for Tailwind class names */

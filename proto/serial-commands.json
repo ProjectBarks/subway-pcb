@@ -1,0 +1,51 @@
+{
+	"version": 1,
+	"firmware_version": "0.7.0",
+	"commands": [
+		{ "cmd": "PING", "verb": null, "args": null, "response": "string" },
+		{ "cmd": "GET INFO", "verb": "GET", "args": null, "response": "object" },
+		{ "cmd": "GET WIFI", "verb": "GET", "args": null, "response": "object" },
+		{ "cmd": "GET DIAG", "verb": "GET", "args": null, "response": "object" },
+		{
+			"cmd": "SET WIFI_SSID",
+			"verb": "SET",
+			"args": "value",
+			"response": "bool"
+		},
+		{
+			"cmd": "SET WIFI_PASS",
+			"verb": "SET",
+			"args": "value",
+			"response": "bool"
+		},
+		{
+			"cmd": "SET SERVER_URL",
+			"verb": "SET",
+			"args": "value",
+			"response": "bool"
+		},
+		{ "cmd": "DO WIFI_SCAN", "verb": "DO", "args": null, "response": "array" },
+		{ "cmd": "DO WIFI_APPLY", "verb": "DO", "args": null, "response": "bool" },
+		{ "cmd": "DO LED_TEST", "verb": "DO", "args": null, "response": "bool" },
+		{ "cmd": "DO REBOOT", "verb": "DO", "args": null, "response": "bool" },
+		{
+			"cmd": "DO FACTORY_RESET",
+			"verb": "DO",
+			"args": "optional_value",
+			"response": "object"
+		},
+		{
+			"cmd": "DO SCRIPT_BEGIN",
+			"verb": "DO",
+			"args": null,
+			"response": "string"
+		},
+		{
+			"cmd": "DO SCRIPT_CLEAR",
+			"verb": "DO",
+			"args": null,
+			"response": "bool"
+		},
+		{ "cmd": "SCRIPT_END", "verb": null, "args": null, "response": "object" }
+	]
+}

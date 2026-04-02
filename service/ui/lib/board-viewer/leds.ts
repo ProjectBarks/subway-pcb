@@ -52,6 +52,7 @@ export interface LedSystem {
 function createGlowTexture(): CanvasTexture {
 	const c = document.createElement("canvas");
 	c.width = c.height = 64;
+	// biome-ignore lint/style/noNonNullAssertion: 2d context is always available on a freshly created canvas
 	const ctx = c.getContext("2d")!;
 	const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
 	g.addColorStop(0, "rgba(255,255,255,1)");

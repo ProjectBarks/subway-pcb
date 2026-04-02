@@ -35,10 +35,10 @@ export async function loadBoardData(boardUrl: string): Promise<BoardData> {
 	}
 
 	// Compute coordinate bounds from actual positions
-	let minX = Infinity;
-	let maxX = -Infinity;
-	let minY = Infinity;
-	let maxY = -Infinity;
+	let minX = Number.POSITIVE_INFINITY;
+	let maxX = Number.NEGATIVE_INFINITY;
+	let minY = Number.POSITIVE_INFINITY;
+	let maxY = Number.NEGATIVE_INFINITY;
 	for (const pos of positions) {
 		if (pos.x < minX) minX = pos.x;
 		if (pos.x > maxX) maxX = pos.x;
@@ -67,6 +67,7 @@ export function setupCanvas(canvas: HTMLCanvasElement): {
 	const rect = canvas.getBoundingClientRect();
 	canvas.width = rect.width * dpr;
 	canvas.height = rect.height * dpr;
+	// biome-ignore lint/style/noNonNullAssertion: 2d context is always available
 	const ctx = canvas.getContext("2d")!;
 	ctx.scale(dpr, dpr);
 	return { ctx, w: rect.width, h: rect.height };
